@@ -32,7 +32,7 @@ SEARCH_TTL = 24 * 60 * 60 # cache 24h para búsquedas ATV por query
 MAX_WORKERS = 6           # paralelismo I/O-bound razonable
 _cache: dict[str, dict] = {}
 
-cookies_path = os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
+cookies_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "cookies.txt"))
 
 # Reusamos sesión HTTP para keep-alive real, con pool decente
 _SESSION = requests.Session()
@@ -66,6 +66,8 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         "cachedir": os.path.join(tempfile.gettempdir(), "yt_dlp_cache"),
         "retries": 1,
         "extractor_retries": 1,
+        "sleep_requests": 0.3,
+        "cookiefile": cookies_path,
     }
     if not mobile_client and os.path.exists(cookies_path):
         opts["cookiefile"] = cookies_path
