@@ -49,28 +49,22 @@ _SESSION.mount("http://", _adapter)
 _BACKGROUND_EXECUTOR = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
 def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
-    mobile_client = client.lower() in ("android", "ios")
     opts = {
         "format": "bestaudio/best",
         "quiet": True,
         "skip_download": True,
         "noplaylist": True,
-        "extractor_args": {
-            "youtube": {
-                "player_client": [client],
-            },
-            "youtubepot-bgutilhttp": {
-                "base_url": ["https://bgutil-ytdlp-pot-provider-latest.onrender.com"],
-            },
-        },
+        "extractor_args": {"youtube": {"player_client": [client]}},
         "cachedir": os.path.join(tempfile.gettempdir(), "yt_dlp_cache"),
         "retries": 1,
         "extractor_retries": 1,
         "sleep_requests": 0.3,
-        "cookiefile": cookies_path,
+        "cookiefile": cookies_path,   # SIEMPRE
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0",
+            "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
+        },
     }
-    if not mobile_client and os.path.exists(cookies_path):
-        opts["cookiefile"] = cookies_path
     return yt_dlp.YoutubeDL(opts)
 
 def _ttl_from_url(u: str) -> int:
