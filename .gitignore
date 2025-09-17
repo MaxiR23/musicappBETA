@@ -1,0 +1,32 @@
+# Compilados de Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Archivos de virtualenv
+.env
+venv/
+ENV/
+env/
+
+# Paquetes instalados
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments (si usás pipenv/poetry también)
+.venv/
+
+# Variables de entorno y secretos
+.env
+*.local
+
+# Coverage reports
+.coverage
+htmlcov/
+
+# pytest
+.pytest_cache/
