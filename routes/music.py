@@ -51,6 +51,21 @@ _SESSION.mount("http://", _adapter)
 _BACKGROUND_EXECUTOR = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
 def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
+    cookies_inline = """# Netscape HTTP Cookie File
+.youtube.com	TRUE	/	TRUE	0	__Secure-3PSID	g.a0001ggw7Zqioddx-m5rtxTYOzJceCRWKt1gqYhOAyTM97RS-68PvCWsalX0VwkCvZwFn6skOAACgYKASMSARASFQHGX2MiDwwyXPN42b7gpLUty7LK-xoVAUF8yKqkTK-ycet6glaWqKO1ZT2l0076
+.youtube.com	TRUE	/	TRUE	0	__Secure-3PSIDCC	AKEyXzVOKg4DYOpN5YP2gverl-GEGukrGt2Mr_6ThcA_AbJWDAnuhvP46XSiVX6hNPeUO58JSgjU
+.youtube.com	TRUE	/	TRUE	0	VISITOR_INFO1_LIVE	wlUvqMj6iqI
+.youtube.com	TRUE	/	TRUE	0	VISITOR_PRIVACY_METADATA	CgJBUhIEGgAgLA%3D%3D
+.youtube.com	TRUE	/	TRUE	0	__Secure-3PAPISID	XHBTCAKBOTuQ_hnD/AvI5HYRLEv1bwYtUe
+.youtube.com	TRUE	/	TRUE	0	SAPISID	XHBTCAKBOTuQ_hnD/AvI5HYRLEv1bwYtUe
+.youtube.com	TRUE	/	TRUE	0	HSID	ANW6oYmuBCVHddSNq
+.youtube.com	TRUE	/	TRUE	0	SSID	AiePXto1B1beosd0m
+"""
+    # guardamos las cookies en un tmp para que yt-dlp las use
+    tmp_cookiefile = os.path.join(tempfile.gettempdir(), "yt_inline_cookies.txt")
+    with open(tmp_cookiefile, "w", encoding="utf-8") as f:
+        f.write(cookies_inline)
+
     opts = {
         "format": "bestaudio/best",
         "quiet": True,
@@ -61,14 +76,13 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         "retries": 1,
         "extractor_retries": 1,
         "sleep_requests": 0.3,
-        "cookiefile": cookies_path,   # usa cookies.txt si existe
+        "cookiefile": tmp_cookiefile,   # ahora usa el tmp con cookies inline
         "http_headers": {
             "User-Agent": "Mozilla/5.0",
             "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
         },
     }
     return yt_dlp.YoutubeDL(opts)
-
 
 def _ttl_from_url(u: str) -> int:
     try:
