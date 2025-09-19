@@ -297,10 +297,6 @@ def play_song(
 
         print(f"[play] id={id} via client={data.get('client')} ttl≈{approx_ttl}s served={served}")
 
-        if served == 0:
-            range_hdr = request.headers.get("Range")
-            return _stream_from_url(audio_url, range_hdr)
-
         return RedirectResponse(url=audio_url, status_code=307)
 
     except Exception as e:
