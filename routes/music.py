@@ -109,7 +109,7 @@ def _extract_best_url(video_id: str):
     Intentamos primero clientes móviles (rápidos para m4a/140),
     luego variantes web como fallback.
     """
-    for client in ("android", "ios", "web_music", "mweb", "web"):
+    for client in ("android", "ios", "mweb", "web"):
         try:
             ydl = _ydl_for(client)
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
