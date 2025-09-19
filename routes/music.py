@@ -66,12 +66,17 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
     with open(tmp_cookiefile, "w", encoding="utf-8") as f:
         f.write(cookies_inline)
 
-    opts = {
+        opts = {
         "format": "bestaudio/best",
         "quiet": True,
         "skip_download": True,
         "noplaylist": True,
-        "extractor_args": {"youtube": {"player_client": [client]}},
+        "extractor_args": {
+            "youtube": {
+                "player_client": [client],
+                "po_token_providers": ["https://bgutil-ytdlp-pot-provider-latest.onrender.com"]
+            }
+        },
         "cachedir": os.path.join(tempfile.gettempdir(), "yt_dlp_cache"),
         "retries": 1,
         "extractor_retries": 1,
@@ -82,6 +87,7 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
             "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
         },
     }
+
     return yt_dlp.YoutubeDL(opts)
 
 def _ttl_from_url(u: str) -> int:
