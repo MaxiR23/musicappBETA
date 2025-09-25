@@ -32,9 +32,31 @@ SEARCH_TTL = 24 * 60 * 60 # cache 24h para búsquedas ATV por query
 MAX_WORKERS = 6           # paralelismo I/O-bound razonable
 _cache: dict[str, dict] = {}
 
-cookies_path = os.path.join(
-    "/opt/render/project/src", "cookies.txt"
-) if os.environ.get("RENDER") else os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "cookies.txt"))
+# --- arriba del archivo, junto a imports/globales ---
+# Creamos UNA SOLA vez el cookiefile para yt_dlp (evita I/O por request)
+_COOKIES_INLINE = """# Netscape HTTP Cookie File
+.youtube.com	TRUE	/	TRUE	0	SID	g.a0001ggw7Zqioddx-m5rtxTYOzJceCRWKt1gqYhOAyTM97RS-68PCVPM1EyuVixyN8eIeY8MjwACgYKAY4SARASFQHGX2MicEq2BkN7haZ8dGyKKLKbmxoVAUF8yKodte32gXvRe2VWu4lDK7Z_0076
+.youtube.com	TRUE	/	TRUE	0	APISID	ScMc5qM3CynO_tXv/ANr1i1XLcgzRcfMKr
+.youtube.com	TRUE	/	TRUE	0	LOGIN_INFO	AFmmF2swRQIhAP2bVZz0TWrixuq1UcjEeczVcW5uO5PJ5I7w6K_ES1jLAiB32CjBF8IIwfZ47QRMDJajMdZ4oQrxvxutLK-52WUA-w:QUQ3MjNmeEJ0VTBmejhzZWNKSTFjYVgyeGp1bTNwcVdGUXRsTkNodkIwVkpPTDdnQjN6S0ZPX0dLT2RndUVILUgtNVFKWVdLblVGbHdfeFduOXdac19JLTBKVEtFb2FVUGFRZGNCUnVrbzE4WlJOdW1ibDNrSzR5Vk1DdDZPaXp2ZHdfSmtNbUExVTZqdFlMdFJyR2pQVXlxdDhCcnhwdjRn
+.youtube.com	TRUE	/	TRUE	0	YSC	huTQNsP2Cck
+.youtube.com	TRUE	/	TRUE	0	PREF	f6=40000080&f7=4000&tz=America.Buenos_Aires&autoplay=true
+.youtube.com	TRUE	/	TRUE	0	__Secure-3PSID	g.a0001ggw7Zqioddx-m5rtxTYOzJceCRWKt1gqYhOAyTM97RS-68PvCWsalX0VwkCvZwFn6skOAACgYKASMSARASFQHGX2MiDwwyXPN42b7gpLUty7LK-xoVAUF8yKqkTK-ycet6glaWqKO1ZT2l0076
+.youtube.com	TRUE	/	TRUE	0	__Secure-3PSIDCC	AKEyXzVbY-KHj7ydwfZerlEtowAJwBgZGW-NhmIQlTql6n2sv86cE-chv9DuG8S1tFCxtDqq30l4
+.youtube.com	TRUE	/	TRUE	0	VISITOR_INFO1_LIVE	wlUvqMj6iqI
+.youtube.com	TRUE	/	TRUE	0	VISITOR_PRIVACY_METADATA	CgJBUhIEGgAgLA%3D%3D
+.youtube.com	TRUE	/	TRUE	0	__Secure-3PAPISID	XHBTCAKBOTuQ_hnD/AvI5HYRLEv1bwYtUe
+.youtube.com	TRUE	/	TRUE	0	SAPISID	XHBTCAKBOTuQ_hnD/AvI5HYRLEv1bwYtUe
+.youtube.com	TRUE	/	TRUE	0	HSID	ANW6oYmuBCVHddSNq
+.youtube.com	TRUE	/	TRUE	0	SSID	AiePXto1B1beosd0m
+"""
+
+_COOKIEFILE_PATH = os.path.join(tempfile.gettempdir(), "yt_inline_cookies.txt")
+if not os.path.exists(_COOKIEFILE_PATH):
+    with open(_COOKIEFILE_PATH, "w", encoding="utf-8") as _cf:
+        _cf.write(_COOKIES_INLINE)
+
+cookies_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "cookies.txt"))
+COOKIEFILE = "/root/musicappbackend/cookies.txt"
 
 # Reusamos sesión HTTP para keep-alive real, con pool decente
 _SESSION = requests.Session()
@@ -51,43 +73,37 @@ _SESSION.mount("http://", _adapter)
 _BACKGROUND_EXECUTOR = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
 def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
-    cookies_inline = """# Netscape HTTP Cookie File
-.youtube.com	TRUE	/	TRUE	0	__Secure-3PSID	g.a0001ggw7Zqioddx-m5rtxTYOzJceCRWKt1gqYhOAyTM97RS-68PvCWsalX0VwkCvZwFn6skOAACgYKASMSARASFQHGX2MiDwwyXPN42b7gpLUty7LK-xoVAUF8yKqkTK-ycet6glaWqKO1ZT2l0076
-.youtube.com	TRUE	/	TRUE	0	__Secure-3PSIDCC	AKEyXzVOKg4DYOpN5YP2gverl-GEGukrGt2Mr_6ThcA_AbJWDAnuhvP46XSiVX6hNPeUO58JSgjU
-.youtube.com	TRUE	/	TRUE	0	VISITOR_INFO1_LIVE	wlUvqMj6iqI
-.youtube.com	TRUE	/	TRUE	0	VISITOR_PRIVACY_METADATA	CgJBUhIEGgAgLA%3D%3D
-.youtube.com	TRUE	/	TRUE	0	__Secure-3PAPISID	XHBTCAKBOTuQ_hnD/AvI5HYRLEv1bwYtUe
-.youtube.com	TRUE	/	TRUE	0	SAPISID	XHBTCAKBOTuQ_hnD/AvI5HYRLEv1bwYtUe
-.youtube.com	TRUE	/	TRUE	0	HSID	ANW6oYmuBCVHddSNq
-.youtube.com	TRUE	/	TRUE	0	SSID	AiePXto1B1beosd0m
-"""
-    # guardamos las cookies en un tmp para que yt-dlp las use
-    tmp_cookiefile = os.path.join(tempfile.gettempdir(), "yt_inline_cookies.txt")
-    with open(tmp_cookiefile, "w", encoding="utf-8") as f:
-        f.write(cookies_inline)
+    """
+    Crea un YoutubeDL para el client indicado y usando el cookiefile inline.
+    """
+    effective_client = client  # <- usar el client que pasamos
 
-        opts = {
+    class _SilentLogger:
+        def debug(self, msg):   pass
+        def info(self, msg):    pass
+        def warning(self, msg): pass
+        def error(self, msg):   pass
+
+    opts = {
         "format": "bestaudio/best",
         "quiet": True,
+        "no_warnings": True,
+        "logger": _SilentLogger(),
         "skip_download": True,
         "noplaylist": True,
-        "extractor_args": {
-            "youtube": {
-                "player_client": [client],
-                "po_token_providers": ["https://bgutil-ytdlp-pot-provider-latest.onrender.com"]
-            }
-        },
+        "extractor_args": {"youtube": {"player_client": [effective_client]}},
         "cachedir": os.path.join(tempfile.gettempdir(), "yt_dlp_cache"),
-        "retries": 1,
-        "extractor_retries": 1,
-        "sleep_requests": 0.3,
-        "cookiefile": tmp_cookiefile,   # ahora usa el tmp con cookies inline
+        "socket_timeout": 7,
+        "retries": 0,
+        "extractor_retries": 0,
+        "sleep_requests": 0.0,
+        "source_address": "0.0.0.0",
         "http_headers": {
             "User-Agent": "Mozilla/5.0",
             "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
         },
+        "cookiefile": COOKIEFILE,
     }
-
     return yt_dlp.YoutubeDL(opts)
 
 def _ttl_from_url(u: str) -> int:
@@ -106,19 +122,53 @@ def _ttl_from_url(u: str) -> int:
 
 def _extract_best_url(video_id: str):
     """
-    Intentamos primero clientes móviles (rápidos para m4a/140),
-    luego variantes web como fallback.
+    Intenta varios clients y, si no hay info['url'], elige el mejor audio de formats[].
     """
-    for client in ("android", "ios", "mweb", "web"):
+    clients = ("web_music",)  # evitamos 'android' por PO token
+
+    def pick_best_audio(info: dict) -> str | None:
+        # 1) si yt_dlp ya resolvió un URL directo, usarlo
+        direct = info.get("url")
+        if direct and direct.startswith("http"):
+            return direct
+
+        # 2) elegir mejor audio-only desde formats
+        fmts = info.get("formats") or []
+        audios = [
+            f for f in fmts
+            if (f.get("vcodec") in (None, "none")) and (f.get("acodec") not in (None, "none")) and f.get("url")
+        ]
+        if not audios:
+            return None
+
+        # preferir m4a/aac > webm/opus; luego mayor bitrate (abr/tbr)
+        def score(f):
+            ext = (f.get("ext") or "").lower()
+            ac  = (f.get("acodec") or "").lower()
+            pr  = 2 if ("aac" in ac or "mp4a" in ac or ext == "m4a") else (1 if ("opus" in ac or ext == "webm" or "vorbis" in ac) else 0)
+            br  = f.get("abr") or f.get("tbr") or 0
+            return (pr, float(br))
+
+        best = max(audios, key=score)
+        return best.get("url")
+
+    last_err = None
+    for c in clients:
         try:
-            ydl = _ydl_for(client)
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-            direct_url = info.get("url")
-            if direct_url and direct_url.startswith("http"):
-                return info, direct_url, client
-        except Exception:
+            ydl = _ydl_for(c)
+            info = ydl.extract_info(
+                f"https://www.youtube.com/watch?v={video_id}",
+                download=False,
+                process=False,  # <- evita "Requested format is not available"
+            )
+            url = pick_best_audio(info)
+            if url:
+                return info, url, c
+        except Exception as e:
+            last_err = e
             continue
-    raise RuntimeError("no_audio_format")
+
+    raise RuntimeError("no_audio_format" + (f": {last_err}" if last_err else ""))
 
 def get_audio_info(video_id: str):
     now = time.time()
@@ -151,9 +201,15 @@ def _probe_url(url: str) -> bool:
         return False
 
 def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
-    headers = {}
+    # Fuerza Range en la primera request para evitar el "doble play"
+    headers = {
+        "Accept-Encoding": "identity",  # evita compresión que rompe rangos en algunos CDNs
+        "Connection": "keep-alive",
+    }
     if range_header:
         headers["Range"] = range_header
+    else:
+        headers["Range"] = "bytes=0-"   # <-- CLAVE
 
     r = _SESSION.get(url, headers=headers, stream=True, timeout=(5, 30), allow_redirects=True)
 
@@ -174,9 +230,8 @@ def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
     if cr:
         resp_headers["Content-Range"] = cr
 
-    # ↓ Chunk más chico para que el navegador tenga audio listo antes
     return StreamingResponse(
-        r.iter_content(chunk_size=64 * 1024),
+        r.iter_content(chunk_size=64 * 1024),  # 64KB mantiene el buffer activo rápido
         media_type=media_type,
         headers=resp_headers,
         status_code=r.status_code,
@@ -268,38 +323,32 @@ def _warm_head_sync(video_id: str, timeout_s: float = 0.45) -> None:
             pass
 
 # --- AUDIO ENDPOINTS ---
-
 @router.get("/play")
 def play_song(
     request: Request,
     id: str = Query(..., description="YouTube video ID"),
-    redir: int = Query(0, description="Si 1, redirige al CDN en vez de proxyear")
+    redir: int = Query(1, description="1=redirect (default), 0=JSON url, 2=proxy stream"),
 ):
-    """
-    Devuelve stream de audio con soporte Range y refresh de URL si expiró.
-    Política de latencia:
-      - Primera vez que se reproduce un ID → proxy streaming para evitar DNS/TLS frío del cliente.
-      - Veces siguientes → 307 Redirect al CDN (menos carga).
-    """
     try:
+        print(f"[play] ➤ solicitando ID: {id}")
         data = get_audio_info(id)
         audio_url = data["direct_url"]
-        approx_ttl = data.get("ttl", URL_TTL)
 
-        served = int(data.get("served", 0))
-        _cache[id]["served"] = served + 1
+        if redir == 2:
+            # 🔁 Proxy streaming con soporte Range (evita 403 del CDN en el cliente)
+            print(f"[play] 🛰️ PROXY stream → {audio_url[:80]}...")
+            range_header = request.headers.get("range")
+            return _stream_from_url(audio_url, range_header)
 
-        if approx_ttl <= 10:
-            if not _probe_url(audio_url):
-                data = get_audio_info(id)
-                audio_url = data["direct_url"]
-                approx_ttl = data.get("ttl", URL_TTL)
+        if redir == 1:
+            print(f"[play] 🔀 FORZANDO REDIRECT 307 → {audio_url[:80]}...")
+            return RedirectResponse(url=audio_url, status_code=307)
 
-        print(f"[play] id={id} via client={data.get('client')} ttl≈{approx_ttl}s served={served}")
-
-        return RedirectResponse(url=audio_url, status_code=307)
+        print(f"[play] 📦 devolviendo JSON url")
+        return JSONResponse({"url": audio_url})
 
     except Exception as e:
+        print(f"[ERROR /play] ❌ id={id} → {str(e)}")
         return JSONResponse(
             status_code=502,
             content={"error": "no_stream", "detail": str(e), "id": id},
