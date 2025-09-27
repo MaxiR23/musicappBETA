@@ -713,3 +713,52 @@ def new_releases_global(use_cache: bool = Query(True, description="Usar cache"))
 
 """ TESTING """
 
+# --- NEW RELEASES (JSON crudo, región AR) ---
+@router.get("/new_releases")
+def new_releases():
+    import re, requests
+
+    s = requests.Session()
+    s.headers.update({
+        "User-Agent": "Mozilla/5.0",
+        "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
+    })
+    # evita pantalla de consentimiento y fija hl/gl en la página
+    s.cookies.set("CONSENT", "YES+1")
+
+    # 1) Bootstrap: leemos la home AR y extraemos API key, clientVersion y VISITOR_DATA
+    resp = s.get("https://music.youtube.com/?hl=es&gl=AR&persist_hl=1&persist_gl=1", timeout=12)
+    html = resp.text
+
+    m_key = re.search(r'"INNERTUBE_API_KEY":"([^"]+)"', html) or re.search(r'"innertubeApiKey":"([^"]+)"', html)
+    m_ver = re.search(r'"INNERTUBE_CONTEXT_CLIENT_VERSION":"([^"]+)"', html) or re.search(r'"clientVersion":"([^"]+)"', html)
+    m_vis = re.search(r'"VISITOR_DATA":"([^"]+)"', html) or re.search(r'"visitorData":"([^"]+)"', html)
+    if not (m_key and m_ver and m_vis):
+        return {"error": "bootstrap_failed"}
+
+    api_key     = m_key.group(1)
+    client_ver  = m_ver.group(1)
+    visitor_id  = m_vis.group(1)
+
+    # 2) browse → pedimos el shelf de “Álbumes y sencillos” (no el mix)
+    url = f"https://music.youtube.com/youtubei/v1/browse?key={api_key}"
+    payload = {
+        "context": {
+            "client": {
+                "clientName": "WEB_REMIX",
+                "clientVersion": client_ver,
+                "hl": "es",
+                "gl": "AR",
+                "utcOffsetMinutes": -180  # AR
+            }
+        },
+        "browseId": "FEmusic_new_releases_albums"
+    }
+    headers = {
+        "X-YouTube-Client-Name": "67",            # WEB_REMIX
+        "X-YouTube-Client-Version": client_ver,
+        "X-Goog-Visitor-Id": visitor_id
+    }
+    r = s.post(url, json=payload, headers=headers, timeout=12)
+    r.raise_for_status()
+    return r.json()
