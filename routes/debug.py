@@ -29,18 +29,591 @@ _DURATION_RE = re.compile(
 def playlists_root():
     return {"message": "DEBUG route OK"}
 
+
+
+
+
+
+
+
+
+## SEARCH DEBUG {
+
+# =========================
+# helpers TAB
+# =========================
+def _get_selected_tab(resp: dict):
+    tabs = _dig(resp, ["contents", "tabbedSearchResultsRenderer", "tabs"], []) or []
+    for t in tabs:
+        tr = t.get("tabRenderer") or t.get("expandableTabRenderer")
+        if tr and tr.get("selected"):
+            return tr
+    return None
+
+# =========================
+# helpers → MENU "Go to album/artist"
+# =========================
+def _extract_menu_navs(mrlir: dict) -> dict:
+    """
+    Devuelve ids navegables que aparecen en el menú contextual del item:
+      {
+        "albumId": "MPREb_...",
+        "artistId": "UCxxxx...",
+        "albumItem": {...} | None,
+        "artistItem": {...} | None
+      }
+    Soporta ES/EN: "Go to album/artist" / "Ir al álbum/artista".
+    """
+    items = _dig(mrlir, ["menu", "menuRenderer", "items"], []) or []
+    out = {"albumId": None, "artistId": None, "albumItem": None, "artistItem": None}
+
+    def _txt(nir):
+        return (_dig(nir, ["text", "runs", 0, "text"]) or "").strip().lower()
+
+    for it in items:
+        nir = it.get("menuNavigationItemRenderer")
+        if not nir:
+            continue
+        txt = _txt(nir)
+        be = _dig(nir, ["navigationEndpoint", "browseEndpoint"], {}) or {}
+        bid = be.get("browseId")
+        pgt = _dig(
+            nir,
+            [
+                "navigationEndpoint",
+                "browseEndpoint",
+                "browseEndpointContextSupportedConfigs",
+                "browseEndpointContextMusicConfig",
+                "pageType",
+            ],
+        )
+
+        # Album
+        if (
+            bid
+            and pgt == "MUSIC_PAGE_TYPE_ALBUM"
+            and (
+                "go to album" in txt
+                or "ir al álbum" in txt
+                or "ir al album" in txt
+                or txt == "album"
+            )
+        ):
+            out["albumId"] = bid
+            out["albumItem"] = nir
+
+        # Artist
+        if (
+            bid
+            and pgt == "MUSIC_PAGE_TYPE_ARTIST"
+            and (
+                "go to artist" in txt
+                or "ir al artista" in txt
+                or txt == "artist"
+                or txt == "artista"
+            )
+        ):
+            out["artistId"] = bid
+            out["artistItem"] = nir
+
+    return out
+
+# =========================
+# ARTIST CARD → ARTIST INFO
+# =========================
+def parse_artist_card_info(resp: dict) -> dict | None:
+    """
+    Devuelve info del artista del Top result:
+      - name
+      - artistId (browseId)
+      - subtitle (string)
+      - subtitleRuns (runs crudos)
+      - subtitleTexts (lista de textos de los runs)
+      - thumbnails
+    """
+    tab = _get_selected_tab(resp)
+    if not tab:
+        return None
+
+    sections = _dig(tab, ["content", "sectionListRenderer", "contents"], []) or []
+    if not sections:
+        return None
+
+    card = sections[0].get("musicCardShelfRenderer")
+    if not card:
+        return None
+
+    # Confirmar que la card es de ARTISTA
+    title_runs = _dig(card, ["title", "runs"], []) or []
+    if not title_runs:
+        return None
+    nav = title_runs[0].get("navigationEndpoint", {})
+    page_type = _dig(
+        nav,
+        [
+            "browseEndpoint",
+            "browseEndpointContextSupportedConfigs",
+            "browseEndpointContextMusicConfig",
+            "pageType",
+        ],
+    )
+    if page_type != "MUSIC_PAGE_TYPE_ARTIST":
+        return None
+
+    name = title_runs[0].get("text", "")
+    artist_id = _dig(nav, ["browseEndpoint", "browseId"])
+
+    subtitle_runs = _dig(card, ["subtitle", "runs"], []) or []
+    subtitle = "".join((r or {}).get("text", "") for r in subtitle_runs)
+    subtitle_texts = [(r or {}).get("text", "") for r in subtitle_runs]
+
+    thumbs = _dig(card, ["thumbnail", "musicThumbnailRenderer", "thumbnail", "thumbnails"], []) or []
+
+    return {
+        "name": name,
+        "artistId": artist_id,
+        "subtitle": subtitle,            # ej: "Artist • 288M monthly audience"
+        "subtitleRuns": subtitle_runs,   # runs crudos
+        "subtitleTexts": subtitle_texts, # ["Artist", " • ", "288M monthly audience"]
+        "thumbnails": thumbs,
+        "type": "artist",
+    }
+
+# =========================
+# ARTIST CARD → SONGS (Top result)
+# =========================
+def parse_artist_card_songs(resp: dict, strict_atv: bool = True, limit: int | None = None) -> list[dict]:
+    out = []
+    tab = _get_selected_tab(resp)
+    if not tab:
+        return out
+    sections = _dig(tab, ["content", "sectionListRenderer", "contents"], []) or []
+    if not sections:
+        return out
+    card = sections[0].get("musicCardShelfRenderer")
+    if not card:
+        return out
+
+    title_runs = _dig(card, ["title", "runs"], []) or []
+    nav = title_runs[0].get("navigationEndpoint", {}) if title_runs else {}
+    page_type = _dig(
+        nav,
+        [
+            "browseEndpoint",
+            "browseEndpointContextSupportedConfigs",
+            "browseEndpointContextMusicConfig",
+            "pageType",
+        ],
+    )
+    if page_type != "MUSIC_PAGE_TYPE_ARTIST":
+        return out
+
+    for it in card.get("contents", []):
+        mrlir = it.get("musicResponsiveListItemRenderer")
+        if not mrlir:
+            continue
+
+        links = _extract_menu_navs(mrlir)  # ← Go to album/artist
+
+        item = extract_song_item(mrlir)
+        if not item.get("videoId"):
+            continue
+        if strict_atv and item.get("musicVideoType") != "MUSIC_VIDEO_TYPE_ATV":
+            continue
+        out.append({
+            "title": item.get("title"),
+            "videoId": item.get("videoId"),
+            "duration": item.get("duration"),
+            "artists": item.get("artists", []),
+            "thumbnails": item.get("thumbnails", []),
+            "musicVideoType": item.get("musicVideoType"),
+            "goTo": {                      # NUEVO
+                "albumId": links["albumId"],
+                "artistId": links["artistId"],
+            },
+        })
+        if limit is not None and len(out) >= limit:
+            break
+    return out
+
+# =========================
+# ARTIST CARD → ALBUMS (Top result)
+# =========================
+def _is_album_item(mrlir: dict) -> bool:
+    label = "".join((r or {}).get("text", "") for r in _runs(mrlir, 1)).strip().lower()
+    if label.startswith("album"):
+        return True
+    page_type = _dig(
+        mrlir,
+        [
+            "navigationEndpoint",
+            "browseEndpoint",
+            "browseEndpointContextSupportedConfigs",
+            "browseEndpointContextMusicConfig",
+            "pageType",
+        ],
+    )
+    return page_type == "MUSIC_PAGE_TYPE_ALBUM"
+
+def _extract_album_item(mrlir: dict) -> dict:
+    title_runs = _runs(mrlir, 0)
+    title = _dig(title_runs, [0, "text"]) or "".join((r or {}).get("text", "") for r in title_runs) or None
+    album_browse_id = _dig(mrlir, ["navigationEndpoint", "browseEndpoint", "browseId"])
+    playlist_id = _dig(
+        mrlir,
+        [
+            "overlay",
+            "musicItemThumbnailOverlayRenderer",
+            "content",
+            "musicPlayButtonRenderer",
+            "playNavigationEndpoint",
+            "watchPlaylistEndpoint",
+            "playlistId",
+        ],
+    )
+    artists = []
+    for r in _runs(mrlir, 1):
+        page_type = _dig(
+            r,
+            [
+                "navigationEndpoint",
+                "browseEndpoint",
+                "browseEndpointContextSupportedConfigs",
+                "browseEndpointContextMusicConfig",
+                "pageType",
+            ],
+        )
+        if page_type == "MUSIC_PAGE_TYPE_ARTIST":
+            artists.append({"name": r.get("text", ""), "browseId": _dig(r, ["navigationEndpoint", "browseEndpoint", "browseId"])})
+
+    year = None
+    for r in reversed(_runs(mrlir, 1)):
+        t = (r or {}).get("text", "").strip()
+        if len(t) == 4 and t.isdigit():
+            year = t
+            break
+
+    thumbs = _thumbs_from_mrlir(mrlir, None)
+    links = _extract_menu_navs(mrlir)  # para goTo.artistId
+
+    return {
+        "title": title,
+        "albumId": album_browse_id,
+        "playlistId": playlist_id,
+        "artists": artists,
+        "year": year,
+        "thumbnails": thumbs,
+        "type": "album",
+        "goTo": {"artistId": links["artistId"]},  # NUEVO
+    }
+
+def parse_artist_card_albums(resp: dict, limit: int | None = None) -> list[dict]:
+    out = []
+    tab = _get_selected_tab(resp)
+    if not tab:
+        return out
+    sections = _dig(tab, ["content", "sectionListRenderer", "contents"], []) or []
+    if not sections:
+        return out
+    card = sections[0].get("musicCardShelfRenderer")
+    if not card:
+        return out
+    title_runs = _dig(card, ["title", "runs"], []) or []
+    nav = title_runs[0].get("navigationEndpoint", {}) if title_runs else {}
+    page_type = _dig(
+        nav,
+        [
+            "browseEndpoint",
+            "browseEndpointContextSupportedConfigs",
+            "browseEndpointContextMusicConfig",
+            "pageType",
+        ],
+    )
+    if page_type != "MUSIC_PAGE_TYPE_ARTIST":
+        return out
+    for it in card.get("contents", []):
+        mrlir = it.get("musicResponsiveListItemRenderer")
+        if not mrlir:
+            continue
+        if not _is_album_item(mrlir):
+            continue
+        item = _extract_album_item(mrlir)
+        if not (item.get("albumId") or item.get("playlistId")):
+            continue
+        out.append(item)
+        if limit is not None and len(out) >= limit:
+            break
+    return out
+
+# =========================
+# SEARCH (shelves generales) → ALBUMS + SONGS (solo música)
+# =========================
+def _mvtype_from_mrlir(mrlir: dict) -> str | None:
+    return (
+        _dig(
+            mrlir,
+            [
+                "overlay",
+                "musicItemThumbnailOverlayRenderer",
+                "content",
+                "musicPlayButtonRenderer",
+                "playNavigationEndpoint",
+                "watchEndpoint",
+                "watchEndpointMusicSupportedConfigs",
+                "watchEndpointMusicConfig",
+                "musicVideoType",
+            ],
+        )
+        or _dig(
+            mrlir,
+            [
+                "flexColumns",
+                0,
+                "musicResponsiveListItemFlexColumnRenderer",
+                "text",
+                "runs",
+                0,
+                "navigationEndpoint",
+                "watchEndpoint",
+                "watchEndpointMusicSupportedConfigs",
+                "watchEndpointMusicConfig",
+                "musicVideoType",
+            ],
+        )
+    )
+
+def _is_episode_or_video(mrlir: dict) -> bool:
+    # Si en la 2da col dice 'Episode/Episodio' o si el mvtype es OMV/UGC (video)
+    col1 = "".join((r or {}).get("text", "") for r in _runs(mrlir, 1)).strip().lower()
+    if "episode" in col1 or "episodio" in col1:
+        return True
+    mvtype = _mvtype_from_mrlir(mrlir)
+    return mvtype in ("MUSIC_VIDEO_TYPE_OMV", "MUSIC_VIDEO_TYPE_UGC")
+
+def _is_song_item_general(mrlir: dict) -> bool:
+    """
+    Más robusto para los shelves generales:
+      - tiene watchEndpoint.videoId
+      - mvtype == ATV
+      - NO es álbum ni episodio
+    """
+    # no álbum
+    label = "".join((r or {}).get("text", "") for r in _runs(mrlir, 1)).strip().lower()
+    pt = _dig(
+        mrlir,
+        [
+            "navigationEndpoint",
+            "browseEndpoint",
+            "browseEndpointContextSupportedConfigs",
+            "browseEndpointContextMusicConfig",
+            "pageType",
+        ],
+    )
+    if label.startswith("album") or pt == "MUSIC_PAGE_TYPE_ALBUM":
+        return False
+
+    if _is_episode_or_video(mrlir):
+        return False
+
+    vid = (
+        _dig(mrlir, ["playlistItemData", "videoId"])
+        or _dig(mrlir, ["flexColumns", 0, "musicResponsiveListItemFlexColumnRenderer", "text", "runs", 0, "navigationEndpoint", "watchEndpoint", "videoId"])
+        or _dig(mrlir, ["overlay", "musicItemThumbnailOverlayRenderer", "content", "musicPlayButtonRenderer", "playNavigationEndpoint", "watchEndpoint", "videoId"])
+    )
+    if not vid:
+        return False
+
+    mvtype = _mvtype_from_mrlir(mrlir)
+    return mvtype == "MUSIC_VIDEO_TYPE_ATV"
+
+def _extract_album_item_from_search(mrlir: dict) -> dict:
+    title_runs = _runs(mrlir, 0)
+    title = _dig(title_runs, [0, "text"]) or "".join((r or {}).get("text", "") for r in title_runs) or None
+    album_browse_id = _dig(mrlir, ["navigationEndpoint", "browseEndpoint", "browseId"])
+    playlist_id = _dig(
+        mrlir,
+        [
+            "overlay",
+            "musicItemThumbnailOverlayRenderer",
+            "content",
+            "musicPlayButtonRenderer",
+            "playNavigationEndpoint",
+            "watchPlaylistEndpoint",
+            "playlistId",
+        ],
+    )
+    artists = []
+    for r in _runs(mrlir, 1):
+        page_type = _dig(
+            r,
+            [
+                "navigationEndpoint",
+                "browseEndpoint",
+                "browseEndpointContextSupportedConfigs",
+                "browseEndpointContextMusicConfig",
+                "pageType",
+            ],
+        )
+        if page_type == "MUSIC_PAGE_TYPE_ARTIST":
+            artists.append({"name": r.get("text", ""), "browseId": _dig(r, ["navigationEndpoint", "browseEndpoint", "browseId"])})
+
+    year = None
+    for r in reversed(_runs(mrlir, 1)):
+        t = (r or {}).get("text", "").strip()
+        if len(t) == 4 and t.isdigit():
+            year = t
+            break
+
+    thumbs = _thumbs_from_mrlir(mrlir, None)
+    links = _extract_menu_navs(mrlir)  # para goTo.artistId
+
+    return {
+        "title": title,
+        "albumId": album_browse_id,
+        "playlistId": playlist_id,
+        "artists": artists,
+        "year": year,
+        "thumbnails": thumbs,
+        "type": "album",
+        "goTo": {"artistId": links["artistId"]},  # NUEVO
+    }
+
+def parse_search_albums_and_songs(resp: dict, song_limit: int | None = None, album_limit: int | None = None) -> dict:
+    songs, albums = [], []
+    tab = _get_selected_tab(resp)
+    if not tab:
+        return {"songs": songs, "albums": albums}
+    sections = _dig(tab, ["content", "sectionListRenderer", "contents"], []) or []
+    for sec in sections:
+        shelf = sec.get("musicShelfRenderer")
+        if not shelf:
+            continue
+        for it in shelf.get("contents", []) or []:
+            mrlir = it.get("musicResponsiveListItemRenderer")
+            if not mrlir:
+                continue
+
+            # álbum
+            label = "".join((r or {}).get("text", "") for r in _runs(mrlir, 1)).strip().lower()
+            pt = _dig(
+                mrlir,
+                [
+                    "navigationEndpoint",
+                    "browseEndpoint",
+                    "browseEndpointContextSupportedConfigs",
+                    "browseEndpointContextMusicConfig",
+                    "pageType",
+                ],
+            )
+            if label.startswith("album") or pt == "MUSIC_PAGE_TYPE_ALBUM":
+                album = _extract_album_item_from_search(mrlir)
+                if album.get("albumId") or album.get("playlistId"):
+                    albums.append(album)
+                continue
+
+            # canción (solo ATV)
+            if _is_song_item_general(mrlir):
+                links = _extract_menu_navs(mrlir)  # Go to album/artist
+                s = extract_song_item(mrlir)
+                if s.get("videoId"):
+                    songs.append({
+                        "title": s.get("title"),
+                        "videoId": s.get("videoId"),
+                        "artists": s.get("artists", []),
+                        "thumbnails": s.get("thumbnails", []),
+                        "musicVideoType": s.get("musicVideoType"),
+                        "type": "song",
+                        "goTo": {                # NUEVO
+                            "albumId": links["albumId"],
+                            "artistId": links["artistId"],
+                        },
+                    })
+
+        # salida temprana si ya cumplimos ambos límites
+        if (album_limit is not None and len(albums) >= album_limit) and (song_limit is not None and len(songs) >= song_limit):
+            break
+
+    if song_limit is not None:
+        songs = songs[:song_limit]
+    if album_limit is not None:
+        albums = albums[:album_limit]
+    return {"songs": songs, "albums": albums}
+
+# =========================
+# ENDPOINTS
+# =========================
+
 @router.get("/search_debug")
 def search_debug(q: str = Query(..., description="Texto a buscar")):
-    """
-    Devuelve la respuesta CRUDA de YouTube Music (WEB_REMIX).
-    Sirve para debug y ver toda la estructura.
-    """
     try:
         yt = _get_yt()
         response = yt.search(q)
-        return response   # 🔴 devolvemos TODO, sin filtrar
+        return response
     except Exception as e:
         return {"error": "search_error", "detail": str(e)}
+
+@router.get("/search_debug_improved_version")
+def search_debug_improved_version(
+    q: str = Query(..., description="Texto a buscar"),
+    limit: int = Query(5, ge=1, le=20),                      # artist card songs
+    strict_atv: bool = Query(True, description="Filtra MUSIC_VIDEO_TYPE_ATV"),
+    include_albums: bool = Query(True),                      # artist card albums
+    album_limit: int = Query(5, ge=1, le=20),
+    include_search: bool = Query(True, description="Incluir resultados generales (albums + songs)"),
+    search_song_limit: int = Query(10, ge=1, le=50),
+    search_album_limit: int = Query(10, ge=1, le=50),
+):
+    """
+    Respuesta en este orden:
+      - artist  : { name, artistId, subtitle, subtitleRuns, subtitleTexts, thumbnails }
+      - songs   : (artist card) [{ title, videoId, duration, artists, thumbnails, musicVideoType, goTo{albumId,artistId} }]
+      - albums  : (artist card) [{ title, albumId, playlistId, artists, year, thumbnails, goTo{artistId} }]
+      - search  : (generales) {
+                     songs : [{ ...ATV only..., goTo{albumId,artistId} }],
+                     albums: [{ ..., goTo{artistId} }]
+                   }
+    """
+    try:
+        yt = _get_yt()
+        resp = yt.search(q)
+
+        artist = parse_artist_card_info(resp)
+        songs  = parse_artist_card_songs(resp, strict_atv=strict_atv, limit=limit)
+        albums = parse_artist_card_albums(resp, limit=album_limit) if include_albums else []
+        search_out = parse_search_albums_and_songs(
+            resp, song_limit=search_song_limit, album_limit=search_album_limit
+        ) if include_search else {"songs": [], "albums": []}
+
+        return {
+            "success": True,
+            "message": (
+                f"Artist card: artist={'yes' if bool(artist) else 'no'}, "
+                f"songs={len(songs)}, albums={len(albums)}; "
+                f"Search: songs={len(search_out['songs'])}, albums={len(search_out['albums'])}"
+            ),
+            "data": {
+                "query": q,
+                "artist": artist,
+                "songs": songs,
+                "albums": albums,
+                "search": search_out,
+            },
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": "search_error",
+            "data": {"query": q, "error": str(e)},
+        }
+
+## SEARCH DEBUG }
+
+
+
+
+
+
+
 
 @router.get("/artist_debug")
 def artist_debug(id: str = Query(..., description="Artist browseId")):
