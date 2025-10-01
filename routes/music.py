@@ -12,6 +12,7 @@ import requests
 from requests.adapters import HTTPAdapter
 import yt_dlp
 from innertube import InnerTube
+import threading  # ← NUEVO
 
 from services.cache_service import get_cached, set_cached
 from utils.search_parser import (
@@ -35,62 +36,55 @@ from services.supabase_service import db_as_user  # ← NUEVO
 router = APIRouter()
 
 # --- CONFIG ---
-CACHE_TTL          = 30 * 60        # metadata genérica
-URL_TTL            = 15 * 60        # fallback si no podemos leer expire
-SEARCH_TTL         = 24 * 60 * 60   # cache 24h para búsquedas ATV por query (texto→videoId)
-SEARCH_RESULT_TTL  = 10 * 60        # cache 10 min para /search (respuesta completa)
-ARTIST_TTL         = 20 * 60        # cache 20 min para /artist/*
-RECENT_TTL         = 2 * 60         # cache 2 min para /me/recent (con invalidación inmediata)
-MAX_WORKERS        = 6              # tareas generales en background
-WARM_MAX_WORKERS   = 3              # warming dedicado (no saturar)
+CACHE_TTL          = 30 * 60
+URL_TTL            = 15 * 60
+SEARCH_TTL         = 24 * 60 * 60
+SEARCH_RESULT_TTL  = 10 * 60
+ARTIST_TTL         = 20 * 60
+RECENT_TTL         = 2 * 60
+MAX_WORKERS        = 8
+WARM_MAX_WORKERS   = 10
 
-# cache en memoria del proceso para URLs directas (videoId → direct_url)
-_cache: dict[str, dict] = {}
+# --- yt_dlp global reusable (warm) ---
+_YDL_GLOBAL: yt_dlp.YoutubeDL | None = None
+_YDL_LOCK = threading.RLock()  # ← NUEVO: YoutubeDL no es thread-safe
 
-# Cache para el mapeo OMV -> ATV (24h)
-_FORCE_CACHE: dict[str, dict] = {}  # video_id -> {"atv": str, "ts": float}
+# caches
+_cache: dict[str, dict] = {}  # videoId -> {info, direct_url, ttl, ts, served}
+_FORCE_CACHE: dict[str, dict] = {}  # OMV->ATV resolver: video_id -> {"atv": str, "ts": float}
 _FORCE_TTL = 24 * 60 * 60
+_ARTIST_CACHE: dict[str, dict] = {}
+_RECENT_CACHE: dict[str, dict] = {}
+_RECENT_VER: dict[str, int] = {}
+_WARM_INFLIGHT: dict[str, float] = {}
+_WARM_BURST = 20                 # ↑ ráfaga para pre-calentar más
+_WARM_DEDUP_TTL = 45
 
-# Cache en memoria del proceso para /artist
-_ARTIST_CACHE: dict[str, dict] = {}  # artist_id -> {"ts": float, "payload": dict}
+# --- Cookies yt_dlp (SOLO TU RUTA) ---
+COOKIEFILE = "/root/musicappbackend/cookies.txt"  # ← tu ruta fija
+if not os.path.exists(COOKIEFILE) or os.path.getsize(COOKIEFILE) == 0:
+    raise RuntimeError(f"[music] COOKIEFILE no existe o está vacío: {COOKIEFILE}")
 
-# Cache para /me/recent por usuario + invalidación al loguear plays
-_RECENT_CACHE: dict[str, dict] = {}  # key(user,limit) -> {"ts": float, "ver": int, "payload": dict}
-_RECENT_VER: dict[str, int] = {}     # user_key -> version bump en cada play
+# --- HTTP sessions ---
+_SESSION_SHORT = requests.Session()
+_SESSION_SHORT.headers.update({"User-Agent": "Mozilla/5.0", "Accept": "*/*", "Connection": "keep-alive"})
+_SESSION_SHORT.mount("https://", HTTPAdapter(pool_connections=80, pool_maxsize=80, max_retries=0))
+_SESSION_SHORT.mount("http://",  HTTPAdapter(pool_connections=80, pool_maxsize=80, max_retries=0))
 
-# --- Cookies yt_dlp (una vez) ---
-_COOKIES_INLINE = """# Netscape HTTP Cookie File
-.youtube.com	TRUE	/	TRUE	0	SID	g.a0001ggw7Zqioddx-m5rtxTYOzJceCRWKt1gqYhOAyTM97RS-68PCVPM1EyuVixyN8eIeY8MjwACgYKAY4SARASFQHGX2MicEq2BkN7haZ8dGyKKLKbmxoVAUF8yKodte32gXvRe2VWu4lDK7Z_0076
-.youtube.com	TRUE	/	TRUE	0	APISID	ScMc5qM3CynO_tXv/ANr1i1XLcgzRcfMKr
-.youtube.com	TRUE	/	TRUE	0	LOGIN_INFO	AFmmF2swRQIhAP2bVZz0TWrixuq1UcjEeczVcW5uO5PJ5I7w6K_ES1jLAiB32CjBF8IIwfZ47QRMDJajMdZ4oQrxvxutLK-52WUA-w:QUQ3MjNmeEJ0VTBmejhzZWNKSTFjYVgyeGp1bTNwcVdGUXRsTkNodkIwVkpPTDdnQjN6S0ZPX0dLT2RndUVILUgtNVFKWVdLblVGbHdfeFduOXdac19JLTBKVEtFb2FVUGFRZGNCUnVrbzE4WlJOdW1ibDNrSzR5Vk1DdDZPaXp2ZHdfSmtNbUExVTZqdFlMdFJyR2pQVXlxdDhCcnhwdjRn
-.youtube.com	TRUE	/	TRUE	0	YSC	huTQNsP2Cck
-.youtube.com	TRUE	/	TRUE	0	PREF	f6=40000080&f7=4000&tz=America.Buenos_Aires&autoplay=true
-.youtube.com	TRUE	/	TRUE	0	__Secure-3PSID	g.a0001ggw7Zqioddx-m5rtxTYOzJceCRWKt1gqYhOAyTM97RS-68PvCWsalX0VwkCvZwFn6skOAACgYKASMSARASFQHGX2MiDwwyXPN42b7gpLUty7LK-xoVAUF8yKqkTK-ycet6glaWqKO1ZT2l0076
-.youtube.com	TRUE	/	TRUE	0	__Secure-3PSIDCC	AKEyXzVbY-KHj7ydwfZerlEtowAJwBgZGW-NhmIQlTql6n2sv86cE-chv9DuG8S1tFCxtDqq30l4
-.youtube.com	TRUE	/	TRUE	0	VISITOR_INFO1_LIVE	wlUvqMj6iqI
-.youtube.com	TRUE	/	TRUE	0	VISITOR_PRIVACY_METADATA	CgJBUhIEGgAgLA%3D%3D
-.youtube.com	TRUE	/	TRUE	0	__Secure-3PAPISID	XHBTCAKBOTuQ_hnD/AvI5HYRLEv1bwYtUe
-.youtube.com	TRUE	/	TRUE	0	SAPISID	XHBTCAKBOTuQ_hnD/AvI5HYRLEv1bwYtUe
-.youtube.com	TRUE	/	TRUE	0	HSID	ANW6oYmuBCVHddSNq
-.youtube.com	TRUE	/	TRUE	0	SSID	AiePXto1B1beosd0m
-"""
-_COOKIEFILE_PATH = os.path.join(tempfile.gettempdir(), "yt_inline_cookies.txt")
-if not os.path.exists(_COOKIEFILE_PATH):
-    with open(_COOKIEFILE_PATH, "w", encoding="utf-8") as _cf:
-        _cf.write(_COOKIES_INLINE)
-
-COOKIEFILE = "/root/musicappbackend/cookies.txt"
-
-# --- HTTP session compartida ---
-_SESSION = requests.Session()
-_SESSION.headers.update({"User-Agent": "Mozilla/5.0", "Accept": "*/*", "Connection": "keep-alive"})
-_adapter = HTTPAdapter(pool_connections=20, pool_maxsize=20, max_retries=1)
-_SESSION.mount("https://", _adapter)
-_SESSION.mount("http://", _adapter)
+_SESSION_STREAM = requests.Session()
+_SESSION_STREAM.headers.update({"User-Agent": "Mozilla/5.0", "Accept": "*/*", "Connection": "keep-alive"})
+# ↓ ajustado para 1 vCPU/1GB RAM (menos FDs y memoria, mejor latencia)
+_SESSION_STREAM.mount("https://", HTTPAdapter(pool_connections=50, pool_maxsize=50, max_retries=0))
+_SESSION_STREAM.mount("http://",  HTTPAdapter(pool_connections=50, pool_maxsize=50, max_retries=0))
 
 # --- Executors ---
 _BACKGROUND_EXECUTOR = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-_WARM_EXECUTOR       = ThreadPoolExecutor(max_workers=WARM_MAX_WORKERS)
+_WARM_EXECUTOR = None  # lazy init
+def _get_warm_executor() -> ThreadPoolExecutor:
+    global _WARM_EXECUTOR
+    if _WARM_EXECUTOR is None:
+        _WARM_EXECUTOR = ThreadPoolExecutor(max_workers=WARM_MAX_WORKERS)
+    return _WARM_EXECUTOR
 
 # --- yt_dlp opts ---
 def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
@@ -101,7 +95,13 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         def error(self, msg):   pass
 
     opts = {
-        "format": "bestaudio/best",
+        # SOLO AUDIO: AAC (m4a) → Opus, jamás video
+        "format": "bestaudio[acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio[acodec^=opus]/bestaudio/best",
+        "format_sort": ["acodec:mp4a:m4a,opus", "abr", "asr", "size"],
+        "prefer_free_formats": False,
+        "youtube_include_dash_manifest": False,
+        "youtube_include_hls_manifest": False,
+
         "quiet": True,
         "no_warnings": True,
         "logger": _SilentLogger(),
@@ -114,10 +114,18 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         "extractor_retries": 0,
         "sleep_requests": 0.0,
         "source_address": "0.0.0.0",
+        "nocheckcertificate": True,
         "http_headers": {"User-Agent": "Mozilla/5.0", "Accept-Language": "es-AR,es;q=0.9,en;q=0.8"},
-        "cookiefile": COOKIEFILE,
+        "cookiefile": COOKIEFILE,  # ← solo tu archivo
     }
     return yt_dlp.YoutubeDL(opts)
+
+def _ydl_global() -> yt_dlp.YoutubeDL:
+    """Devuelve una sola instancia global de YoutubeDL (protegida por lock)."""
+    global _YDL_GLOBAL
+    if _YDL_GLOBAL is None:
+        _YDL_GLOBAL = _ydl_for("web_music")
+    return _YDL_GLOBAL
 
 def _ttl_from_url(u: str) -> int:
     try:
@@ -131,36 +139,7 @@ def _ttl_from_url(u: str) -> int:
         pass
     return URL_TTL
 
-def _extract_best_url(video_id: str):
-    clients = ("web_music",)
-    def pick_best_audio(info: dict) -> str | None:
-        direct = info.get("url")
-        if direct and direct.startswith("http"): return direct
-        fmts = info.get("formats") or []
-        audios = [f for f in fmts if (f.get("vcodec") in (None, "none")) and (f.get("acodec") not in (None, "none")) and f.get("url")]
-        if not audios: return None
-        def score(f):
-            ext = (f.get("ext") or "").lower()
-            ac  = (f.get("acodec") or "").lower()
-            pr  = 2 if ("aac" in ac or "mp4a" in ac or ext == "m4a") else (1 if ("opus" in ac or ext == "webm" or "vorbis" in ac) else 0)
-            br  = f.get("abr") or f.get("tbr") or 0
-            return (pr, float(br))
-        best = max(audios, key=score)
-        return best.get("url")
-
-    last_err = None
-    for c in clients:
-        try:
-            ydl = _ydl_for(c)
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False, process=False)
-            url = pick_best_audio(info)
-            if url: return info, url, c
-        except Exception as e:
-            last_err = e
-            continue
-    raise RuntimeError("no_audio_format" + (f": {last_err}" if last_err else ""))
-
-# ---------- Helpers de performance (OMV→ATV + Warming) ----------
+# ---------- Helpers OMV→ATV ----------
 _norm_re_strip = re.compile(r"(\(|\[).{0,80}?(\)|\])", re.IGNORECASE)
 _norm_re_noise = re.compile(r"\b(official\s*video|video\s*oficial|video\s*clip|lyrics?|audio\s*only|HD|4K)\b", re.IGNORECASE)
 
@@ -183,110 +162,196 @@ def _search_atv_first(q: str) -> str | None:
     set_cached(ck, {"videoId": vid}, SEARCH_TTL)
     return vid
 
-# --- Mapeo OMV→ATV (bloqueante) ---
-def _force_atv_id(video_id: str) -> str:
+def _force_atv_from_info(orig_id: str, info: dict) -> str:
+    """Deriva y cachea el ATV usando los metadatos ya extraídos."""
     now = time.time()
-    ent = _FORCE_CACHE.get(video_id)
-    if ent and (now - ent["ts"] < _FORCE_TTL):
-        return ent["atv"] or video_id
-    try:
-        ydl = _ydl_for("web_music")
-        info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False, process=False)
-        title  = (info.get("track") or info.get("title") or "").strip()
-        artist = (info.get("artist") or info.get("uploader") or "").strip()
-        if (not info.get("track")) and " - " in title and not artist:
+    title  = (info.get("track") or info.get("title") or "").strip()
+    artist = (info.get("artist") or info.get("uploader") or "").strip()
+    if (not info.get("track")) and " - " in title and not artist:
+        try:
             artist, title = [p.strip() for p in title.split(" - ", 1)]
-        q   = _normalize_query(artist, title)
-        atv = _search_atv_first(q) if q else None
-        _FORCE_CACHE[video_id] = {"atv": atv or video_id, "ts": now}
-        return atv or video_id
-    except Exception:
-        _FORCE_CACHE[video_id] = {"atv": video_id, "ts": now}
-        return video_id
+        except Exception:
+            pass
+    q   = _normalize_query(artist, title)
+    atv = _search_atv_first(q) if q else None
+    _FORCE_CACHE[orig_id] = {"atv": atv or orig_id, "ts": now}
+    return atv or orig_id
 
-# --- Variante QUICK: no bloquea; usa cache y agenda mapeo ---
-def _maybe_force_cached(video_id: str) -> str:
-    now = time.time()
-    ent = _FORCE_CACHE.get(video_id)
-    if ent and (now - ent["ts"] < _FORCE_TTL):
-        return ent["atv"] or video_id
-    # agenda el mapeo en background; devuelve el original YA
+# ---------- Extracción ----------
+def _extract_best_url(video_id: str):
+    """Extrae usando YDL global con lock; si falla/contiende, usa una instancia fresca."""
+    def pick_best_audio(info: dict) -> str | None:
+        fmts = info.get("formats") or []
+        audios = [f for f in fmts
+                  if (f.get("vcodec") in (None, "none"))
+                  and (f.get("acodec") not in (None, "none"))
+                  and f.get("url")]
+        if not audios:
+            u = info.get("url")
+            return u if (u and u.startswith("http")) else None
+
+        def score(f):
+            ext = (f.get("ext") or "").lower()
+            ac  = (f.get("acodec") or "").lower()
+            pr  = 3 if ("mp4a" in ac or ext == "m4a") else (2 if "opus" in ac or ext == "webm" else 1)
+            br  = float(f.get("abr") or f.get("tbr") or 0)
+            asr = float(f.get("asr") or 0)
+            return (pr, br, asr)
+
+        return max(audios, key=score).get("url")
+
+    info = None
+    url = None
+
+    # Intento 1: instancia global con lock (thread-safe)
     try:
-        _WARM_EXECUTOR.submit(_force_atv_id, video_id)
+        ydl = _ydl_global()
+        with _YDL_LOCK:
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}",
+                                    download=False, process=False)
+        url = pick_best_audio(info)
     except Exception:
-        pass
-    return video_id
+        info = None
+        url = None
 
-# --- Core: obtener/cachar URL directa sin forzar mapeo ---
-def _get_or_extract(video_id: str):
+    # Intento 2: fallback a instancia fresca (evita colgados si la global está ocupada/rota)
+    if not url:
+        ydl_fresh = _ydl_for("web_music")
+        info = ydl_fresh.extract_info(f"https://www.youtube.com/watch?v={video_id}",
+                                      download=False, process=False)
+        url = pick_best_audio(info)
+
+    if not url:
+        raise RuntimeError("no_audio_format")
+
+    return info, url, "web_music"
+
+def _get_or_extract(video_id: str, _force: bool = False):
+    """
+    Siempre fuerza ATV: extrae info del ID recibido, deriva ATV y si cambia re-extrae.
+    Con Stale-While-Revalidate: si el cache venció pero la URL aún responde, devolvemos
+    enseguida y refrescamos en background.
+    """
     now = time.time()
-    cached = _cache.get(video_id)
-    if cached and cached.get("direct_url"):
-        ttl = cached.get("ttl", URL_TTL)
-        if now - cached["ts"] < ttl:
-            return cached
-    info, direct_url, client = _extract_best_url(video_id)
+
+    # cache directo
+    ent = _cache.get(video_id)
+    if ent and ent.get("direct_url"):
+        fresh = (now - ent["ts"] < ent.get("ttl", URL_TTL))
+        if fresh:
+            return ent
+        # SWR: si sigue respondiendo, devolvemos y refrescamos atrás
+        if not _force:
+            try:
+                if _probe_url(ent["direct_url"]):
+                    try:
+                        _BACKGROUND_EXECUTOR.submit(_get_or_extract, video_id, True)
+                    except Exception:
+                        pass
+                    return ent
+            except Exception:
+                pass
+
+    # 1) extraigo info del ID que llegó (rápido, sin process)
+    info1, url1, client1 = _extract_best_url(video_id)
+
+    # 2) derivo ATV SIEMPRE con esos metadatos
+    resolved_id = _FORCE_CACHE.get(video_id, {}).get("atv")
+    if not resolved_id or (now - _FORCE_CACHE.get(video_id, {}).get("ts", 0) > _FORCE_TTL):
+        resolved_id = _force_atv_from_info(video_id, info1)
+
+    # 3) si cambió el ID, re-extraigo; si no, uso lo ya obtenido
+    if resolved_id != video_id:
+        try:
+            info2, url2, client2 = _extract_best_url(resolved_id)
+            info, direct_url, client = info2, url2, client2
+        except Exception:
+            info, direct_url, client = info1, url1, client1  # fallback
+    else:
+        info, direct_url, client = info1, url1, client1
+
     data = {
         "info": info,
         "direct_url": direct_url,
         "client": client,
         "ts": now,
         "ttl": _ttl_from_url(direct_url),
-        "served": cached.get("served", 0) if cached else 0,
+        "served": (ent or {}).get("served", 0),
     }
+    # cacheo bajo el ID resuelto y también bajo el original como alias
+    _cache[resolved_id] = data
     _cache[video_id] = data
     return data
 
-# --- Rápido (no bloquea por mapeo) ---
+# quick / blocking (ambos pasan por get_or_extract que ya fuerza ATV)
 def get_audio_info_quick(video_id: str):
-    vid = _maybe_force_cached(video_id)   # puede devolver el original
-    return _get_or_extract(vid)
+    return _get_or_extract(video_id)
 
-# --- Completo (permite bloquear para mapear si hace falta) ---
 def get_audio_info_blocking(video_id: str):
-    vid = _force_atv_id(video_id)
-    return _get_or_extract(vid)
+    return _get_or_extract(video_id)
 
+# ---------- Networking ----------
 def _probe_url(url: str) -> bool:
     headers = {"Range": "bytes=0-1"}
     try:
-        r = _SESSION.get(url, headers=headers, stream=True, timeout=(2, 5), allow_redirects=True)
+        r = _SESSION_SHORT.get(url, headers=headers, stream=True, timeout=(1, 3), allow_redirects=True)
         ok = r.status_code in (200, 206)
         r.close()
         return ok
     except Exception:
         return False
 
+def _guess_audio_media_type(url: str, hdr_ct: str | None) -> str:
+    # Si el server no manda CT, inferimos por URL
+    if hdr_ct:
+        return hdr_ct
+    u = url.lower()
+    if ".m4a" in u or ".mp4" in u:
+        return "audio/mp4"
+    if ".webm" in u or ".weba" in u:
+        return "audio/webm"
+    return "audio/*"
+
 def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
     headers = {"Accept-Encoding": "identity", "Connection": "keep-alive"}
     headers["Range"] = range_header or "bytes=0-"
-    r = _SESSION.get(url, headers=headers, stream=True, timeout=(5, 30), allow_redirects=True)
+    r = _SESSION_STREAM.get(url, headers=headers, stream=True, timeout=(5, 30), allow_redirects=True)
     resp_headers = {"Accept-Ranges": "bytes", "Cache-Control": "no-store", "Connection": "keep-alive"}
-    ct = r.headers.get("Content-Type");  media_type = ct if ct else "audio/webm"
+    ct = r.headers.get("Content-Type")
+    media_type = _guess_audio_media_type(url, ct)
     cl = r.headers.get("Content-Length");  cr = r.headers.get("Content-Range")
     if cl: resp_headers["Content-Length"] = cl
     if cr: resp_headers["Content-Range"]  = cr
-    return StreamingResponse(r.iter_content(chunk_size=64 * 1024), media_type=media_type, headers=resp_headers, status_code=r.status_code)
+    # chunk grande reduce overhead en primer play
+    return StreamingResponse(r.iter_content(chunk_size=4_194_304), media_type=media_type, headers=resp_headers, status_code=r.status_code)
 
-# --------- WARMING 100% EN BACKGROUND ---------
+# ---------- WARMING ----------
 def _warm_one(video_id: str) -> None:
     try:
-        atv = _force_atv_id(video_id)       # acá sí mapeamos bloqueante (en background)
-        data = _get_or_extract(atv)
-        _probe_url(data["direct_url"])      # TTFB más bajo
+        data = _get_or_extract(video_id)   # mapea a ATV y cachea
+        _probe_url(data["direct_url"])     # pre-TTFB
     except Exception:
         pass
 
 def _schedule_warm(ids: list[str]) -> None:
     if not ids: return
+    now = time.time()
     uniq = [v for v in dict.fromkeys(ids) if v]
-    for v in uniq[:50]:
+    planned = []
+    for v in uniq[:_WARM_BURST]:
+        ts = _WARM_INFLIGHT.get(v, 0)
+        if now - ts > _WARM_DEDUP_TTL:
+            _WARM_INFLIGHT[v] = now
+            planned.append(v)
+    if not planned: return
+    ex = _get_warm_executor()
+    for v in planned:
         try:
-            _WARM_EXECUTOR.submit(_warm_one, v)
+            ex.submit(_warm_one, v)
         except Exception:
             pass
 
-# --- AUDIO ENDPOINTS ---
+# ---------- AUDIO ENDPOINTS ----------
 @router.get("/play")
 def play_song(
     request: Request,
@@ -294,22 +359,17 @@ def play_song(
     redir: int = Query(2, description="2=proxy stream (default), 1=redirect, 0=JSON url"),
 ):
     try:
-        # 1) Camino rápido: NO bloquea por mapeo
+        data = get_audio_info_quick(id)
+        audio_url = data["direct_url"]
+
+        print(f"[play] ➤ solicitando ID → {id}")
+
+        # 🔥 pre-probe para bajar TTFB del primer play
         try:
-            data = get_audio_info_quick(id)
-            audio_url = data["direct_url"]
-        except Exception as _fast_err:
-            # 2) Fallback bloqueante si hizo falta
-            try:
-                data = get_audio_info_blocking(id)
-                audio_url = data["direct_url"]
-            except Exception:
-                raise _fast_err
+            _probe_url(audio_url)
+        except Exception:
+            pass
 
-        print(f"[play] ➤ solicitando ID (quick) → {id}")
-
-        # --- Anti-lag: si la URL viene con 'ip=' (ligada a la IP del server),
-        # y el caller pidió redirect, forzamos PROXY igual.
         parsed_qs = urllib.parse.parse_qs(urllib.parse.urlsplit(audio_url).query)
         has_ip_param = "ip" in parsed_qs and parsed_qs["ip"] and parsed_qs["ip"][0]
 
@@ -335,15 +395,12 @@ def play_song(
 
 @router.post("/prefetch")
 def prefetch_songs(payload: dict = Body(...)):
-    """
-    Agenda warming (sin bloquear). Devuelve al instante.
-    """
     raw_ids = payload.get("ids", []) or []
-    ids = [str(i).strip() for i in raw_ids if i][:50]
+    ids = [str(i).strip() for i in raw_ids if i][:60]
     _schedule_warm(ids)
-    return {"ok": True, "scheduled": len(ids)}
+    return {"ok": True, "scheduled": min(len(ids), _WARM_BURST)}
 
-# --- SEARCH ---
+# ---------- SEARCH ----------
 @router.get("/search")
 def search_music(request: Request, q: str = Query(..., description="Texto a buscar")):
     auth_hdr = request.headers.get("Authorization", "")
@@ -357,7 +414,7 @@ def search_music(request: Request, q: str = Query(..., description="Texto a busc
         try:
             artist_ids = [s.get("videoId") for s in (cached.get("artistSongs") or []) if s.get("videoId")]
             general_ids = [] if cached.get("artist") else [s.get("videoId") for s in (cached.get("search", {}).get("songs") or []) if s.get("videoId")]
-            _schedule_warm(list(dict.fromkeys(artist_ids + general_ids))[:20])
+            _schedule_warm(list(dict.fromkeys(artist_ids + general_ids))[:24])
         except Exception as _e:
             print(f"[search][cached][warm][WARN] {_e}")
         return cached
@@ -388,13 +445,13 @@ def search_music(request: Request, q: str = Query(..., description="Texto a busc
     try:
         artist_ids = [s.get("videoId") for s in (artist_songs or []) if s.get("videoId")]
         general_ids = [] if artist else [s.get("videoId") for s in (general.get("songs") or []) if s.get("videoId")]
-        _schedule_warm(list(dict.fromkeys(artist_ids + general_ids))[:20])
+        _schedule_warm(list(dict.fromkeys(artist_ids + general_ids))[:24])
     except Exception as _e:
         print(f"[search][warm][WARN] {type(_e).__name__}: {_e}")
 
     return result
 
-# --- ARTIST (cacheado + warm en background) ---
+# ---------- ARTIST ----------
 def _artist_payload(artist_id: str):
     ent = _ARTIST_CACHE.get(artist_id)
     now = time.time()
@@ -442,7 +499,7 @@ def _artist_payload(artist_id: str):
 
     try:
         ids = [t.get("videoId") for t in payload["topSongs"] if t.get("videoId")]
-        _schedule_warm(ids[:12])
+        _schedule_warm(ids[:_WARM_BURST])
     except Exception as _e:
         print(f"[artist][warm][WARN] {_e}")
 
@@ -456,20 +513,87 @@ def get_artist_q(id: str = Query(...)):
 def get_artist_p(id: str = Path(...)):
     return _artist_payload(id)
 
-# --- ALBUM (sin bloquear: warm async) ---
+# ---------- ALBUM ----------
+def _album_tracks_force_songs(
+    tracks: list[dict],
+    album_name: str | None = None,
+    year: str | int | None = None,
+) -> list[dict]:
+    """
+    Forzar a canción SOLO cuando haga falta:
+    - Si ya viene como ATV (song) con videoId -> NO tocar.
+    - Si es OMV (video) o NO trae videoId -> buscar ATV.
+      ***Primero artista+título; álbum/año solo como fallback*** para evitar que
+      YouTube Music te devuelva el tema homónimo del álbum.
+    """
+    out = []
+    for t in tracks or []:
+        vid = t.get("videoId")
+        mvt = t.get("musicVideoType")  # de parse_album_tracks()
+
+        # 1) Ya es canción con ID => lo dejamos
+        if vid and mvt == "MUSIC_VIDEO_TYPE_ATV":
+            out.append(t)
+            continue
+
+        # 2) Resolver a ATV si falta ID o viene como OMV
+        title = (t.get("title") or "").strip()
+        artists = t.get("artists") or []
+        artist_names = " ".join([a.get("name", "") for a in artists if isinstance(a, dict)])
+
+        # Primer intento: SOLO artista + título (evita el sesgo por el nombre del álbum)
+        q1 = _normalize_query(artist_names, title)
+        atv = _search_atv_first(q1) if q1 else None
+
+        # Fallback: si no encontró, recién ahí sumamos álbum y/o año
+        if (not atv) and (album_name or year):
+            q2 = " ".join([p for p in [q1, album_name, str(year) if year else None] if p]).strip()
+            atv = _search_atv_first(q2) if q2 else None
+
+        if atv and (not vid or mvt == "MUSIC_VIDEO_TYPE_OMV"):
+            t["videoId"] = atv
+
+        out.append(t)
+    return out
+
+def _dedupe_tracks_by_video(tracks: list[dict]) -> list[dict]:
+    """Evita duplicados exactos (mismo videoId + title) preservando orden."""
+    seen = set()
+    out = []
+    for t in tracks or []:
+        key = (t.get("videoId"), t.get("title"))
+        if t.get("videoId") and key in seen:
+            continue
+        if t.get("videoId"):
+            seen.add(key)
+        out.append(t)
+    return out
+
 def _album_payload(album_id: str):
     yt = InnerTube("WEB_REMIX")
     response = yt.browse(album_id)
 
+    # 1) info primero (para señales de desambiguación)
+    info = parse_album_info(response)
+    album_name = (info or {}).get("title") or (info or {}).get("name")
+    album_year = (info or {}).get("year")
+
+    # 2) tracks con musicVideoType + videoId (si lo hay)
     tracks = parse_album_tracks(response)
+
+    # 3) Canciones sí o sí: solo resolver cuando falte o sea OMV
+    tracks = _album_tracks_force_songs(tracks, album_name=album_name, year=album_year)
+
+    # 4) Quitar duplicados exactos
+    tracks = _dedupe_tracks_by_video(tracks)
 
     try:
         ids = [t.get("videoId") for t in tracks if t.get("videoId")]
-        _schedule_warm(ids[:15])
+        _schedule_warm(ids[:_WARM_BURST])
     except Exception as _e:
         print(f"[album][warm][WARN] {_e}")
 
-    payload = {"id": album_id, "info": parse_album_info(response), "tracks": tracks}
+    payload = {"id": album_id, "info": info, "tracks": tracks}
     set_cached(f"album:{album_id}", payload, 30 * 60)
     return payload
 
@@ -485,15 +609,15 @@ def get_album_p(id: str = Path(...)):
     if cached: return cached
     return _album_payload(id)
 
-# --- Endpoint opcional para calentar desde el front ---
+# ---------- WARM endpoint ----------
 @router.post("/warm")
 def warm_ids(payload: dict = Body(...)):
     ids = [str(i).strip() for i in (payload.get("ids") or []) if i]
-    limit = int(payload.get("limit") or 20)
+    limit = int(payload.get("limit") or _WARM_BURST)
     _schedule_warm(ids[:limit])
     return {"ok": True, "scheduled": min(len(ids), limit)}
 
-# --- NUEVOS: endpoints play logs + invalidación de recent ---
+# ---------- Plays / Likes / Recent ----------
 def _user_cache_key_from_request(request: Request) -> str:
     u = getattr(request.state, "user", None) or {}
     uid = u.get("id") if isinstance(u, dict) else None
@@ -536,7 +660,6 @@ def log_play_artist(request: Request, artist_id: str = Path(...), body: dict | N
     except Exception: pass
     return {"ok": True}
 
-# --- LIKE / UNLIKE ---
 @router.post("/likes/tracks/{track_id}")
 def like_track(request: Request, track_id: str = Path(...), body: dict | None = Body(None)):
     source = (body or {}).get("source")
@@ -600,60 +723,6 @@ def unlike_playlist(request: Request, playlist_id: str = Path(...), body: dict |
                                   context_type="playlist", context_id=playlist_id,
                                   metadata={"source": source} if source else None)
     return {"ok": True}
-
-# --- LIKES: lectura ---
-def _db_for_request_simple(request: Request):
-    jwt = (request.headers.get("Authorization") or "").replace("Bearer ", "")
-    return db_as_user(jwt)
-
-def _last_event_for_track(db, track_id: str):
-    r = (db.table("user_activity")
-           .select("event_type,occurred_at")
-           .eq("entity_type", "track")
-           .eq("entity_id", track_id)
-           .in_("event_type", ["like", "unlike"])
-           .order("occurred_at", desc=True)
-           .limit(1)
-           .execute())
-    rows = r.data or []
-    return rows[0]["event_type"] if rows else None
-
-@router.get("/likes/tracks/{track_id}")
-def is_track_liked(request: Request, track_id: str = Path(...)):
-    try:
-        db = _db_for_request_simple(request)
-        last = _last_event_for_track(db, track_id)
-        return {"track_id": track_id, "liked": (last == "like")}
-    except Exception as e:
-        print(f"[likes][single][ERROR] {e}")
-        return JSONResponse(status_code=500, content={"ok": False, "error": "likes_check_failed"})
-
-@router.post("/likes/tracks/check")
-def are_tracks_liked(request: Request, payload: dict = Body(...)):
-    raw_ids = payload.get("ids", [])
-    ids = [str(i) for i in raw_ids if i][:200]
-    if not ids: return {"liked": []}
-    try:
-        db = _db_for_request_simple(request)
-        r = (db.table("user_activity")
-               .select("entity_id, event_type, occurred_at")
-               .eq("entity_type", "track")
-               .in_("entity_id", ids)
-               .in_("event_type", ["like", "unlike"])
-               .order("entity_id", desc=False)
-               .order("occurred_at", desc=True)
-               .execute())
-        rows = r.data or []
-        last_by_id = {}
-        for row in rows:
-            tid = row["entity_id"]
-            if tid in last_by_id: continue
-            last_by_id[tid] = row["event_type"]
-        liked = [tid for tid, ev in last_by_id.items() if ev == "like"]
-        return {"liked": liked}
-    except Exception as e:
-        print(f"[likes][bulk][ERROR] {e}")
-        return JSONResponse(status_code=500, content={"ok": False, "error": "likes_check_failed"})
 
 # --- utils ---
 def _first(*vals):
