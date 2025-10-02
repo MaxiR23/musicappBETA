@@ -44,6 +44,7 @@ ARTIST_TTL         = 20 * 60
 RECENT_TTL         = 2 * 60
 MAX_WORKERS        = 8
 WARM_MAX_WORKERS   = 10
+WARM_ENABLED       = False
 
 # --- yt_dlp global reusable (warm) ---
 _YDL_GLOBAL: yt_dlp.YoutubeDL | None = None
@@ -313,17 +314,43 @@ def _guess_audio_media_type(url: str, hdr_ct: str | None) -> str:
     return "audio/*"
 
 def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
-    headers = {"Accept-Encoding": "identity", "Connection": "keep-alive"}
-    headers["Range"] = range_header or "bytes=0-"
-    r = _SESSION_STREAM.get(url, headers=headers, stream=True, timeout=(5, 30), allow_redirects=True)
-    resp_headers = {"Accept-Ranges": "bytes", "Cache-Control": "no-store", "Connection": "keep-alive"}
+    # Passthrough crudo (sin decodificación), con Range desde el inicio
+    hdrs = {"Accept-Encoding": "identity", "Connection": "keep-alive"}
+    hdrs["Range"] = range_header or "bytes=0-"
+
+    r = _SESSION_STREAM.get(url, headers=hdrs, stream=True,
+                            timeout=(3, 20), allow_redirects=True)
+
+    # IMPORTANT: no decodificar ni rebufferizar; entregamos tal cual llega del origen
+    r.raw.decode_content = False
+
+    # Cabeceras mínimas (evitamos fijar Content-Length para permitir chunked inmediato)
+    resp_headers = {"Accept-Ranges": "bytes", "Connection": "keep-alive"}
     ct = r.headers.get("Content-Type")
-    media_type = _guess_audio_media_type(url, ct)
-    cl = r.headers.get("Content-Length");  cr = r.headers.get("Content-Range")
-    if cl: resp_headers["Content-Length"] = cl
-    if cr: resp_headers["Content-Range"]  = cr
-    # chunk grande reduce overhead en primer play
-    return StreamingResponse(r.iter_content(chunk_size=4_194_304), media_type=media_type, headers=resp_headers, status_code=r.status_code)
+    cr = r.headers.get("Content-Range")
+    if cr:
+        resp_headers["Content-Range"] = cr
+
+    media_type = ct if ct else _guess_audio_media_type(url, None)
+
+    # Leer directamente del socket del upstream en trocitos chicos y constantes
+    CHUNK = 32 * 1024  # 32 KiB
+    def body():
+        try:
+            while True:
+                b = r.raw.read(CHUNK)
+                if not b:
+                    break
+                yield b
+        finally:
+            try:
+                r.close()
+            except:
+                pass
+
+    # devolvemos 206/200 del origen; transfer-encoding: chunked lo maneja Uvicorn
+    return StreamingResponse(body(), media_type=media_type,
+                             headers=resp_headers, status_code=r.status_code)
 
 # ---------- WARMING ----------
 def _warm_one(video_id: str) -> None:
@@ -334,7 +361,9 @@ def _warm_one(video_id: str) -> None:
         pass
 
 def _schedule_warm(ids: list[str]) -> None:
-    if not ids: return
+    # ← si está desactivado, no hace nada
+    if not ids or not (globals().get("WARM_ENABLED", True)):
+        return
     now = time.time()
     uniq = [v for v in dict.fromkeys(ids) if v]
     planned = []
@@ -343,7 +372,8 @@ def _schedule_warm(ids: list[str]) -> None:
         if now - ts > _WARM_DEDUP_TTL:
             _WARM_INFLIGHT[v] = now
             planned.append(v)
-    if not planned: return
+    if not planned:
+        return
     ex = _get_warm_executor()
     for v in planned:
         try:
@@ -353,29 +383,36 @@ def _schedule_warm(ids: list[str]) -> None:
 
 # ---------- AUDIO ENDPOINTS ----------
 @router.get("/play")
-def play_song(
-    request: Request,
-    id: str = Query(..., description="YouTube video ID"),
-    redir: int = Query(2, description="2=proxy stream (default), 1=redirect, 0=JSON url"),
-):
+def play_song(request: Request, id: str = Query(...), redir: int = Query(2)):
+    t0 = time.time()
     try:
-        data = get_audio_info_quick(id)
-        audio_url = data["direct_url"]
+        t_ex0 = time.time()
+        data = get_audio_info_quick(id)           # extracción + ATV
+        t_ex1 = time.time()
 
+        audio_url = data["direct_url"]
         print(f"[play] ➤ solicitando ID → {id}")
 
-        # 🔥 pre-probe para bajar TTFB del primer play
+        # pre-probe opcional
         try:
             _probe_url(audio_url)
         except Exception:
             pass
+        t_probe = time.time()
 
         parsed_qs = urllib.parse.parse_qs(urllib.parse.urlsplit(audio_url).query)
         has_ip_param = "ip" in parsed_qs and parsed_qs["ip"] and parsed_qs["ip"][0]
-
         if redir == 1 and has_ip_param:
-            print(f"[play] ⚠️ URL con ip={parsed_qs['ip'][0]} → forzamos PROXY")
             redir = 2
+
+        # métricas
+        print({
+            "id": id,
+            "extract_ms": int((t_ex1 - t_ex0)*1000),
+            "preprobe_ms": int((t_probe - t_ex1)*1000),
+            "until_stream_setup_ms": int((time.time() - t0)*1000),
+            "redir": redir,
+        })
 
         if redir == 2:
             print(f"[play] 🛰️ PROXY stream → {audio_url[:80]}...")
@@ -395,6 +432,8 @@ def play_song(
 
 @router.post("/prefetch")
 def prefetch_songs(payload: dict = Body(...)):
+    if not WARM_ENABLED:
+        return {"ok": True, "scheduled": 0}   # ← no-op
     raw_ids = payload.get("ids", []) or []
     ids = [str(i).strip() for i in raw_ids if i][:60]
     _schedule_warm(ids)
@@ -612,6 +651,8 @@ def get_album_p(id: str = Path(...)):
 # ---------- WARM endpoint ----------
 @router.post("/warm")
 def warm_ids(payload: dict = Body(...)):
+    if not WARM_ENABLED:
+        return {"ok": True, "scheduled": 0}   # ← no-op
     ids = [str(i).strip() for i in (payload.get("ids") or []) if i]
     limit = int(payload.get("limit") or _WARM_BURST)
     _schedule_warm(ids[:limit])
