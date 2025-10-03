@@ -106,7 +106,6 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         def error(self, msg):   pass
 
     opts = {
-        # SOLO AUDIO: AAC (m4a) → Opus, jamás video
         "format": "bestaudio[acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio[acodec^=opus]/bestaudio/best",
         "format_sort": ["acodec:mp4a:m4a,opus", "abr", "asr", "size"],
         "prefer_free_formats": False,
@@ -119,13 +118,12 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         "skip_download": True,
         "noplaylist": True,
 
-        # ↓ recorta validaciones extra de formatos (HEAD) en 2025.09.26
         "check_formats": False,
 
         "extractor_args": {
             "youtube": {
-                "player_client": [client],                 # tv_embedded
-                "player_skip": ["configs", "webpage"],     # NO "js"
+                "player_client": [client],
+                "player_skip": ["configs", "webpage"],
                 "max_comments": ["0"]
             }
         },
@@ -143,10 +141,9 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
     return yt_dlp.YoutubeDL(opts)
 
 def _ydl_global() -> yt_dlp.YoutubeDL:
-    """Devuelve una sola instancia global de YoutubeDL (protegida por lock)."""
     global _YDL_GLOBAL
     if _YDL_GLOBAL is None:
-        _YDL_GLOBAL = _ydl_for("tv_embedded")  # mantenemos tv_embedded
+        _YDL_GLOBAL = _ydl_for("tv_embedded")
     return _YDL_GLOBAL
 
 def _ttl_from_url(u: str) -> int:
@@ -179,7 +176,6 @@ def _search_atv_first(q: str) -> str | None:
     if cached is not None:
         return (cached or {}).get("videoId")
 
-    # ↓ Reutiliza la sesión global de WEB_REMIX (keep-alive)
     sresp = _ytm().search(q)
     songs = parse_search_songs(sresp, strict_atv=True)
     vid = songs[0]["videoId"] if songs else None
@@ -187,7 +183,6 @@ def _search_atv_first(q: str) -> str | None:
     return vid
 
 def _force_atv_from_info(orig_id: str, info: dict) -> str:
-    """Deriva y cachea el ATV usando los metadatos ya extraídos."""
     now = time.time()
     title  = (info.get("track") or info.get("title") or "").strip()
     artist = (info.get("artist") or info.get("uploader") or "").strip()
@@ -203,7 +198,6 @@ def _force_atv_from_info(orig_id: str, info: dict) -> str:
 
 # ---------- Extracción ----------
 def _extract_best_url(video_id: str):
-    """Extrae usando YDL global con lock; si falla/contiende, usa una instancia fresca."""
     def pick_best_audio(info: dict) -> str | None:
         fmts = info.get("formats") or []
         audios = [f for f in fmts
@@ -227,7 +221,6 @@ def _extract_best_url(video_id: str):
     info = None
     url = None
 
-    # Intento 1: instancia global con lock (thread-safe)
     try:
         ydl = _ydl_global()
         with _YDL_LOCK:
@@ -238,9 +231,8 @@ def _extract_best_url(video_id: str):
         info = None
         url = None
 
-    # Intento 2: fallback a instancia fresca (evita colgados si la global está ocupada/rota)
     if not url:
-        ydl_fresh = _ydl_for("tv_embedded")  # mantenemos tv_embedded
+        ydl_fresh = _ydl_for("tv_embedded")
         info = ydl_fresh.extract_info(f"https://www.youtube.com/watch?v={video_id}",
                                       download=False, process=False)
         url = pick_best_audio(info)
@@ -251,20 +243,13 @@ def _extract_best_url(video_id: str):
     return info, url, "tv_embedded"
 
 def _get_or_extract(video_id: str, _force: bool = False):
-    """
-    Siempre fuerza ATV: extrae info del ID recibido, deriva ATV y si cambia re-extrae.
-    Con Stale-While-Revalidate: si el cache venció pero la URL aún responde, devolvemos
-    enseguida y refrescamos en background.
-    """
     now = time.time()
 
-    # cache directo
     ent = _cache.get(video_id)
     if ent and ent.get("direct_url"):
         fresh = (now - ent["ts"] < ent.get("ttl", URL_TTL))
         if fresh:
             return ent
-        # SWR: si sigue respondiendo, devolvemos y refrescamos atrás
         if not _force:
             try:
                 if _probe_url(ent["direct_url"]):
@@ -276,21 +261,18 @@ def _get_or_extract(video_id: str, _force: bool = False):
             except Exception:
                 pass
 
-    # 1) extraigo info del ID que llegó (rápido, sin process)
     info1, url1, client1 = _extract_best_url(video_id)
 
-    # 2) derivo ATV SIEMPRE con esos metadatos
     resolved_id = _FORCE_CACHE.get(video_id, {}).get("atv")
     if not resolved_id or (now - _FORCE_CACHE.get(video_id, {}).get("ts", 0) > _FORCE_TTL):
         resolved_id = _force_atv_from_info(video_id, info1)
 
-    # 3) si cambió el ID, re-extraigo; si no, uso lo ya obtenido
     if resolved_id != video_id:
         try:
             info2, url2, client2 = _extract_best_url(resolved_id)
             info, direct_url, client = info2, url2, client2
         except Exception:
-            info, direct_url, client = info1, url1, client1  # fallback
+            info, direct_url, client = info1, url1, client1
     else:
         info, direct_url, client = info1, url1, client1
 
@@ -302,17 +284,187 @@ def _get_or_extract(video_id: str, _force: bool = False):
         "ttl": _ttl_from_url(direct_url),
         "served": (ent or {}).get("served", 0),
     }
-    # cacheo bajo el ID resuelto y también bajo el original como alias
     _cache[resolved_id] = data
     _cache[video_id] = data
     return data
 
-# quick / blocking (ambos pasan por get_or_extract que ya fuerza ATV)
 def get_audio_info_quick(video_id: str):
     return _get_or_extract(video_id)
 
 def get_audio_info_blocking(video_id: str):
     return _get_or_extract(video_id)
+
+# ---------- FS AUDIO CACHE (full file) ----------
+_AUDIO_CACHE_DIR = os.path.join(tempfile.gettempdir(), "music_fullcache_v1")
+os.makedirs(_AUDIO_CACHE_DIR, exist_ok=True)
+
+def _cache_paths(cache_key: str):
+    base = os.path.join(_AUDIO_CACHE_DIR, f"{cache_key}")
+    return base + ".bin", base + ".part", base + ".meta"
+
+def _serve_file_range(path: str, range_header: str | None, media_type: str = "audio/mp4") -> StreamingResponse:
+    size = os.path.getsize(path)
+    if range_header and range_header.lower().startswith("bytes="):
+        try:
+            rng = range_header.split("=", 1)[1]
+            if "-" in rng:
+                start_str, end_str = rng.split("-", 1)
+                start = int(start_str) if start_str else 0
+                end = int(end_str) if end_str else (size - 1)
+                start = max(0, min(start, size - 1))
+                end = max(start, min(end, size - 1))
+            else:
+                start = int(rng)
+                end = size - 1
+        except Exception:
+            start, end = 0, size - 1
+        length = end - start + 1
+
+        def file_iter():
+            with open(path, "rb") as f:
+                f.seek(start)
+                remaining = length
+                chunk = 64 * 1024
+                while remaining > 0:
+                    to_read = min(chunk, remaining)
+                    data = f.read(to_read)
+                    if not data:
+                        break
+                    remaining -= len(data)
+                    yield data
+
+        headers = {
+            "Content-Range": f"bytes {start}-{end}/{size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(length),
+            "Connection": "keep-alive",
+        }
+        return StreamingResponse(file_iter(), status_code=206, media_type=media_type, headers=headers)
+
+    def file_iter_all():
+        with open(path, "rb") as f:
+            while True:
+                b = f.read(64 * 1024)
+                if not b:
+                    break
+                yield b
+
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(size),
+        "Connection": "keep-alive",
+    }
+    return StreamingResponse(file_iter_all(), status_code=200, media_type=media_type, headers=headers)
+
+def _download_full_to_cache(audio_url: str, cache_key: str):
+    dst_path, tmp_path, meta_path = _cache_paths(cache_key)
+    if os.path.exists(dst_path):
+        return
+    try:
+        with _SESSION_STREAM.get(audio_url, stream=True, timeout=(3, 30), allow_redirects=True) as r:
+            ct = r.headers.get("Content-Type") or "audio/mp4"
+            with open(meta_path, "w", encoding="utf-8") as m:
+                m.write(ct)
+            with open(tmp_path, "wb") as f:
+                for chunk in r.iter_content(64 * 1024):
+                    if not chunk: break
+                    f.write(chunk)
+        os.replace(tmp_path, dst_path)
+    except Exception:
+        try:
+            if os.path.exists(tmp_path): os.remove(tmp_path)
+        except Exception:
+            pass
+
+def _stream_fullmirror(audio_url: str, cache_key: str, range_header: str | None) -> StreamingResponse:
+    dst_path, tmp_path, meta_path = _cache_paths(cache_key)
+
+    if os.path.exists(dst_path):
+        media_type = "audio/mp4"
+        try:
+            if os.path.exists(meta_path):
+                with open(meta_path, "r", encoding="utf-8") as m:
+                    mt = (m.read() or "").strip()
+                    if mt: media_type = mt
+        except Exception:
+            pass
+        return _serve_file_range(dst_path, range_header, media_type)
+
+    if range_header and not range_header.strip().lower().startswith("bytes=0-"):
+        try:
+            _BACKGROUND_EXECUTOR.submit(_download_full_to_cache, audio_url, cache_key)
+        except Exception:
+            pass
+        return _stream_from_url(audio_url, range_header)
+
+    r = _SESSION_STREAM.get(audio_url, headers={"Accept-Encoding": "identity", "Connection": "keep-alive"},
+                            stream=True, timeout=(3, 20), allow_redirects=True)
+    r.raw.decode_content = False
+    ct = r.headers.get("Content-Type") or "audio/mp4"
+    try:
+        with open(meta_path, "w", encoding="utf-8") as m:
+            m.write(ct)
+    except Exception:
+        pass
+
+    ftmp = open(tmp_path, "wb")
+    CHUNK = 32 * 1024
+
+    def body():
+        try:
+            while True:
+                b = r.raw.read(CHUNK)
+                if not b:
+                    break
+                try:
+                    ftmp.write(b)
+                except Exception:
+                    pass
+                yield b
+        finally:
+            try:
+                r.close()
+            except:
+                pass
+            def _finish():
+                try:
+                    with _SESSION_STREAM.get(audio_url, headers={"Accept-Encoding": "identity"},
+                                             stream=True, timeout=(3, 30), allow_redirects=True) as r2:
+                        for b2 in r2.iter_content(256 * 1024):
+                            if not b2: break
+                            try:
+                                ftmp.write(b2)
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+                finally:
+                    try:
+                        ftmp.close()
+                    except Exception:
+                        pass
+                    try:
+                        os.replace(tmp_path, dst_path)
+                    except Exception:
+                        try:
+                            if os.path.exists(tmp_path): os.remove(tmp_path)
+                        except Exception:
+                            pass
+            try:
+                _BACKGROUND_EXECUTOR.submit(_finish)
+            except Exception:
+                try:
+                    ftmp.close()
+                    os.replace(tmp_path, dst_path)
+                except Exception:
+                    pass
+
+    resp_headers = {"Accept-Ranges": "bytes", "Connection": "keep-alive"}
+    cr = r.headers.get("Content-Range")
+    if cr:
+        resp_headers["Content-Range"] = cr
+
+    return StreamingResponse(body(), media_type=ct, headers=resp_headers, status_code=r.status_code)
 
 # ---------- Networking ----------
 def _probe_url(url: str) -> bool:
@@ -337,11 +489,11 @@ def _guess_audio_media_type(url: str, hdr_ct: str | None) -> str:
 
 def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
     hdrs = {"Accept-Encoding": "identity", "Connection": "keep-alive"}
-    hdrs["Range"] = range_header or "bytes=0-"
+    if range_header:
+        hdrs["Range"] = range_header
 
     r = _SESSION_STREAM.get(url, headers=hdrs, stream=True,
                             timeout=(3, 20), allow_redirects=True)
-
     r.raw.decode_content = False
 
     resp_headers = {"Accept-Ranges": "bytes", "Connection": "keep-alive"}
@@ -352,7 +504,7 @@ def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
 
     media_type = ct if ct else _guess_audio_media_type(url, None)
 
-    CHUNK = 32 * 1024  # 32 KiB
+    CHUNK = 32 * 1024
     def body():
         try:
             while True:
@@ -403,13 +555,12 @@ def play_song(request: Request, id: str = Query(...), redir: int = Query(2)):
     t0 = time.time()
     try:
         t_ex0 = time.time()
-        data = get_audio_info_quick(id)           # extracción + ATV
+        data = get_audio_info_quick(id)
         t_ex1 = time.time()
 
         audio_url = data["direct_url"]
         print(f"[play] ➤ solicitando ID → {id}")
 
-        # pre-probe opcional
         try:
             _probe_url(audio_url)
         except Exception:
@@ -432,7 +583,7 @@ def play_song(request: Request, id: str = Query(...), redir: int = Query(2)):
         if redir == 2:
             print(f"[play] 🛰️ PROXY stream → {audio_url[:80]}...")
             range_header = request.headers.get("range")
-            return _stream_from_url(audio_url, range_header)
+            return _stream_fullmirror(audio_url, cache_key=id, range_header=range_header)
 
         if redir == 1:
             print(f"[play] 🔀 307 → {audio_url[:80]}...")
@@ -473,7 +624,6 @@ def search_music(request: Request, q: str = Query(..., description="Texto a busc
             print(f"[search][cached][warm][WARN] {_e}")
         return cached
 
-    # (opcional) podrías también reusar _ytm() acá, pero lo dejado igual para no tocar tu flujo.
     yt = InnerTube("WEB_REMIX")
     response = yt.search(q)
 
@@ -574,16 +724,10 @@ def _album_tracks_force_songs(
     album_name: str | None = None,
     year: str | int | None = None,
 ) -> list[dict]:
-    """
-    Forzar a canción SOLO cuando haga falta:
-    - Si ya viene como ATV (song) con videoId -> NO tocar.
-    - Si es OMV (video) o NO trae videoId -> buscar ATV.
-      ***Primero artista+título; álbum/año solo como fallback***
-    """
     out = []
     for t in tracks or []:
         vid = t.get("videoId")
-        mvt = t.get("musicVideoType")  # de parse_album_tracks()
+        mvt = t.get("musicVideoType")
 
         if vid and mvt == "MUSIC_VIDEO_TYPE_ATV":
             out.append(t)
@@ -607,7 +751,6 @@ def _album_tracks_force_songs(
     return out
 
 def _dedupe_tracks_by_video(tracks: list[dict]) -> list[dict]:
-    """Evita duplicados exactos (mismo videoId + title) preservando orden."""
     seen = set()
     out = []
     for t in tracks or []:
