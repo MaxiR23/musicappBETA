@@ -125,7 +125,7 @@ def _ydl_global() -> yt_dlp.YoutubeDL:
     """Devuelve una sola instancia global de YoutubeDL (protegida por lock)."""
     global _YDL_GLOBAL
     if _YDL_GLOBAL is None:
-        _YDL_GLOBAL = _ydl_for("web_music")
+        _YDL_GLOBAL = _ydl_for("tv_embedded") ##other client: web_music
     return _YDL_GLOBAL
 
 def _ttl_from_url(u: str) -> int:
@@ -217,7 +217,7 @@ def _extract_best_url(video_id: str):
 
     # Intento 2: fallback a instancia fresca (evita colgados si la global está ocupada/rota)
     if not url:
-        ydl_fresh = _ydl_for("web_music")
+        ydl_fresh = _ydl_for("tv_embedded") ##other client: web_music
         info = ydl_fresh.extract_info(f"https://www.youtube.com/watch?v={video_id}",
                                       download=False, process=False)
         url = pick_best_audio(info)
@@ -225,7 +225,7 @@ def _extract_best_url(video_id: str):
     if not url:
         raise RuntimeError("no_audio_format")
 
-    return info, url, "web_music"
+    return info, url, "tv_embedded" ##other client: web_music
 
 def _get_or_extract(video_id: str, _force: bool = False):
     """
