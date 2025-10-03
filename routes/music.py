@@ -48,7 +48,17 @@ WARM_ENABLED       = False
 
 # --- yt_dlp global reusable (warm) ---
 _YDL_GLOBAL: yt_dlp.YoutubeDL | None = None
-_YDL_LOCK = threading.RLock()  # ← NUEVO: YoutubeDL no es thread-safe
+_YDL_LOCK = threading.RLock()  # YoutubeDL no es thread-safe
+
+# --- InnerTube global (WEB_REMIX) para evitar latencia por nueva sesión ---
+_YTM_GLOBAL: InnerTube | None = None
+_YTM_LOCK = threading.RLock()
+def _ytm() -> InnerTube:
+    global _YTM_GLOBAL
+    with _YTM_LOCK:
+        if _YTM_GLOBAL is None:
+            _YTM_GLOBAL = InnerTube("WEB_REMIX")
+        return _YTM_GLOBAL
 
 # caches
 _cache: dict[str, dict] = {}  # videoId -> {info, direct_url, ttl, ts, served}
@@ -58,11 +68,11 @@ _ARTIST_CACHE: dict[str, dict] = {}
 _RECENT_CACHE: dict[str, dict] = {}
 _RECENT_VER: dict[str, int] = {}
 _WARM_INFLIGHT: dict[str, float] = {}
-_WARM_BURST = 20                 # ↑ ráfaga para pre-calentar más
+_WARM_BURST = 20
 _WARM_DEDUP_TTL = 45
 
 # --- Cookies yt_dlp (SOLO TU RUTA) ---
-COOKIEFILE = "/root/musicappbackend/cookies.txt"  # ← tu ruta fija
+COOKIEFILE = "/root/musicappbackend/cookies.txt"
 if not os.path.exists(COOKIEFILE) or os.path.getsize(COOKIEFILE) == 0:
     raise RuntimeError(f"[music] COOKIEFILE no existe o está vacío: {COOKIEFILE}")
 
@@ -108,7 +118,18 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         "logger": _SilentLogger(),
         "skip_download": True,
         "noplaylist": True,
-        "extractor_args": {"youtube": {"player_client": [client]}},
+
+        # ↓ recorta validaciones extra de formatos (HEAD) en 2025.09.26
+        "check_formats": False,
+
+        "extractor_args": {
+            "youtube": {
+                "player_client": [client],                 # tv_embedded
+                "player_skip": ["configs", "webpage"],     # NO "js"
+                "max_comments": ["0"]
+            }
+        },
+
         "cachedir": os.path.join(tempfile.gettempdir(), "yt_dlp_cache"),
         "socket_timeout": 5,
         "retries": 0,
@@ -117,7 +138,7 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         "source_address": "0.0.0.0",
         "nocheckcertificate": True,
         "http_headers": {"User-Agent": "Mozilla/5.0", "Accept-Language": "es-AR,es;q=0.9,en;q=0.8"},
-        "cookiefile": COOKIEFILE,  # ← solo tu archivo
+        "cookiefile": COOKIEFILE,
     }
     return yt_dlp.YoutubeDL(opts)
 
@@ -125,7 +146,7 @@ def _ydl_global() -> yt_dlp.YoutubeDL:
     """Devuelve una sola instancia global de YoutubeDL (protegida por lock)."""
     global _YDL_GLOBAL
     if _YDL_GLOBAL is None:
-        _YDL_GLOBAL = _ydl_for("tv_embedded") ##other client: web_music
+        _YDL_GLOBAL = _ydl_for("tv_embedded")  # mantenemos tv_embedded
     return _YDL_GLOBAL
 
 def _ttl_from_url(u: str) -> int:
@@ -155,9 +176,11 @@ def _search_atv_first(q: str) -> str | None:
     if not q: return None
     ck = f"search_atv:{q.lower()}"
     cached = get_cached(ck)
-    if cached is not None: return (cached or {}).get("videoId")
-    yt_local = InnerTube("WEB_REMIX")
-    sresp = yt_local.search(q)
+    if cached is not None:
+        return (cached or {}).get("videoId")
+
+    # ↓ Reutiliza la sesión global de WEB_REMIX (keep-alive)
+    sresp = _ytm().search(q)
     songs = parse_search_songs(sresp, strict_atv=True)
     vid = songs[0]["videoId"] if songs else None
     set_cached(ck, {"videoId": vid}, SEARCH_TTL)
@@ -217,7 +240,7 @@ def _extract_best_url(video_id: str):
 
     # Intento 2: fallback a instancia fresca (evita colgados si la global está ocupada/rota)
     if not url:
-        ydl_fresh = _ydl_for("tv_embedded") ##other client: web_music
+        ydl_fresh = _ydl_for("tv_embedded")  # mantenemos tv_embedded
         info = ydl_fresh.extract_info(f"https://www.youtube.com/watch?v={video_id}",
                                       download=False, process=False)
         url = pick_best_audio(info)
@@ -225,7 +248,7 @@ def _extract_best_url(video_id: str):
     if not url:
         raise RuntimeError("no_audio_format")
 
-    return info, url, "tv_embedded" ##other client: web_music
+    return info, url, "tv_embedded"
 
 def _get_or_extract(video_id: str, _force: bool = False):
     """
@@ -303,7 +326,6 @@ def _probe_url(url: str) -> bool:
         return False
 
 def _guess_audio_media_type(url: str, hdr_ct: str | None) -> str:
-    # Si el server no manda CT, inferimos por URL
     if hdr_ct:
         return hdr_ct
     u = url.lower()
@@ -314,17 +336,14 @@ def _guess_audio_media_type(url: str, hdr_ct: str | None) -> str:
     return "audio/*"
 
 def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
-    # Passthrough crudo (sin decodificación), con Range desde el inicio
     hdrs = {"Accept-Encoding": "identity", "Connection": "keep-alive"}
     hdrs["Range"] = range_header or "bytes=0-"
 
     r = _SESSION_STREAM.get(url, headers=hdrs, stream=True,
                             timeout=(3, 20), allow_redirects=True)
 
-    # IMPORTANT: no decodificar ni rebufferizar; entregamos tal cual llega del origen
     r.raw.decode_content = False
 
-    # Cabeceras mínimas (evitamos fijar Content-Length para permitir chunked inmediato)
     resp_headers = {"Accept-Ranges": "bytes", "Connection": "keep-alive"}
     ct = r.headers.get("Content-Type")
     cr = r.headers.get("Content-Range")
@@ -333,7 +352,6 @@ def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
 
     media_type = ct if ct else _guess_audio_media_type(url, None)
 
-    # Leer directamente del socket del upstream en trocitos chicos y constantes
     CHUNK = 32 * 1024  # 32 KiB
     def body():
         try:
@@ -348,20 +366,18 @@ def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
             except:
                 pass
 
-    # devolvemos 206/200 del origen; transfer-encoding: chunked lo maneja Uvicorn
     return StreamingResponse(body(), media_type=media_type,
                              headers=resp_headers, status_code=r.status_code)
 
 # ---------- WARMING ----------
 def _warm_one(video_id: str) -> None:
     try:
-        data = _get_or_extract(video_id)   # mapea a ATV y cachea
-        _probe_url(data["direct_url"])     # pre-TTFB
+        data = _get_or_extract(video_id)
+        _probe_url(data["direct_url"])
     except Exception:
         pass
 
 def _schedule_warm(ids: list[str]) -> None:
-    # ← si está desactivado, no hace nada
     if not ids or not (globals().get("WARM_ENABLED", True)):
         return
     now = time.time()
@@ -405,7 +421,6 @@ def play_song(request: Request, id: str = Query(...), redir: int = Query(2)):
         if redir == 1 and has_ip_param:
             redir = 2
 
-        # métricas
         print({
             "id": id,
             "extract_ms": int((t_ex1 - t_ex0)*1000),
@@ -433,7 +448,7 @@ def play_song(request: Request, id: str = Query(...), redir: int = Query(2)):
 @router.post("/prefetch")
 def prefetch_songs(payload: dict = Body(...)):
     if not WARM_ENABLED:
-        return {"ok": True, "scheduled": 0}   # ← no-op
+        return {"ok": True, "scheduled": 0}
     raw_ids = payload.get("ids", []) or []
     ids = [str(i).strip() for i in raw_ids if i][:60]
     _schedule_warm(ids)
@@ -458,6 +473,7 @@ def search_music(request: Request, q: str = Query(..., description="Texto a busc
             print(f"[search][cached][warm][WARN] {_e}")
         return cached
 
+    # (opcional) podrías también reusar _ytm() acá, pero lo dejado igual para no tocar tu flujo.
     yt = InnerTube("WEB_REMIX")
     response = yt.search(q)
 
@@ -562,29 +578,24 @@ def _album_tracks_force_songs(
     Forzar a canción SOLO cuando haga falta:
     - Si ya viene como ATV (song) con videoId -> NO tocar.
     - Si es OMV (video) o NO trae videoId -> buscar ATV.
-      ***Primero artista+título; álbum/año solo como fallback*** para evitar que
-      YouTube Music te devuelva el tema homónimo del álbum.
+      ***Primero artista+título; álbum/año solo como fallback***
     """
     out = []
     for t in tracks or []:
         vid = t.get("videoId")
         mvt = t.get("musicVideoType")  # de parse_album_tracks()
 
-        # 1) Ya es canción con ID => lo dejamos
         if vid and mvt == "MUSIC_VIDEO_TYPE_ATV":
             out.append(t)
             continue
 
-        # 2) Resolver a ATV si falta ID o viene como OMV
         title = (t.get("title") or "").strip()
         artists = t.get("artists") or []
         artist_names = " ".join([a.get("name", "") for a in artists if isinstance(a, dict)])
 
-        # Primer intento: SOLO artista + título (evita el sesgo por el nombre del álbum)
         q1 = _normalize_query(artist_names, title)
         atv = _search_atv_first(q1) if q1 else None
 
-        # Fallback: si no encontró, recién ahí sumamos álbum y/o año
         if (not atv) and (album_name or year):
             q2 = " ".join([p for p in [q1, album_name, str(year) if year else None] if p]).strip()
             atv = _search_atv_first(q2) if q2 else None
@@ -612,18 +623,12 @@ def _album_payload(album_id: str):
     yt = InnerTube("WEB_REMIX")
     response = yt.browse(album_id)
 
-    # 1) info primero (para señales de desambiguación)
     info = parse_album_info(response)
     album_name = (info or {}).get("title") or (info or {}).get("name")
     album_year = (info or {}).get("year")
 
-    # 2) tracks con musicVideoType + videoId (si lo hay)
     tracks = parse_album_tracks(response)
-
-    # 3) Canciones sí o sí: solo resolver cuando falte o sea OMV
     tracks = _album_tracks_force_songs(tracks, album_name=album_name, year=album_year)
-
-    # 4) Quitar duplicados exactos
     tracks = _dedupe_tracks_by_video(tracks)
 
     try:
@@ -652,7 +657,7 @@ def get_album_p(id: str = Path(...)):
 @router.post("/warm")
 def warm_ids(payload: dict = Body(...)):
     if not WARM_ENABLED:
-        return {"ok": True, "scheduled": 0}   # ← no-op
+        return {"ok": True, "scheduled": 0}
     ids = [str(i).strip() for i in (payload.get("ids") or []) if i]
     limit = int(payload.get("limit") or _WARM_BURST)
     _schedule_warm(ids[:limit])
