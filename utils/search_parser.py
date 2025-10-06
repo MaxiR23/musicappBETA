@@ -347,6 +347,90 @@ def parse_search_albums_and_songs(resp: dict, song_limit: int | None = None, alb
     if album_limit is not None: albums = albums[:album_limit]
     return {"songs": songs, "albums": albums}
 
+
+
+# ---------- TOP RESULT (musicCardShelfRenderer) ----------
+def parse_search_top_result(resp: dict) -> dict | None:
+    """
+    Devuelve el top result si existe y es MUSIC_VIDEO_TYPE_ATV.
+    Incluye título, artistas, duración y thumbnail.
+    """
+    try:
+        tab = _get_selected_tab(resp)
+        if not tab:
+            return None
+
+        sections = _dig(tab, ["content", "sectionListRenderer", "contents"], []) or []
+        card = next((c.get("musicCardShelfRenderer") for c in sections if "musicCardShelfRenderer" in c), None)
+        if not card:
+            return None
+
+        title_runs = _dig(card, ["title", "runs"], []) or []
+        title_text = _dig(title_runs, [0, "text"])
+        nav = _dig(title_runs, [0, "navigationEndpoint", "watchEndpoint"], {})
+        video_id = nav.get("videoId")
+        video_type = _dig(nav, [
+            "watchEndpointMusicSupportedConfigs",
+            "watchEndpointMusicConfig",
+            "musicVideoType"
+        ])
+
+        # ✅ solo si es ATV devolvemos algo
+        if video_type != "MUSIC_VIDEO_TYPE_ATV":
+            return None
+
+        # --- artistas ---
+        artists = []
+        subtitle_runs = _dig(card, ["subtitle", "runs"], []) or []
+        for run in subtitle_runs:
+            bid = _dig(run, ["navigationEndpoint", "browseEndpoint", "browseId"])
+            if bid and run.get("text"):
+                artists.append({"name": run["text"], "id": bid})
+
+        # --- duración ---
+        duration = None
+        for run in subtitle_runs:
+            txt = run.get("text", "")
+            if ":" in txt:
+                duration = txt
+                break
+
+        # --- thumbnail ---
+        thumbs = _dig(card, [
+            "thumbnail", "musicThumbnailRenderer", "thumbnail", "thumbnails"
+        ], []) or []
+        thumb_url = thumbs[-1]["url"] if thumbs else None
+
+        return {
+            "title": title_text,
+            "videoId": video_id,
+            "musicVideoType": video_type,
+            "artists": artists,
+            "duration": duration,
+            "thumbnail_url": thumb_url,
+        }
+
+    except Exception:
+        return None
+
+# ---------- COMBINADO: TOP RESULT + SONGS ----------
+def parse_search_first_song_or_top(resp: dict) -> tuple[str | None, dict | None]:
+    """
+    Busca primero el TopResult (musicCardShelfRenderer),
+    si no hay o no es ATV, busca en el shelf 'Songs'.
+    Devuelve (source, song)
+    """
+    top = parse_search_top_result(resp)
+    if top:
+        return "TopResult", top
+
+    songs = parse_search_songs(resp)
+    if songs:
+        return "Songs", songs[0]
+
+    return None, None
+
+
 # ---------- CARD DE ARTISTA (lista de 1 si hay) ----------
 def parse_search_artists(resp: dict) -> list[dict]:
     out = []

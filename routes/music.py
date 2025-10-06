@@ -17,6 +17,7 @@ import threading  # ← NUEVO
 from services.cache_service import get_cached, set_cached
 from utils.search_parser import (
     parse_search_songs,
+    parse_search_first_song_or_top,
     parse_artist_card_info,
     parse_artist_card_songs,
     parse_artist_card_albums,
@@ -71,10 +72,22 @@ _WARM_INFLIGHT: dict[str, float] = {}
 _WARM_BURST = 20
 _WARM_DEDUP_TTL = 45
 
-# --- Cookies yt_dlp (SOLO TU RUTA) ---
-COOKIEFILE = "/root/musicappbackend/cookies.txt"
-if not os.path.exists(COOKIEFILE) or os.path.getsize(COOKIEFILE) == 0:
-    raise RuntimeError(f"[music] COOKIEFILE no existe o está vacío: {COOKIEFILE}")
+# --- Cookies yt_dlp (auto-resolución VPS / local) ---
+POSSIBLE_COOKIE_PATHS = [
+    "/root/musicappbackend/cookies.txt",  # VPS Linux
+    os.path.join(os.getcwd(), "cookies.txt"),  # local carpeta backend/
+    os.path.join(os.path.dirname(__file__), "..", "cookies.txt"),  # relativo
+]
+
+COOKIEFILE = next((p for p in POSSIBLE_COOKIE_PATHS if os.path.exists(p) and os.path.getsize(p) > 0), None)
+
+if not COOKIEFILE:
+    raise RuntimeError(
+        f"[music] No se encontró cookies.txt válido en ninguna de las rutas:\n"
+        + "\n".join(POSSIBLE_COOKIE_PATHS)
+    )
+else:
+    print(f"[music] ✅ COOKIEFILE detectado: {COOKIEFILE}")
 
 # --- HTTP sessions ---
 _SESSION_SHORT = requests.Session()
@@ -170,17 +183,31 @@ def _normalize_query(artist_names: str, title: str) -> str:
     return re.sub(r"\s{2,}", " ", base).strip()
 
 def _search_atv_first(q: str) -> str | None:
-    if not q: return None
+    """
+    Busca primero el TopResult (musicCardShelfRenderer),
+    y si no es ATV, busca dentro del shelf 'Songs'.
+    Devuelve el videoId si encuentra un MUSIC_VIDEO_TYPE_ATV.
+    """
+    if not q:
+        return None
+
     ck = f"search_atv:{q.lower()}"
     cached = get_cached(ck)
     if cached is not None:
         return (cached or {}).get("videoId")
 
-    sresp = _ytm().search(q)
-    songs = parse_search_songs(sresp, strict_atv=True)
-    vid = songs[0]["videoId"] if songs else None
-    set_cached(ck, {"videoId": vid}, SEARCH_TTL)
-    return vid
+    try:
+        sresp = _ytm().search(q)
+        source, song = parse_search_first_song_or_top(sresp)
+        vid = song.get("videoId") if song else None
+        if vid:
+            set_cached(ck, {"videoId": vid}, SEARCH_TTL)
+            return vid
+    except Exception as e:
+        print(f"[search_atv_first][WARN] {type(e).__name__}: {e}")
+
+    set_cached(ck, {"videoId": None}, SEARCH_TTL)
+    return None
 
 def _force_atv_from_info(orig_id: str, info: dict) -> str:
     now = time.time()
@@ -719,36 +746,31 @@ def get_artist_p(id: str = Path(...)):
     return _artist_payload(id)
 
 # ---------- ALBUM ----------
-def _album_tracks_force_songs(
-    tracks: list[dict],
-    album_name: str | None = None,
-    year: str | int | None = None,
-) -> list[dict]:
-    out = []
-    for t in tracks or []:
-        vid = t.get("videoId")
-        mvt = t.get("musicVideoType")
+def _album_tracks_force_songs(album_name: str, artist_name: str) -> list[dict]:
+    """
+    Si el álbum no tiene tracks directos (playlist/album), forzamos a buscar
+    cada tema en modo ATV, usando la lógica combinada TopResult + Songs.
+    """
+    forced_tracks = []
+    try:
+        query = f"{album_name} {artist_name}"
+        print(f"[force_songs] Buscando canciones para álbum: {query}")
 
-        if vid and mvt == "MUSIC_VIDEO_TYPE_ATV":
-            out.append(t)
-            continue
+        # Usa la lógica combinada (TopResult -> Songs)
+        video_id = _search_atv_first(query)
+        if video_id:
+            forced_tracks.append({
+                "title": album_name,
+                "videoId": video_id,
+                "source": "forced_atv",
+            })
+        else:
+            print(f"[force_songs] No se encontró ATV para: {query}")
 
-        title = (t.get("title") or "").strip()
-        artists = t.get("artists") or []
-        artist_names = " ".join([a.get("name", "") for a in artists if isinstance(a, dict)])
+    except Exception as e:
+        print(f"[force_songs][ERROR] {type(e).__name__}: {e}")
 
-        q1 = _normalize_query(artist_names, title)
-        atv = _search_atv_first(q1) if q1 else None
-
-        if (not atv) and (album_name or year):
-            q2 = " ".join([p for p in [q1, album_name, str(year) if year else None] if p]).strip()
-            atv = _search_atv_first(q2) if q2 else None
-
-        if atv and (not vid or mvt == "MUSIC_VIDEO_TYPE_OMV"):
-            t["videoId"] = atv
-
-        out.append(t)
-    return out
+    return forced_tracks
 
 def _dedupe_tracks_by_video(tracks: list[dict]) -> list[dict]:
     seen = set()
