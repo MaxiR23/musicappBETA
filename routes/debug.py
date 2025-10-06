@@ -552,6 +552,231 @@ def search_debug(q: str = Query(..., description="Texto a buscar")):
     except Exception as e:
         return {"error": "search_error", "detail": str(e)}
 
+@router.get("/search_debug_top")
+def search_debug_top(q: str = Query(...)):
+    """
+    Debug: muestra el top result (musicCardShelfRenderer) con título, videoId,
+    video_type, thumbnail y artistas con sus IDs.
+    """
+    try:
+        yt = _get_yt()
+        response = yt.search(q)
+
+        shelves = (
+            response.get("contents", {})
+            .get("tabbedSearchResultsRenderer", {})
+            .get("tabs", [])[0]
+            .get("tabRenderer", {})
+            .get("content", {})
+            .get("sectionListRenderer", {})
+            .get("contents", [])
+        )
+
+        card = next((c.get("musicCardShelfRenderer") for c in shelves if "musicCardShelfRenderer" in c), None)
+        if not card:
+            return {"ok": False, "message": "No hay musicCardShelfRenderer"}
+
+        # --- título y videoId ---
+        title_block = card.get("title", {}).get("runs", [{}])[0]
+        title_text = title_block.get("text")
+        watch = title_block.get("navigationEndpoint", {}).get("watchEndpoint", {})
+        video_id = watch.get("videoId")
+        video_type = (
+            watch.get("watchEndpointMusicSupportedConfigs", {})
+            .get("watchEndpointMusicConfig", {})
+            .get("musicVideoType")
+        )
+
+        # --- artistas (nombre + browseId) ---
+        artists = []
+        subtitle_runs = card.get("subtitle", {}).get("runs", [])
+        for run in subtitle_runs:
+            nav = run.get("navigationEndpoint", {}).get("browseEndpoint", {})
+            browse_id = nav.get("browseId")
+            name = run.get("text")
+            if browse_id and name:
+                artists.append({"name": name, "id": browse_id})
+
+        # --- duración ---
+        duration = None
+        for run in subtitle_runs:
+            if ":" in run.get("text", ""):
+                duration = run["text"]
+                break
+
+        # --- thumbnail ---
+        thumbs = (
+            card.get("thumbnail", {})
+            .get("musicThumbnailRenderer", {})
+            .get("thumbnail", {})
+            .get("thumbnails", [])
+        )
+        thumb = thumbs[-1]["url"] if thumbs else None
+
+        return {
+            "ok": True,
+            "query": q,
+            "title": title_text,
+            "videoId": video_id,
+            "video_type": video_type,
+            "artists": artists,
+            "duration": duration,
+            "thumbnail_url": thumb,
+        }
+
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@router.get("/search_debug_song")
+def search_debug_song(q: str = Query(...)):
+    """
+    1️⃣ Si el Top Result (musicCardShelfRenderer) es ATV, lo devuelve.
+    2️⃣ Si no, cae al shelf 'Songs'.
+    """
+    try:
+        yt = _get_yt()
+        response = yt.search(q)
+
+        # obtener shelves principales
+        shelves = (
+            response.get("contents", {})
+            .get("tabbedSearchResultsRenderer", {})
+            .get("tabs", [])[0]
+            .get("tabRenderer", {})
+            .get("content", {})
+            .get("sectionListRenderer", {})
+            .get("contents", [])
+        )
+
+        # =============================
+        # 1️⃣ TOP RESULT (CardShelf)
+        # =============================
+        card = next((c.get("musicCardShelfRenderer") for c in shelves if "musicCardShelfRenderer" in c), None)
+        if card:
+            title_block = card.get("title", {}).get("runs", [{}])[0]
+            title_text = title_block.get("text")
+            watch = title_block.get("navigationEndpoint", {}).get("watchEndpoint", {})
+            video_id = watch.get("videoId")
+            video_type = (
+                watch.get("watchEndpointMusicSupportedConfigs", {})
+                .get("watchEndpointMusicConfig", {})
+                .get("musicVideoType")
+            )
+
+            # ✅ si el top result es ATV → devolver este
+            if video_type == "MUSIC_VIDEO_TYPE_ATV":
+                # artistas
+                artists = []
+                subtitle_runs = card.get("subtitle", {}).get("runs", [])
+                for run in subtitle_runs:
+                    nav = run.get("navigationEndpoint", {}).get("browseEndpoint", {})
+                    browse_id = nav.get("browseId")
+                    name = run.get("text")
+                    if browse_id and name:
+                        artists.append({"name": name, "id": browse_id})
+
+                # duración
+                duration = None
+                for run in subtitle_runs:
+                    if ":" in run.get("text", ""):
+                        duration = run["text"]
+                        break
+
+                # thumbnail
+                thumbs = (
+                    card.get("thumbnail", {})
+                    .get("musicThumbnailRenderer", {})
+                    .get("thumbnail", {})
+                    .get("thumbnails", [])
+                )
+                thumb = thumbs[-1]["url"] if thumbs else None
+
+                return {
+                    "ok": True,
+                    "source": "TopResult",
+                    "query": q,
+                    "song": {
+                        "title": title_text,
+                        "videoId": video_id,
+                        "video_type": video_type,
+                        "artists": artists,
+                        "duration": duration,
+                        "thumbnail_url": thumb,
+                    },
+                }
+
+        # =============================
+        # 2️⃣ FALLBACK → SONGS (no tocar)
+        # =============================
+        songs_shelf = next(
+            (c["musicShelfRenderer"] for c in shelves if "musicShelfRenderer" in c),
+            None,
+        )
+        if not songs_shelf:
+            return {"ok": False, "message": "No se encontró shelf Songs"}
+
+        contents = songs_shelf.get("contents", [])
+        if not contents:
+            return {"ok": False, "message": "Shelf Songs vacío"}
+
+        r = contents[0].get("musicResponsiveListItemRenderer", {})
+        if not r:
+            return {"ok": False, "message": "No se encontró renderer en Songs[0]"}
+
+        # --- título e ID del video ---
+        title_run = (
+            r.get("flexColumns", [{}])[0]
+            .get("musicResponsiveListItemFlexColumnRenderer", {})
+            .get("text", {})
+            .get("runs", [{}])[0]
+        )
+        title = title_run.get("text")
+        video_id = (
+            title_run.get("navigationEndpoint", {})
+            .get("watchEndpoint", {})
+            .get("videoId")
+        )
+
+        # --- artista y su ID ---
+        artist_runs = (
+            r.get("flexColumns", [{}])[1]
+            .get("musicResponsiveListItemFlexColumnRenderer", {})
+            .get("text", {})
+            .get("runs", [])
+        )
+        artist_name = None
+        artist_id = None
+        for run in artist_runs:
+            if "browseEndpoint" in run.get("navigationEndpoint", {}):
+                artist_name = run.get("text")
+                artist_id = run["navigationEndpoint"]["browseEndpoint"].get("browseId")
+                break
+
+        # --- thumbnail ---
+        thumbs = (
+            r.get("thumbnail", {})
+            .get("musicThumbnailRenderer", {})
+            .get("thumbnail", {})
+            .get("thumbnails", [])
+        )
+        thumbnail_url = thumbs[-1]["url"] if thumbs else None
+
+        return {
+            "ok": True,
+            "source": "Songs",
+            "query": q,
+            "song": {
+                "title": title,
+                "videoId": video_id,
+                "artist_name": artist_name,
+                "artist_id": artist_id,
+                "thumbnail_url": thumbnail_url,
+            },
+        }
+
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
 @router.get("/search_debug_improved_version")
 def search_debug_improved_version(
     q: str = Query(..., description="Texto a buscar"),
