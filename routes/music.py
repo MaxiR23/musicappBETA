@@ -130,25 +130,34 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         "logger": _SilentLogger(),
         "skip_download": True,
         "noplaylist": True,
-
         "check_formats": False,
 
+        # ⚡ recorte de pasos de player para tv_embedded (menos requests)
         "extractor_args": {
             "youtube": {
-                "player_client": [client],
-                "player_skip": ["configs", "webpage"],
-                "max_comments": ["0"]
+                "player_client": [client],                  # seguimos usando tv_embedded
+                "player_skip": ["configs","webpage","webpage_head", "watch"],
+                "skip": ["hls", "dash", "translated_subs", "manifests"],
+                "max_comments": ["0"],
             }
         },
 
         "cachedir": os.path.join(tempfile.gettempdir(), "yt_dlp_cache"),
-        "socket_timeout": 5,
+        "socket_timeout": 3,
         "retries": 0,
         "extractor_retries": 0,
         "sleep_requests": 0.0,
         "source_address": "0.0.0.0",
         "nocheckcertificate": True,
-        "http_headers": {"User-Agent": "Mozilla/5.0", "Accept-Language": "es-AR,es;q=0.9,en;q=0.8"},
+
+        # 🧠 encabezados coherentes con tv_embedded (evita redirecciones extras)
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0",
+            "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
+            "X-YouTube-Client-Name": "TVHTML5",
+            "X-YouTube-Client-Version": "7.202.08",
+        },
+
         "cookiefile": COOKIEFILE,
     }
     return yt_dlp.YoutubeDL(opts)
@@ -156,7 +165,9 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
 def _ydl_global() -> yt_dlp.YoutubeDL:
     global _YDL_GLOBAL
     if _YDL_GLOBAL is None:
-        _YDL_GLOBAL = _ydl_for("tv_embedded")
+        with _YDL_LOCK:
+            if _YDL_GLOBAL is None:  # doble check por threads
+                _YDL_GLOBAL = _ydl_for("tv_embedded")
     return _YDL_GLOBAL
 
 def _ttl_from_url(u: str) -> int:
@@ -182,31 +193,46 @@ def _normalize_query(artist_names: str, title: str) -> str:
     base = _norm_re_noise.sub("", base)
     return re.sub(r"\s{2,}", " ", base).strip()
 
-def _search_atv_first(q: str) -> str | None:
+def _search_atv_first(q: str, *, dbg: str | None = None) -> str | None:
     """
-    Busca primero el TopResult (musicCardShelfRenderer),
-    y si no es ATV, busca dentro del shelf 'Songs'.
-    Devuelve el videoId si encuentra un MUSIC_VIDEO_TYPE_ATV.
+    Usa parse_search_first_song_or_top (de utils/search_parser.py).
+    Devuelve el videoId si el TopResult es ATV o si hay un ATV en el shelf 'Songs'.
     """
+    def _log(tag: str, data: dict):
+        try: print(f"[album][DBG] _search_atv_first: {tag}", data)
+        except: pass
+
     if not q:
+        _log("empty_query", {"dbg": dbg})
         return None
 
     ck = f"search_atv:{q.lower()}"
     cached = get_cached(ck)
     if cached is not None:
-        return (cached or {}).get("videoId")
+        vid = (cached or {}).get("videoId")
+        _log("cache_hit", {"dbg": dbg, "q": q, "videoId": vid})
+        return vid
 
     try:
-        sresp = _ytm().search(q)
-        source, song = parse_search_first_song_or_top(sresp)
+        _log("search", {"dbg": dbg, "q": q})
+        resp = _ytm().search(q)
+        source, song = parse_search_first_song_or_top(resp)
         vid = song.get("videoId") if song else None
+        _log("result", {
+            "dbg": dbg, "q": q, "source": source,
+            "title": (song or {}).get("title"),
+            "musicVideoType": (song or {}).get("musicVideoType"),
+            "videoId": vid
+        })
         if vid:
             set_cached(ck, {"videoId": vid}, SEARCH_TTL)
             return vid
     except Exception as e:
-        print(f"[search_atv_first][WARN] {type(e).__name__}: {e}")
+        _log("search_exc", {"dbg": dbg, "q": q, "err": f"{type(e).__name__}: {e}"})
 
-    set_cached(ck, {"videoId": None}, SEARCH_TTL)
+    # negativo corto para no clavar cache
+    set_cached(ck, {"videoId": None}, 30)
+    _log("no_result", {"dbg": dbg, "q": q})
     return None
 
 def _force_atv_from_info(orig_id: str, info: dict) -> str:
@@ -272,36 +298,39 @@ def _extract_best_url(video_id: str):
 def _get_or_extract(video_id: str, _force: bool = False):
     now = time.time()
 
-    ent = _cache.get(video_id)
-    if ent and ent.get("direct_url"):
-        fresh = (now - ent["ts"] < ent.get("ttl", URL_TTL))
-        if fresh:
-            return ent
-        if not _force:
-            try:
-                if _probe_url(ent["direct_url"]):
-                    try:
-                        _BACKGROUND_EXECUTOR.submit(_get_or_extract, video_id, True)
-                    except Exception:
-                        pass
-                    return ent
-            except Exception:
-                pass
+    # 1) Cache caliente  ← DESACTIVADO
+    # ent = _cache.get(video_id)
+    # if ent and ent.get("direct_url"):
+    #     fresh = (now - ent["ts"] < ent.get("ttl", URL_TTL))
+    #     if fresh:
+    #         return ent
+    #     if not _force:
+    #         try:
+    #             if _probe_url(ent["direct_url"]):
+    #                 try:
+    #                     _BACKGROUND_EXECUTOR.submit(_get_or_extract, video_id, True)
+    #                 except Exception:
+    #                     pass
+    #                 return ent
+    #         except Exception:
+    #             pass
 
-    info1, url1, client1 = _extract_best_url(video_id)
-
-    resolved_id = _FORCE_CACHE.get(video_id, {}).get("atv")
-    if not resolved_id or (now - _FORCE_CACHE.get(video_id, {}).get("ts", 0) > _FORCE_TTL):
-        resolved_id = _force_atv_from_info(video_id, info1)
-
-    if resolved_id != video_id:
+    # 2) Intento primario...
+    info1, url1, client1 = None, None, None
+    forced_id = None
+    try:
+        info1, url1, client1 = _extract_best_url(video_id)
+    except Exception:
         try:
-            info2, url2, client2 = _extract_best_url(resolved_id)
-            info, direct_url, client = info2, url2, client2
+            resolved_id = _FORCE_CACHE.get(video_id, {}).get("atv")
+            if not resolved_id or (now - _FORCE_CACHE.get(video_id, {}).get("ts", 0) > _FORCE_TTL):
+                resolved_id = _force_atv_from_info(video_id, {"track": "", "title": "", "artist": ""})
+            info1, url1, client1 = _extract_best_url(resolved_id)
+            forced_id = resolved_id
         except Exception:
-            info, direct_url, client = info1, url1, client1
-    else:
-        info, direct_url, client = info1, url1, client1
+            raise
+
+    info, direct_url, client = info1, url1, client1
 
     data = {
         "info": info,
@@ -309,10 +338,14 @@ def _get_or_extract(video_id: str, _force: bool = False):
         "client": client,
         "ts": now,
         "ttl": _ttl_from_url(direct_url),
-        "served": (ent or {}).get("served", 0),
+        # "served": (ent or {}).get("served", 0),  # ← ent ya no existe
     }
-    _cache[resolved_id] = data
-    _cache[video_id] = data
+
+    # ← ESCRITURA EN CACHÉ DESACTIVADA
+    # _cache[video_id] = data
+    # if forced_id and forced_id != video_id:
+    #     _cache[forced_id] = data
+
     return data
 
 def get_audio_info_quick(video_id: str):
@@ -576,6 +609,11 @@ def _schedule_warm(ids: list[str]) -> None:
         except Exception:
             pass
 
+
+
+
+
+
 # ---------- AUDIO ENDPOINTS ----------
 @router.get("/play")
 def play_song(request: Request, id: str = Query(...), redir: int = Query(2)):
@@ -588,10 +626,10 @@ def play_song(request: Request, id: str = Query(...), redir: int = Query(2)):
         audio_url = data["direct_url"]
         print(f"[play] ➤ solicitando ID → {id}")
 
-        try:
+        """ try:
             _probe_url(audio_url)
         except Exception:
-            pass
+            pass """
         t_probe = time.time()
 
         parsed_qs = urllib.parse.parse_qs(urllib.parse.urlsplit(audio_url).query)
@@ -610,7 +648,8 @@ def play_song(request: Request, id: str = Query(...), redir: int = Query(2)):
         if redir == 2:
             print(f"[play] 🛰️ PROXY stream → {audio_url[:80]}...")
             range_header = request.headers.get("range")
-            return _stream_fullmirror(audio_url, cache_key=id, range_header=range_header)
+            # return _stream_fullmirror(audio_url, cache_key=id, range_header=range_header)  # ← caché (mirror) DESACTIVADO
+            return _stream_from_url(audio_url, range_header)  # ← passthrough sin caché
 
         if redir == 1:
             print(f"[play] 🔀 307 → {audio_url[:80]}...")
@@ -746,31 +785,93 @@ def get_artist_p(id: str = Path(...)):
     return _artist_payload(id)
 
 # ---------- ALBUM ----------
-def _album_tracks_force_songs(album_name: str, artist_name: str) -> list[dict]:
-    """
-    Si el álbum no tiene tracks directos (playlist/album), forzamos a buscar
-    cada tema en modo ATV, usando la lógica combinada TopResult + Songs.
-    """
-    forced_tracks = []
-    try:
-        query = f"{album_name} {artist_name}"
-        print(f"[force_songs] Buscando canciones para álbum: {query}")
 
-        # Usa la lógica combinada (TopResult -> Songs)
-        video_id = _search_atv_first(query)
-        if video_id:
-            forced_tracks.append({
-                "title": album_name,
-                "videoId": video_id,
-                "source": "forced_atv",
-            })
+# --- (1) helpers de normalización (arriba, junto a los otros helpers) ---
+_feat_re = re.compile(r"\b(feat\.?|ft\.?|con|with)\b.*$", re.IGNORECASE)
+_paren_re = re.compile(r"(\(|\[).{0,120}?(\)|\])")
+_noise_re = re.compile(r"\b(official\s*video|video\s*oficial|video\s*clip|lyrics?|remaster(?:ed)?\s*\d{2,4}?|remaster(?:ed)?|audio\s*only|visualizer|HD|4K)\b", re.IGNORECASE)
+
+def _clean_title(s: str) -> str:
+    s = s or ""
+    s = _paren_re.sub("", s)               # saca (Live), [Official], etc.
+    s = _feat_re.sub("", s)                # saca feat./ft./con
+    s = _noise_re.sub("", s)               # saca ruido común
+    s = re.sub(r"\s{2,}", " ", s).strip()
+    return s
+
+def _primary_artist(artists: list[dict]) -> str:
+    if not artists: return ""
+    # Solo el artista principal para no confundir con features
+    name = (artists[0].get("name") or "").strip()
+    # limpia ruido tipo (Topic), etc.
+    name = _paren_re.sub("", name)
+    return re.sub(r"\s{2,}", " ", name).strip()
+
+# --- (2) reusa tu _search_atv_first tal cual ---
+
+
+# ====== BLOQUE ACTUALIZADO ======
+def _album_tracks_force_songs(
+    tracks: list[dict],
+    album_name: str | None = None,
+    year: str | int | None = None,
+) -> list[dict]:
+    """
+    Regla pedida:
+      - Si VIENE ATV -> NO TOCAR.
+      - Si es OMV    -> FORZAR a ATV usando una query más estricta.
+    """
+    forced: list[dict] = []
+    try: print("[album][DBG] force_begin", {"album": album_name, "year": year, "tracks": len(tracks or [])})
+    except: pass
+
+    for idx, t in enumerate(tracks or [], start=1):
+        if not isinstance(t, dict):
+            forced.append(t); continue
+
+        title_in   = (t.get("title") or "").strip()
+        artists_in = t.get("artists") or []
+        mvt_in     = t.get("musicVideoType")
+        vid_in     = t.get("videoId")
+
+        # 1) Si ya es ATV, NO tocamos
+        if vid_in and mvt_in == "MUSIC_VIDEO_TYPE_ATV":
+            try: print("[album][DBG] skip_already_ATV", {"idx": idx, "videoId": vid_in})
+            except: pass
+            forced.append(t); continue
+
+        # 2) Si es OMV (o sin tipo), intentamos forzar ATV
+        prim_artist = _primary_artist(artists_in)
+        clean_title = _clean_title(title_in)
+        base_q = f"{prim_artist} {clean_title}".strip()
+
+        atv_id = None
+        if base_q:
+            atv_id = _search_atv_first(base_q, dbg=f"{album_name}#{idx}")
+
+        # Refuerzo con album + año si no encontró
+        if not atv_id and album_name:
+            extra_q = f"{base_q} {album_name} {year or ''}".strip()
+            atv_id = _search_atv_first(extra_q, dbg=f"{album_name}#{idx}/extra")
+
+        if atv_id:
+            t["videoId"] = atv_id
+            t["musicVideoType"] = "MUSIC_VIDEO_TYPE_ATV"
+            t["source"] = "forced_atv"
+            try: print("[album][DBG] forced_OMV_to_ATV", {"idx": idx, "videoId": atv_id, "q": base_q})
+            except: pass
         else:
-            print(f"[force_songs] No se encontró ATV para: {query}")
+            # Si no hay ATV confiable, dejamos el OMV como vino (mejor que errarle de tema)
+            t["source"] = "kept_omv_no_atv_found"
+            try: print("[album][DBG] keep_OMV_no_ATV", {"idx": idx, "q": base_q})
+            except: pass
 
-    except Exception as e:
-        print(f"[force_songs][ERROR] {type(e).__name__}: {e}")
+        forced.append(t)
 
-    return forced_tracks
+    try: print("[album][DBG] force_end", {"tracks_out": len(forced)})
+    except: pass
+    return forced
+# ====== FIN BLOQUE ======
 
 def _dedupe_tracks_by_video(tracks: list[dict]) -> list[dict]:
     seen = set()
@@ -791,13 +892,23 @@ def _album_payload(album_id: str):
     info = parse_album_info(response)
     album_name = (info or {}).get("title") or (info or {}).get("name")
     album_year = (info or {}).get("year")
+    try: print("[album][DBG] album_open", {"album_id": album_id, "name": album_name, "year": album_year})
+    except: pass
 
     tracks = parse_album_tracks(response)
+    try: print("[album][DBG] album_tracks_parsed", {"count": len(tracks or [])})
+    except: pass
+
     tracks = _album_tracks_force_songs(tracks, album_name=album_name, year=album_year)
     tracks = _dedupe_tracks_by_video(tracks)
 
     try:
-        ids = [t.get("videoId") for t in tracks if t.get("videoId")]
+        print("[album][DBG] album_tracks_ready", {"count": len(tracks or [])})
+    except:
+        pass
+
+    try:
+        ids = [t.get("videoId") for t in tracks if isinstance(t, dict) and t.get("videoId")]
         _schedule_warm(ids[:_WARM_BURST])
     except Exception as _e:
         print(f"[album][warm][WARN] {_e}")
