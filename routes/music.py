@@ -14,6 +14,8 @@ import yt_dlp
 from innertube import InnerTube
 import threading  # ← NUEVO
 
+import hashlib, traceback, json
+
 from services.cache_service import get_cached, set_cached
 from utils.search_parser import (
     parse_search_songs,
@@ -1110,3 +1112,160 @@ def get_recent_plays(request: Request, limit: int = 20):
     except Exception as e:
         print(f"[recent][ERROR] {e}")
         return JSONResponse(status_code=500, content={"ok": False, "error": "recent_failed"})
+    
+@router.post("/playlists/{playlist_id}/move-track")
+def move_playlist_track(
+    request: Request,
+    playlist_id: str = Path(...),
+    body: dict = Body(...),
+):
+    # ── auth ─────────────────────────────────────────────
+    auth = (request.headers.get("Authorization") or "").strip()
+    jwt  = auth.replace("Bearer ", "").strip()
+    if not jwt:
+        return JSONResponse(status_code=401, content={"ok": False, "error": "unauthorized"})
+
+    # ── body ─────────────────────────────────────────────
+    old_position = body.get("old_position")
+    new_position = body.get("new_position")
+    if not isinstance(old_position, int) or not isinstance(new_position, int) \
+       or old_position < 1 or new_position < 1:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "invalid_params"})
+
+    try:
+        db = db_as_user(jwt)
+
+        # snapshot pre (para log)
+        pre = (
+            db.table("playlist_tracks")
+              .select("id,position")
+              .eq("playlist_id", playlist_id)
+              .order("position", desc=False)
+              .execute()
+        ).data or []
+        print(f"[reorder][pre] n={len(pre)} first20={pre[:20]}")
+
+        # fila a mover
+        row = (
+            db.table("playlist_tracks")
+              .select("id,position")
+              .eq("playlist_id", playlist_id)
+              .eq("position", old_position)
+              .limit(1)
+              .execute()
+        )
+        if not row.data:
+            return JSONResponse(status_code=404, content={"ok": False, "error": "track_not_found"})
+        track_row_id = row.data[0]["id"]
+
+        # clamp destino (1..total)
+        total_resp = (
+            db.table("playlist_tracks")
+              .select("position", count="exact")
+              .eq("playlist_id", playlist_id)
+              .execute()
+        )
+        total = int(total_resp.count or 0)
+        if new_position > total: new_position = total
+        if new_position < 1:     new_position = 1
+        if new_position == old_position:
+            return {"ok": True, "noop": True}
+
+        print(f"[reorder] move old={old_position} -> new={new_position} id={track_row_id}")
+
+        # ── SENTINEL SEGURO (int32 negativo) + reintento ──
+        import time, random
+        base = int(time.time()) ^ random.randint(1, 1_000_000)
+        candidate = - (1 + (abs(base) % 999_999))          # rango: [-999999, -1]
+        parked = False
+        for attempt in range(6):  # intenta hasta 6 valores distintos
+            try:
+                (
+                    db.table("playlist_tracks")
+                      .update({"position": candidate})
+                      .eq("id", track_row_id)
+                      .execute()
+                )
+                parked = True
+                print(f"[reorder] parked id={track_row_id} -> {candidate} (attempt={attempt})")
+                break
+            except Exception as e:
+                # si choca UNIQUE con otro negativo raro, pruebo otro
+                candidate -= 1
+                if candidate < -2_000_000:  # mantengo en int32 holgado
+                    candidate = -1
+                print(f"[reorder] park retry due to {type(e).__name__}: {e}")
+        if not parked:
+            return JSONResponse(status_code=500, content={"ok": False, "error": "sentinel_failed"})
+
+        # ── SHIFTS UNITARIOS EN ORDEN SEGURO ──
+        if new_position < old_position:
+            # subir: [new, old-1] => +1 (descendente)
+            for pos in range(old_position - 1, new_position - 1, -1):
+                resp = (
+                    db.table("playlist_tracks")
+                      .update({"position": pos + 1})
+                      .eq("playlist_id", playlist_id)
+                      .eq("position", pos)
+                      .execute()
+                )
+                print(f"[reorder] shift_up {pos} -> {pos+1} rows={len(resp.data or [])}")
+        else:
+            # bajar: [old+1, new] => -1 (ascendente)
+            for pos in range(old_position + 1, new_position + 1):
+                resp = (
+                    db.table("playlist_tracks")
+                      .update({"position": pos - 1})
+                      .eq("playlist_id", playlist_id)
+                      .eq("position", pos)
+                      .execute()
+                )
+                print(f"[reorder] shift_down {pos} -> {pos-1} rows={len(resp.data or [])}")
+
+        # ── colocar el track movido en su destino ──
+        fin = (
+            db.table("playlist_tracks")
+              .update({"position": new_position})
+              .eq("id", track_row_id)
+              .execute()
+        )
+        print(f"[reorder] set_final id={track_row_id} -> {new_position} ok_rows={len(fin.data or [])}")
+
+        # snapshot post para verificar
+        post = (
+            db.table("playlist_tracks")
+              .select("id,position")
+              .eq("playlist_id", playlist_id)
+              .order("position", desc=False)
+              .execute()
+        ).data or []
+        print(f"[reorder][post] n={len(post)} first20={post[:20]}")
+
+        # verificación 1..N sin huecos/duplicados
+        gaps, dups, seen = [], [], set()
+        expected = 1
+        for r in post:
+            p = int(r["position"])
+            if p in seen: dups.append(p)
+            seen.add(p)
+            if p != expected:
+                gaps.append({"expected": expected, "found": p})
+                expected = p
+            expected += 1
+        if dups or gaps:
+            print(f"[reorder][WARN] dups={dups} gaps={gaps}")
+
+        return {
+            "ok": True,
+            "positions_sample": [r["position"] for r in post[:30]],
+            "dups": dups,
+            "gaps": gaps
+        }
+
+    except Exception as e:
+        print(f"[reorder][EXC] {type(e).__name__}: {e}")
+        return JSONResponse(status_code=500, content={
+            "ok": False,
+            "error": "move_failed",
+            "detail": f"{type(e).__name__}: {e}"
+        })
