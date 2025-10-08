@@ -1135,7 +1135,7 @@ def move_playlist_track(
     try:
         db = db_as_user(jwt)
 
-        # snapshot pre (para log)
+        # snapshot pre (para log y fallback visual)
         pre = (
             db.table("playlist_tracks")
               .select("id,position")
@@ -1145,7 +1145,7 @@ def move_playlist_track(
         ).data or []
         print(f"[reorder][pre] n={len(pre)} first20={pre[:20]}")
 
-        # fila a mover
+        # fila a mover por position exacta
         row = (
             db.table("playlist_tracks")
               .select("id,position")
@@ -1154,22 +1154,34 @@ def move_playlist_track(
               .limit(1)
               .execute()
         )
-        if not row.data:
-            return JSONResponse(status_code=404, content={"ok": False, "error": "track_not_found"})
-        track_row_id = row.data[0]["id"]
 
-        # clamp destino (1..total)
-        total_resp = (
-            db.table("playlist_tracks")
-              .select("position", count="exact")
-              .eq("playlist_id", playlist_id)
-              .execute()
-        )
-        total = int(total_resp.count or 0)
+        # ⚠️ fallback si hay huecos: usar ordinal del snapshot (1-based)
+        if not row.data:
+            if 1 <= old_position <= len(pre):
+                track_row_id = pre[old_position - 1]["id"]
+                print(f"[reorder] fallback ordinal -> id={track_row_id} (old_position={old_position})")
+            else:
+                return JSONResponse(status_code=404, content={"ok": False, "error": "track_not_found"})
+        else:
+            track_row_id = row.data[0]["id"]
+
+        # clamp destino usando snapshot (consistente con UI)
+        total = len(pre)
         if new_position > total: new_position = total
         if new_position < 1:     new_position = 1
         if new_position == old_position:
-            return {"ok": True, "noop": True}
+            # devolver orden actual igual para refrescar si el front quiere
+            ordered_now = (
+                db.table("playlist_tracks")
+                  .select("id,track_id,position")
+                  .eq("playlist_id", playlist_id)
+                  .order("position", desc=False)
+                  .execute()
+            ).data or []
+            return {"ok": True, "noop": True, "order": [
+                {"internalId": r["id"], "trackId": r["track_id"], "position": r["position"]}
+                for r in ordered_now
+            ]}
 
         print(f"[reorder] move old={old_position} -> new={new_position} id={track_row_id}")
 
@@ -1190,9 +1202,8 @@ def move_playlist_track(
                 print(f"[reorder] parked id={track_row_id} -> {candidate} (attempt={attempt})")
                 break
             except Exception as e:
-                # si choca UNIQUE con otro negativo raro, pruebo otro
                 candidate -= 1
-                if candidate < -2_000_000:  # mantengo en int32 holgado
+                if candidate < -2_000_000:
                     candidate = -1
                 print(f"[reorder] park retry due to {type(e).__name__}: {e}")
         if not parked:
@@ -1231,7 +1242,7 @@ def move_playlist_track(
         )
         print(f"[reorder] set_final id={track_row_id} -> {new_position} ok_rows={len(fin.data or [])}")
 
-        # snapshot post para verificar
+        # snapshot post para verificar y devolver orden resuelto
         post = (
             db.table("playlist_tracks")
               .select("id,position")
@@ -1255,8 +1266,18 @@ def move_playlist_track(
         if dups or gaps:
             print(f"[reorder][WARN] dups={dups} gaps={gaps}")
 
+        # orden completo (para que el front lo pinte sin esperar otro fetch)
+        ordered = (
+            db.table("playlist_tracks")
+              .select("id,track_id,position")
+              .eq("playlist_id", playlist_id)
+              .order("position", desc=False)
+              .execute()
+        ).data or []
+
         return {
             "ok": True,
+            "order": [{"internalId": r["id"], "trackId": r["track_id"], "position": r["position"]} for r in ordered],
             "positions_sample": [r["position"] for r in post[:30]],
             "dups": dups,
             "gaps": gaps
