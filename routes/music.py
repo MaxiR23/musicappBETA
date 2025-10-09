@@ -1290,3 +1290,61 @@ def move_playlist_track(
             "error": "move_failed",
             "detail": f"{type(e).__name__}: {e}"
         })
+    
+# ---------- LYRICS (YouTube Music) ----------
+_LYRICS_TTL = 12 * 60 * 60  # 12h
+
+def _ytmusic_client():
+    # import lazy para no cargar ytmusicapi si no se usa
+    from ytmusicapi import YTMusic
+    return YTMusic()
+
+def _lyrics_browse_id_from_watch(yt, video_id: str) -> str | None:
+    wp = yt.get_watch_playlist(videoId=video_id) or {}
+    lyr_field = wp.get("lyrics")
+    if isinstance(lyr_field, dict):
+        return lyr_field.get("browseId") or (lyr_field.get("browseEndpoint") or {}).get("browseId")
+    if isinstance(lyr_field, str):
+        s = lyr_field.strip()
+        return s or None
+    return None
+
+def _get_track_lyrics_backend(video_id: str) -> dict:
+    ck = f"lyrics:{video_id}"
+    cached = get_cached(ck)
+    if cached is not None:
+        return cached
+
+    yt = _ytmusic_client()
+    b = _lyrics_browse_id_from_watch(yt, video_id)
+    if not b:
+        out = {"ok": False, "reason": "no_lyrics"}
+        # cache corto negativo para no insistir
+        set_cached(ck, out, 5 * 60)
+        return out
+
+    data = yt.get_lyrics(b) or {}
+    out = {
+        "ok": True,
+        "lyrics": data.get("lyrics"),
+        "source": data.get("source"),
+    }
+    set_cached(ck, out, _LYRICS_TTL)
+    return out
+
+@router.get("/tracks/{track_id}/lyrics")
+def get_track_lyrics(track_id: str = Path(...)):
+    """
+    Devuelve letras para un videoId si YT Music las expone.
+    No toca /play ni rutas existentes.
+    """
+    try:
+        res = _get_track_lyrics_backend(track_id)
+        if not res.get("ok"):
+            return JSONResponse(status_code=404, content=res)
+        return res
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": "lyrics_failed", "detail": f"{type(e).__name__}: {e}"}
+        )
