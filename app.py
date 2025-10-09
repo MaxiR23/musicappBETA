@@ -3,7 +3,7 @@ import os
 import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from routes import index, music, playlists, debug
+from routes import index, music, playlists, feed, debug
 from middlewares.supa_auth import supa_auth
 from middlewares.cors_headers import add_cors_middleware
 
@@ -43,6 +43,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(index.router, prefix="/api")
 app.include_router(music.router, prefix="/api/music")
 app.include_router(playlists.router, prefix="/api/playlists")
+app.include_router(feed.router, prefix="/api/feed")
 
 # Rutas de debug/test (solo en desarrollo)
 if ENV != "production":
