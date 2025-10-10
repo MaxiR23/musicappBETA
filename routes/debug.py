@@ -1560,3 +1560,142 @@ def new_releases():
     r = s.post(url, json=payload, headers=headers, timeout=12)
     r.raise_for_status()
     return r.json()
+
+@router.get("/album/ytmusicapi")
+def debug_album_ytmusicapi(
+    id: str | None = Query(None, description="Album browseId MPRE…"),
+    apl: str | None = Query(None, description="audioPlaylistId OLAK5…"),
+    raw: int | None = Query(0, description="Si raw=1, devuelve TODO sin filtrar"),
+):
+    """
+    Devuelve el tracklist ATV de un álbum o audio-playlist.
+    - Si viene apl=OLAK5…, usa esa audio-playlist (get_playlist).
+    - Si no, usa id=MPRE… → get_album → audioPlaylistId → get_playlist.
+    - Si raw=1, devuelve TODO lo que traen las llamadas de ytmusicapi (sin filtrar).
+    Cambios pedidos:
+      • Removido "artists" del objeto "album".
+      • Un solo "thumbnail" por track: el más grande disponible.
+    """
+    try:
+        from fastapi import HTTPException
+        from fastapi.responses import JSONResponse
+        from ytmusicapi import YTMusic
+
+        def _sec(x):
+            if isinstance(x, int): return x
+            s = (x or "").strip()
+            if not s: return None
+            p = [int(v) for v in s.split(":")]
+            if len(p)==3: return p[0]*3600+p[1]*60+p[2]
+            if len(p)==2: return p[0]*60+p[1]
+            try: return int(s)
+            except: return None
+
+        def biggest_thumb_url(thumbs):
+            """Devuelve la URL del thumbnail más grande posible."""
+            if not thumbs:
+                return None
+            # Algunos items traen width/height, otros solo URL con w/h en query;
+            # priorizamos por 'width' si existe, si no, nos quedamos con el último.
+            with_size = [t for t in thumbs if isinstance(t, dict) and t.get("width")]
+            if with_size:
+                return max(with_size, key=lambda t: (t.get("width", 0), t.get("height", 0))).get("url")
+            return thumbs[-1].get("url") if isinstance(thumbs[-1], dict) else None
+
+        ytm = YTMusic()
+
+        # === Resolver APL (OLAK5…) ===
+        album_title = None
+        if apl:
+            apl_id = apl
+        elif id:
+            alb = ytm.get_album(id)
+            apl_id = alb.get("audioPlaylistId")
+            if not apl_id:
+                raise HTTPException(status_code=404, detail={
+                    "error": "no_audio_playlist",
+                    "message": "El álbum no expone audioPlaylistId (OLAK5…).",
+                    "album_browseId": id
+                })
+            album_title = alb.get("title")
+        else:
+            raise HTTPException(status_code=400, detail={
+                "error": "missing_params",
+                "message": "Pasá apl=OLAK5… o id=MPRE…"
+            })
+
+        # === Llamadas crudas ===
+        pl_meta  = ytm.get_playlist(apl_id) or {}
+        pl_watch = ytm.get_watch_playlist(playlistId=apl_id) or {}
+
+        # === RAW MODE ===
+        if raw:
+            return JSONResponse(
+                content={
+                    "params": {"id": id, "apl": apl_id, "raw": raw},
+                    "get_playlist": pl_meta,
+                    "get_watch_playlist": pl_watch,
+                },
+                media_type="application/json"
+            )
+
+        # === Resumen normal ===
+        pl_title  = pl_meta.get("title") or pl_watch.get("title") or album_title or ""
+        pl_tracks = pl_meta.get("tracks") or []
+
+        # Map de salida (un solo "thumbnail" = el más grande)
+        out_tracks = []
+        for i, t in enumerate(pl_tracks, 1):
+            title     = t.get("title")
+            vid       = t.get("videoId")
+            dur_txt   = t.get("duration") or ""
+            dur_s     = t.get("duration_seconds") or _sec(dur_txt)
+            artists   = t.get("artists") or []
+            first_art = artists[0] if artists else {}
+            album     = t.get("album") or {}
+            thumbs    = t.get("thumbnails") or []
+            thumb_big = biggest_thumb_url(thumbs)
+
+            out_tracks.append({
+                "index": i,
+                "title": title,
+                "duration": dur_txt,
+                "duration_seconds": dur_s,
+                "videoId": vid,
+                "musicVideoType": t.get("videoType", "MUSIC_VIDEO_TYPE_ATV"),
+                "artist": first_art.get("name"),
+                "artistId": first_art.get("id"),
+                "album": album.get("name"),
+                "albumId": album.get("id"),
+                "thumbnail": thumb_big,
+                "urls": {
+                    "watch": f"https://music.youtube.com/watch?v={vid}" if vid else None,
+                    "watch_in_album": (f"https://music.youtube.com/watch?v={vid}&list={apl_id}"
+                                       if vid else None),
+                },
+            })
+
+        return {
+            "selected": (
+                {"browseId": id, "title": album_title or pl_title}
+                if id else {"browseId": apl_id, "title": pl_title}
+            ),
+            "album": {
+                "title": album_title or pl_title,
+                # ← pedido: SIN 'artists' en 'album'
+                "tracks_count": len(out_tracks),
+                "audioPlaylistId": apl_id,
+                "audioPlaylistTitle": pl_title,
+                "tracks": out_tracks,
+            },
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail={
+            "error": "ytmusicapi_album_or_apl_error",
+            "message": str(e),
+            "params": {"id": id, "apl": apl, "raw": raw}
+        })
