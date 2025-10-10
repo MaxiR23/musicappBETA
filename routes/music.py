@@ -29,8 +29,12 @@ from utils.artist_parser import (
     parse_singles_eps,
     parse_related_artists,
 )
-from utils.album_parser import parse_album_info, parse_album_tracks, parse_tracks_from_audio_playlist
-
+from utils.album_parser import ( 
+    parse_album_info,
+    parse_album_tracks,
+    parse_tracks_from_audio_playlist,
+    parse_album_other_versions, parse_album_releases_for_you
+)
 from services.activity_service import try_log_activity_from_request
 from services.supabase_service import db_as_user  
 
@@ -252,48 +256,165 @@ def _force_atv_from_info(orig_id: str, info: dict) -> str:
     return atv or orig_id
 
 # ---------- Extracción ----------
+def pick_best_audio(info: dict):
+    """
+    Elige el mejor audio entre los formatos del MISMO cliente (tv_embedded).
+    Regla (parametrizable):
+      - CODEC_FIRST: prioriza m4a/mp4a > opus/webm > resto
+      - Si existe otro formato con kbps >= (mejor_m4a + BITRATE_DELTA_OVERRIDE),
+        se elige ese por bitrate (override). Poné BITRATE_DELTA_OVERRIDE = 0.0
+        si querés SIEMPRE el mayor kbps absoluto.
+    Devuelve: (url, best_fmt, diag_dict)
+    """
+    # --- parámetros de regla ---
+    CODEC_FIRST = True
+    BITRATE_DELTA_OVERRIDE = 0.0  # bajalo a 0.0 para "siempre mayor kbps"
+
+    fmts = info.get("formats") or []
+    audios = [
+        f for f in fmts
+        if (f.get("vcodec") in (None, "none"))
+        and (f.get("acodec") not in (None, "none"))
+        and f.get("url")
+    ]
+    if not audios:
+        u = info.get("url")
+        return (u if (u and isinstance(u, str) and u.startswith("http")) else None,
+                None, {"reason": "no_audio_formats"})
+
+    # KBPS por itag conocido (aprox)
+    ITAG_KBPS = {
+        # AAC/M4A
+        "139": 48, "140": 128, "141": 256,
+        # Opus/WebM
+        "249": 50, "250": 70, "251": 160,
+        "171": 128, "172": 256,
+    }
+
+    def to_float(x, d=0.0):
+        try:
+            return float(x)
+        except Exception:
+            try:
+                return float(str(x).replace(",", "."))
+            except Exception:
+                return d
+
+    def codec_rank(f):
+        ext = (f.get("ext") or "").lower()
+        ac  = (f.get("acodec") or "").lower()
+        if "mp4a" in ac or ext == "m4a":           return 3  # AAC/m4a
+        if "opus" in ac or ext in ("webm","weba"): return 2  # Opus
+        return 1
+
+    def infer_kbps(f):
+        v = f.get("abr") or f.get("tbr")
+        if v is not None:
+            return to_float(v, 0.0)
+        itag = str(f.get("format_id") or f.get("format") or "")
+        if itag in ITAG_KBPS:
+            return ITAG_KBPS[itag]
+        aq = (f.get("audio_quality") or f.get("quality") or "").upper()
+        if "VERY" in aq and "HIGH" in aq: return 256
+        if "HIGH" in aq:                 return 160
+        if "MEDIUM" in aq:               return 128
+        if "LOW" in aq:                  return 96
+        return 0.0
+
+    def samplerate(f):
+        return to_float(f.get("asr") or f.get("audio_sample_rate"), 0.0)
+
+    def fsize(f):
+        return int((f.get("filesize") or f.get("filesize_approx") or 0) or 0)
+
+    # 1) pick por ranking de códec + kbps + asr + tamaño
+    def score_tuple(f):
+        return (codec_rank(f), infer_kbps(f), samplerate(f), fsize(f))
+
+    best_codec = max(audios, key=score_tuple)
+    best_codec_kbps = infer_kbps(best_codec)
+
+    # 2) override: si hay otro con kbps claramente mayor, preferirlo
+    best_kbps_any = max(audios, key=lambda f: (infer_kbps(f), samplerate(f), fsize(f)))
+    best_kbps_val = infer_kbps(best_kbps_any)
+
+    reason = "codec_pref"
+    winner = best_codec
+    if CODEC_FIRST and (best_kbps_val >= best_codec_kbps + BITRATE_DELTA_OVERRIDE):
+        winner = best_kbps_any
+        reason = "bitrate_override"
+    elif not CODEC_FIRST:
+        winner = best_kbps_any
+        reason = "kbps_only"
+
+    # diag
+    diag = {
+        "reason": reason,
+        "picked": {
+            "itag": str(winner.get("format_id") or winner.get("format") or ""),
+            "ext": (winner.get("ext") or "").lower(),
+            "acodec": (winner.get("acodec") or "").lower(),
+            "abr": to_float(winner.get("abr") or winner.get("tbr"), 0.0),
+            "kbps_inferred": infer_kbps(winner),
+            "asr": samplerate(winner),
+            "filesize": fsize(winner),
+        },
+        "candidates": len(audios),
+        "max_kbps_seen": max(infer_kbps(f) for f in audios) if audios else 0.0,
+        "codec_first": CODEC_FIRST,
+        "kbps_delta_override": BITRATE_DELTA_OVERRIDE,
+    }
+
+    return winner.get("url"), winner, diag
+
+
 def _extract_best_url(video_id: str):
-    def pick_best_audio(info: dict) -> str | None:
-        fmts = info.get("formats") or []
-        audios = [f for f in fmts
-                  if (f.get("vcodec") in (None, "none"))
-                  and (f.get("acodec") not in (None, "none"))
-                  and f.get("url")]
-        if not audios:
-            u = info.get("url")
-            return u if (u and u.startswith("http")) else None
-
-        def score(f):
-            ext = (f.get("ext") or "").lower()
-            ac  = (f.get("acodec") or "").lower()
-            pr  = 3 if ("mp4a" in ac or ext == "m4a") else (2 if "opus" in ac or ext == "webm" else 1)
-            br  = float(f.get("abr") or f.get("tbr") or 0)
-            asr = float(f.get("asr") or 0)
-            return (pr, br, asr)
-
-        return max(audios, key=score).get("url")
-
+    """
+    Extrae info con yt_dlp (tv_embedded), elige mejor audio con pick_best_audio,
+    reintenta con un objeto "fresco" del MISMO cliente si falla, y loguea calidad.
+    """
     info = None
     url = None
+    best_fmt = None
+    diag = None
 
     try:
         ydl = _ydl_global()
         with _YDL_LOCK:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}",
                                     download=False, process=False)
-        url = pick_best_audio(info)
+        url, best_fmt, diag = pick_best_audio(info)
     except Exception:
-        info = None
-        url = None
+        info, url, best_fmt, diag = None, None, None, {"reason": "extract_failed_global"}
 
     if not url:
+        # retry limpio del MISMO cliente (tv_embedded)
         ydl_fresh = _ydl_for("tv_embedded")
         info = ydl_fresh.extract_info(f"https://www.youtube.com/watch?v={video_id}",
                                       download=False, process=False)
-        url = pick_best_audio(info)
+        url, best_fmt, diag = pick_best_audio(info)
 
     if not url:
         raise RuntimeError("no_audio_format")
+
+    # ---- LOG mínimo de calidad elegida ----
+    try:
+        print("[audio][pick]", {
+            "id": video_id,
+            "client": "tv_embedded",
+            "reason": (diag or {}).get("reason"),
+            "ext": (best_fmt or {}).get("ext"),
+            "acodec": (best_fmt or {}).get("acodec"),
+            "itag": (best_fmt or {}).get("format_id"),
+            "abr": (best_fmt or {}).get("abr"),
+            "tbr": (best_fmt or {}).get("tbr"),
+            "kbps_inferred": (diag or {}).get("picked", {}).get("kbps_inferred"),
+            "asr": (best_fmt or {}).get("asr"),
+            "candidates": (diag or {}).get("candidates"),
+            "max_kbps_seen": (diag or {}).get("max_kbps_seen"),
+        })
+    except Exception:
+        pass
 
     return info, url, "tv_embedded"
 
@@ -611,11 +732,6 @@ def _schedule_warm(ids: list[str]) -> None:
         except Exception:
             pass
 
-
-
-
-
-
 # ---------- AUDIO ENDPOINTS ----------
 @router.get("/play")
 def play_song(request: Request, id: str = Query(...), redir: int = Query(2)):
@@ -802,15 +918,23 @@ def _album_payload(album_id: str):
     except:
         pass
 
-    # ✅ usar el audioPlaylistId (OLAK5…) para traer tracks
+    other_versions = parse_album_other_versions(response) or []
+    releases_for_you = parse_album_releases_for_you(response) or []
+
     apid = (info or {}).get("audioPlaylistId")
     if not apid:
         print("[album][WARN] sin audioPlaylistId → tracks=[]")
-        payload = {"id": album_id, "info": info, "tracks": []}
+        payload = {
+            "id": album_id,
+            "info": info,
+            "tracks": [],
+            "otherVersions": other_versions,
+            "releasesForYou": releases_for_you,
+        }
         set_cached(f"album:{album_id}", payload, 30 * 60)
         return payload
 
-    tracks = parse_tracks_from_audio_playlist(apid)  # ← MISMO shape que parse_album_tracks
+    tracks = parse_tracks_from_audio_playlist(apid)
 
     try:
         ids = [t.get("videoId") for t in tracks if isinstance(t, dict) and t.get("videoId")]
@@ -818,7 +942,13 @@ def _album_payload(album_id: str):
     except Exception as _e:
         print(f"[album][warm][WARN] {_e}")
 
-    payload = {"id": album_id, "info": info, "tracks": tracks}
+    payload = {
+        "id": album_id,
+        "info": info,
+        "tracks": tracks,
+        "otherVersions": other_versions,
+        "releasesForYou": releases_for_you,
+    }
     set_cached(f"album:{album_id}", payload, 30 * 60)
     return payload
 

@@ -429,3 +429,152 @@ def parse_tracks_from_audio_playlist(audio_playlist_id: str) -> list[dict]:
         })
 
     return out
+
+def parse_album_other_versions(album_response: dict) -> list[dict]:
+    """
+    Extrae el carrusel 'Other versions' (u 'Otras versiones') del browse del álbum.
+    Devuelve: [{ title, browseId, params, type, artistName, thumbnails }]
+    """
+    def _title_of(header: dict) -> str:
+        runs = ((header or {}).get("musicCarouselShelfBasicHeaderRenderer", {})
+                .get("title", {}).get("runs", [])) or []
+        return (runs[0].get("text") if runs and isinstance(runs[0], dict) else "") or ""
+
+    def _thumbs(node: dict) -> list:
+        return (node.get("thumbnailRenderer", {})
+                    .get("musicThumbnailRenderer", {})
+                    .get("thumbnail", {})
+                    .get("thumbnails", [])) or []
+
+    # twoColumn → secondaryContents → sectionListRenderer → contents[]
+    contents = (
+        album_response.get("contents", {})
+        .get("twoColumnBrowseResultsRenderer", {})
+        .get("secondaryContents", {})
+        .get("sectionListRenderer", {})
+        .get("contents", []) or []
+    )
+
+    out: list[dict] = []
+
+    for sec in contents:
+        shelf = sec.get("musicCarouselShelfRenderer")
+        if not shelf:
+            continue
+
+        # ¿Este carrusel es "Other versions"?
+        title_txt = _title_of(shelf.get("header", {})).strip().lower()
+        if title_txt not in ("other versions", "otras versiones"):
+            continue
+
+        for it in shelf.get("contents", []) or []:
+            row = it.get("musicTwoRowItemRenderer") or {}
+            # título
+            title_runs = (row.get("title", {}) or {}).get("runs", []) or []
+            title = (title_runs[0].get("text") if title_runs else None)
+
+            # destino (álbum alternativo)
+            nav = (row.get("navigationEndpoint", {}) or {}).get("browseEndpoint", {}) or {}
+            bid = nav.get("browseId")
+            params = nav.get("params")
+
+            # subtítulo → tipo (Album/EP/Single) y artista
+            sub_runs = (row.get("subtitle", {}) or {}).get("runs", []) or []
+            type_txt = sub_runs[0].get("text") if sub_runs else None
+            # artista (si viene como run con endpoint)
+            artist_name = None
+            for r in sub_runs:
+                be = (r.get("navigationEndpoint", {}) or {}).get("browseEndpoint", {}) or {}
+                if be.get("browseId"):
+                    artist_name = r.get("text")
+                    break
+            # fallback: si no vino run navegable, intenta leer texto plano
+            if not artist_name and len(sub_runs) >= 3:
+                artist_name = sub_runs[-1].get("text")
+
+            out.append({
+                "title": title,
+                "browseId": bid,
+                "params": params,
+                "type": type_txt,           # p.ej. "Album", "EP", "Single"
+                "artistName": artist_name,  # p.ej. "Justin Bieber"
+                "thumbnails": _thumbs(row),
+            })
+
+    return out
+
+def parse_album_releases_for_you(album_response: dict) -> list[dict]:
+    """
+    Extrae el carrusel 'Releases for you' del browse del álbum.
+    Filtra los ítems donde el artista sea 'Various Artists'.
+    Devuelve: [{ title, browseId, params, type, artistName, thumbnails }]
+    """
+    def _title_of(header: dict) -> str:
+        runs = ((header or {}).get("musicCarouselShelfBasicHeaderRenderer", {})
+                .get("title", {}).get("runs", [])) or []
+        return (runs[0].get("text") if runs and isinstance(runs[0], dict) else "") or ""
+
+    def _thumbs(node: dict) -> list:
+        return (node.get("thumbnailRenderer", {})
+                    .get("musicThumbnailRenderer", {})
+                    .get("thumbnail", {})
+                    .get("thumbnails", [])) or []
+
+    contents = (
+        album_response.get("contents", {})
+        .get("twoColumnBrowseResultsRenderer", {})
+        .get("secondaryContents", {})
+        .get("sectionListRenderer", {})
+        .get("contents", []) or []
+    )
+
+    out: list[dict] = []
+    for sec in contents:
+        shelf = sec.get("musicCarouselShelfRenderer")
+        if not shelf:
+            continue
+
+        title_txt = _title_of(shelf.get("header", {})).strip().lower()
+        if title_txt not in ("releases for you", "lanzamientos para ti"):
+            continue
+
+        for it in shelf.get("contents", []) or []:
+            row = it.get("musicTwoRowItemRenderer") or {}
+
+            # título
+            title_runs = (row.get("title", {}) or {}).get("runs", []) or []
+            title = (title_runs[0].get("text") if title_runs else None)
+
+            # destino (álbum / single / EP)
+            nav = (row.get("navigationEndpoint", {}) or {}).get("browseEndpoint", {}) or {}
+            bid = nav.get("browseId")
+            params = nav.get("params")
+
+            # subtítulo (tipo + artista)
+            sub_runs = (row.get("subtitle", {}) or {}).get("runs", []) or []
+            type_txt = sub_runs[0].get("text") if sub_runs else None
+
+            # artista (preferir el run navegable; si no, último texto)
+            artist_name = None
+            for r in sub_runs:
+                be = (r.get("navigationEndpoint", {}) or {}).get("browseEndpoint", {}) or {}
+                if be.get("browseId"):
+                    artist_name = r.get("text")
+                    break
+            if not artist_name and len(sub_runs) >= 3:
+                artist_name = sub_runs[-1].get("text")
+
+            # 🔎 filtro: excluir 'Various Artists'
+            if isinstance(artist_name, str) and artist_name.strip().lower() == "various artists":
+                continue
+
+            out.append({
+                "title": title,
+                "browseId": bid,
+                "params": params,
+                "type": type_txt,           # "Album" | "Single" | "EP"
+                "artistName": artist_name,  # p.ej. "Reggie Becton"
+                "thumbnails": _thumbs(row),
+            })
+
+    return out
