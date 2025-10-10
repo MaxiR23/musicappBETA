@@ -11,7 +11,7 @@ from services.feed_source import (
     fetch_new_releases_raw_tag_new as _raw_tag_new,
 )
 from services.feed_repo import replace_feed
-from utils.feed_utils import norm as _norm, map_album as _map_album, map_track as _map_track
+from utils.feed_utils import norm as _norm, map_album as _map_album, map_track as _map_track, map_albums_until
 
 
 def build_most_played() -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -25,7 +25,11 @@ def build_most_played() -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
             continue
         m = _map_album(artist, title)
         if m:
-            albums.append(m)
+            out = dict(m)
+            aid = out.get("artistId")
+            if aid:
+                out["artist_id"] = aid
+            albums.append(out)
 
     tracks: List[Dict[str, Any]] = []
     for it in songs_raw:
@@ -41,51 +45,68 @@ def build_most_played() -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
 
 
 def build_new_releases(store: Optional[str], limit: Optional[int]) -> List[Dict[str, Any]]:
-    pairs = fetch_new_releases_pairs(store=store, limit=limit)
+    WANT = limit or 25
 
-    # índice (artist|title → release_date) desde Spotify
-    raw = _raw_tag_new(store=store, limit=max(40, (limit or 25)))
-    raw_items = ((raw or {}).get("albums") or {}).get("items") or []
-    release_by_key: Dict[str, str] = {}
-    for it in raw_items:
-        if (it.get("album_type") or "").lower() != "album":
-            continue
-        title = (it.get("name") or "").strip()
-        arts = it.get("artists") or []
-        artist = ", ".join(a.get("name") or "" for a in arts if isinstance(a, dict)).strip()
-        if not artist or not title:
-            continue
-        key = _norm(artist) + "|" + _norm(title)
-        release_by_key[key] = it.get("release_date") or ""
+    # 1) Trae TODOS los pairs de 14 días + metadata extra
+    pairs, release_by_key, tracks_by_key = fetch_new_releases_pairs(store=store, limit=limit)
+    
+    print(f"📊 Total pairs obtenidos: {len(pairs)}")
 
-    # mapear a YT Music y deduplicar
+    # 2) Mapear hasta WANT, con límite razonable de entrada
+    mapped = map_albums_until(
+        [{"artist": a, "title": t} for (a, t) in pairs[:60]],
+        want=WANT,
+        micro_pause=0.3,
+    )
+    
+    print(f"📊 Total mapeados exitosos: {len(mapped)}")
+
+    # 3) Merge + dedup
     albums: List[Dict[str, Any]] = []
     seen_ids: set[str] = set()
-    seen_keys: set[str] = set()
 
-    for artist, title in pairs:
-        m = _map_album(artist, title)
-        if not m:
+    for m in mapped:
+        bid = (m.get("id") or "").strip()
+        art = (m.get("artist") or "").strip()
+        tit = (m.get("title") or "").strip()
+        
+        if not art or not tit:
             continue
-
-        bid = m.get("id") or ""
-        key = _norm(m.get("artist", artist)) + "|" + _norm(m.get("title", title))
-        if (bid and bid in seen_ids) or key in seen_keys:
+        
+        if bid and bid in seen_ids:
             continue
-
-        m["release_date"] = release_by_key.get(key, "")
-        albums.append(m)
+        
+        out = dict(m)
+        
+        aid = out.get("artistId")
+        if aid:
+            out["artist_id"] = aid
+        
+        key = _norm(art) + "|" + _norm(tit)
+        
+        # Merge release_date y track_count de Spotify
+        rd = release_by_key.get(key, "")
+        if rd:
+            out["release_date"] = rd
+        
+        if not out.get("track_count"):
+            tc = tracks_by_key.get(key)
+            if isinstance(tc, int):
+                out["track_count"] = tc
+        
+        albums.append(out)
         if bid:
             seen_ids.add(bid)
-        seen_keys.add(key)
 
-    # ordenar por release_date desc
+    # 4) Orden por fecha y corte final
     def _date_key(s: str) -> tuple[int, int, int]:
         try:
-            y, m, d = s.split("-"); return (int(y), int(m), int(d))
+            y, m, d = s.split("-")
+            return (int(y), int(m), int(d))
         except Exception:
             try:
-                y, m = s.split("-"); return (int(y), int(m), 1)
+                y, m = s.split("-")
+                return (int(y), int(m), 1)
             except Exception:
                 try:
                     return (int(s), 1, 1)
@@ -93,8 +114,11 @@ def build_new_releases(store: Optional[str], limit: Optional[int]) -> List[Dict[
                     return (0, 0, 0)
 
     albums.sort(key=lambda a: _date_key(a.get("release_date", "")), reverse=True)
-    return albums
+    albums = albums[:WANT]
+    
+    print(f"📊 Álbumes finales: {len(albums)}")
 
+    return albums
 
 def main(argv: Optional[List[str]] = None) -> int:
     p = argparse.ArgumentParser(description="Fetch → map → persist feed data")
@@ -119,7 +143,6 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     print("[feed] done.")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

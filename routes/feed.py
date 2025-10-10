@@ -42,50 +42,62 @@ async def get_feed(request: Request):
 
     return {"ok": True, "albums": albums, "tracks": tracks}
 
+
+
 @router.get("/new-releases", summary="Feed: new releases (Spotify tag:new → mapped to YT Music)")
 async def get_new_releases(store: Optional[str] = None, limit: Optional[int] = None):
-    # 1) Trae pares (artist, title) ya filtrados a álbumes y con cantidad exacta pedida
-    pairs = fetch_new_releases_pairs(store=store, limit=limit)
+    from typing import Any, Dict, List
+    from utils.feed_utils import map_albums_until, norm as _norm
 
-    # 2) Índice (artist|title → release_date) desde Spotify
-    raw = _raw_tag_new(store=store, limit=max(40, (limit or 25)))
-    raw_items = ((raw or {}).get("albums") or {}).get("items") or []
-    release_by_key: Dict[str, str] = {}
-    for it in raw_items:
-        if (it.get("album_type") or "").lower() != "album":
-            continue
-        title = (it.get("name") or "").strip()
-        arts = it.get("artists") or []
-        artist = ", ".join(a.get("name") or "" for a in arts if isinstance(a, dict)).strip()
-        if not artist or not title:
-            continue
-        key = _norm(artist) + "|" + _norm(title)
-        release_by_key[key] = it.get("release_date") or ""
+    WANT = 25
 
-    # 3) Mapear a YT Music y deduplicar por browseId y (artist,title) normalizados
+    # 1) Trae TODOS los pairs de 14 días
+    pairs, release_by_key, tracks_by_key = fetch_new_releases_pairs(store=store, limit=limit)
+    
+    print(f"📊 Total pairs obtenidos: {len(pairs)}")
+
+    # 2) ⚠️ CRÍTICO: Solo intentar mapear los primeros 60-80 pairs (no los 139)
+    # Esto da margen para fallos pero no toma 20 minutos
+    mapped = map_albums_until(
+        [{"artist": a, "title": t} for (a, t) in pairs[:60]],  # ← Límite razonable
+        want=WANT,  # ← Parar cuando llegue a 25
+        micro_pause=0.3,
+    )
+    
+    print(f"📊 Total mapeados exitosos: {len(mapped)}")
+
+    # 3) Merge + dedup
     albums: List[Dict[str, Any]] = []
     seen_ids: set[str] = set()
-    seen_keys: set[str] = set()
-
-    for artist, title in pairs:
-        m = _map_album(artist, title)
-        if not m:
+    
+    for m in mapped:
+        bid = (m.get("id") or "").strip()
+        art = (m.get("artist") or "").strip()
+        tit = (m.get("title") or "").strip()
+        
+        if not art or not tit:
             continue
-
-        bid = m.get("id") or ""
-        key = _norm(m.get("artist", artist)) + "|" + _norm(m.get("title", title))
-        if (bid and bid in seen_ids) or key in seen_keys:
-            continue  # evita duplicados
-
-        # Adjuntar release_date desde Spotify si lo tenemos
-        m["release_date"] = release_by_key.get(key, "")  # YYYY, YYYY-MM o YYYY-MM-DD
-
-        albums.append(m)
+        
+        if bid and bid in seen_ids:
+            continue
+        
+        out = dict(m)
+        key = _norm(art) + "|" + _norm(tit)
+        
+        rd = release_by_key.get(key, "")
+        if rd:
+            out["release_date"] = rd
+        
+        if not out.get("track_count"):
+            tc = tracks_by_key.get(key)
+            if isinstance(tc, int):
+                out["track_count"] = tc
+        
+        albums.append(out)
         if bid:
             seen_ids.add(bid)
-        seen_keys.add(key)
 
-    # 4) Ordenar por release_date desc (más nuevo primero). Fechas faltantes al final.
+    # 4) Orden por fecha y corte final
     def _date_key(s: str) -> tuple[int, int, int]:
         try:
             y, m, d = s.split("-")
@@ -101,6 +113,9 @@ async def get_new_releases(store: Optional[str] = None, limit: Optional[int] = N
                     return (0, 0, 0)
 
     albums.sort(key=lambda a: _date_key(a.get("release_date", "")), reverse=True)
+    albums = albums[:WANT]
+    
+    print(f"📊 Álbumes finales retornados: {len(albums)}")
 
     return {"ok": True, "new_releases": albums}
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import requests
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Tuple, List, Dict, Any, Optional, Callable
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -92,15 +92,30 @@ def fetch_new_releases_raw_tag_new(store: str | None = None, limit: int | None =
     r.raise_for_status()
     return r.json()
 
-def fetch_new_releases_pairs(store: str | None = None, limit: int | None = None) -> List[Tuple[str, str]]:
-    """
-    Devuelve EXACTAMENTE `limit` pares (artist, title) de lanzamientos nuevos
-    que sean SOLO álbumes (album_type == "album"), usando:
-      1) /v1/search?q=tag:new&type=album  (paginado)
-      2) fallback /v1/browse/new-releases  (álbumes curados)
-    """
-    want = int(limit or CFG.limit)
+def fetch_new_releases_pairs(
+    store: str | None = None,
+    limit: int | None = None,
+    *,
+    on_batch: "Optional[Callable[[List[Tuple[str, str]]], None]]" = None,
+    should_stop: "Optional[Callable[[], bool]]" = None,
+) -> "Tuple[List[Tuple[str, str]], Dict[str, str], Dict[str, int]]":
+    import datetime, requests, re, unicodedata
+    from typing import Dict, Any, List, Tuple, Optional, Callable
+
     country = (store or CFG.store).upper()
+    cutoff  = datetime.date.today() - datetime.timedelta(days=14)
+
+    def _parse_date(d: str, p: str):
+        try:
+            if p == "day":   return datetime.date.fromisoformat(d)
+            if p == "month": y, m = d.split("-"); return datetime.date(int(y), int(m), 1)
+            if p == "year":  return datetime.date(int(d), 1, 1)
+        except Exception:
+            return None
+
+    def _norm_local(s: str) -> str:
+        s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
+        return re.sub(r'[\s\-\–\—\._"\'\[\]\(\)]+', ' ', (s or "").lower()).strip()
 
     tok = _get_feed_token()
     headers = {
@@ -112,79 +127,91 @@ def fetch_new_releases_pairs(store: str | None = None, limit: int | None = None)
 
     albums: List[Dict[str, Any]] = []
     seen_ids: set[str] = set()
+    offset, page_size = 0, 50
 
-    # --- 1) SEARCH tag:new (paginado) ---
-    offset = 0
-    page_size = 50
-    total = None  # no usamos Optional para evitar imports
-    while len(albums) < want:
+    # ⚠️ CRÍTICO: Paginar hasta 1000 (no cortar por hit_old_date prematuramente)
+    while offset < 1000 and not (should_stop and should_stop()):
         r = requests.get(
             "https://api.spotify.com/v1/search",
-            params={
-                "q": "tag:new",
-                "type": "album",
-                "market": country,
-                "limit": page_size,
-                "offset": offset,
-            },
-            headers=headers,
-            timeout=20,
+            params={"q": "tag:new", "type": "album", "market": country, "limit": page_size, "offset": offset},
+            headers=headers, timeout=20,
         )
         r.raise_for_status()
-        data = r.json() or {}
-        block = (data.get("albums") or {})
-        total = block.get("total", 0)
-        items = block.get("items") or []
+        items = ((r.json() or {}).get("albums") or {}).get("items") or []
+        if not items:
+            break
 
         for it in items:
             if (it.get("album_type") or "").lower() != "album":
                 continue
+            
+            rd  = (it.get("release_date") or "").strip()
+            rdp = (it.get("release_date_precision") or "").strip()
+            d = _parse_date(rd, rdp)
+            
+            # ✅ Solo filtramos por cutoff, NO cortamos el loop completo
+            if d and d < cutoff:
+                continue  # ← Cambio clave: continue en vez de hit_old_date=True
+
             sid = it.get("id")
             if not sid or sid in seen_ids:
                 continue
+            
             albums.append(it)
             seen_ids.add(sid)
-            if len(albums) >= want:
-                break
+
+        if on_batch:
+            # Snapshot incremental
+            release_by_key: Dict[str, str] = {}
+            tracks_by_key: Dict[str, int] = {}
+            pairs: List[Tuple[str, str]] = []
+
+            for it in albums:
+                title = (it.get("name") or "").strip()
+                arts  = it.get("artists") or []
+                artist = ", ".join(a.get("name") or "" for a in arts if isinstance(a, dict)).strip()
+                if not artist or not title:
+                    continue
+                key = _norm_local(artist) + "|" + _norm_local(title)
+
+                rd = (it.get("release_date") or "").strip()
+                if rd:
+                    release_by_key[key] = rd
+
+                tt = it.get("total_tracks")
+                if isinstance(tt, int) and tt > 0:
+                    tracks_by_key[key] = tt
+
+                pairs.append((artist, title))
+
+            on_batch(pairs)
+
+        if should_stop and should_stop():
+            break
 
         offset += page_size
-        if total is not None and offset >= total:
-            break  # no hay más páginas
 
-    # --- 2) Fallback: BROWSE new-releases ---
-    if len(albums) < want:
-        need = want - len(albums)
-        url = "https://api.spotify.com/v1/browse/new-releases"
-        while need > 0 and url:
-            r = requests.get(
-                url,
-                params={"country": country, "limit": 50},
-                headers=headers,
-                timeout=20,
-            )
-            r.raise_for_status()
-            data = r.json() or {}
-            block = data.get("albums") or {}
-            for it in (block.get("items") or []):
-                if (it.get("album_type") or "").lower() != "album":
-                    continue
-                sid = it.get("id")
-                if not sid or sid in seen_ids:
-                    continue
-                albums.append(it)
-                seen_ids.add(sid)
-                need -= 1
-                if need <= 0:
-                    break
-            url = block.get("next")
-
-    # --- Mapear a pares (artist, title) ---
+    # Build final
+    release_by_key: Dict[str, str] = {}
+    tracks_by_key: Dict[str, int] = {}
     pairs: List[Tuple[str, str]] = []
-    for it in albums[:want]:
-        title = (it.get("name") or "").strip()
-        arts = it.get("artists") or []
-        artist = ", ".join(a.get("name") or "" for a in arts if isinstance(a, dict)).strip()
-        if artist and title:
-            pairs.append((artist, title))
 
-    return pairs
+    for it in albums:
+        title = (it.get("name") or "").strip()
+        arts  = it.get("artists") or []
+        artist = ", ".join(a.get("name") or "" for a in arts if isinstance(a, dict)).strip()
+        if not artist or not title:
+            continue
+        key = _norm_local(artist) + "|" + _norm_local(title)
+
+        rd = (it.get("release_date") or "").strip()
+        if rd:
+            release_by_key[key] = rd
+
+        tt = it.get("total_tracks")
+        if isinstance(tt, int) and tt > 0:
+            tracks_by_key[key] = tt
+
+        pairs.append((artist, title))
+
+    return pairs, release_by_key, tracks_by_key

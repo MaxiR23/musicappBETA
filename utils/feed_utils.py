@@ -1,8 +1,9 @@
 # utils/feed_utils.py
 from __future__ import annotations
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Callable
 import re, unicodedata
 from services.music_lookup import MusicLookup as Catalog
+import time  # import local para no tocar globales
 
 def norm(s: str) -> str:
     s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
@@ -18,26 +19,84 @@ def last_thumb(thumbnails: Optional[List[Dict[str, Any]]]) -> str:
 def map_album(artist: str, title: str) -> Optional[Dict[str, Any]]:
     want_title  = norm(title)
     want_artset = artist_tokens(artist)
-    hits = Catalog.search_albums(f"{artist} {title}", limit=8) or []
+
+    # helpers locales para NO tocar nada más del archivo
+    def _strip_qualifiers(t: str) -> str:
+        # saca sufijos comunes: (deluxe), deluxe edition, expanded, remastered, soundtrack, epilogue, etc.
+        t = re.sub(r'\((deluxe|expanded|remaster(?:ed)?|edition|epilogue|soundtrack|original motion picture|omps)\)', ' ', t, flags=re.I)
+        t = re.sub(r'\b(deluxe|expanded|remaster(?:ed)?|edition|epilogue|soundtrack|original motion picture|omps)\b', ' ', t, flags=re.I)
+        return re.sub(r'\s+', ' ', t).strip()
+
+    ROMAN = {'ii': '2','iii':'3','iv':'4','v':'5','vi':'6','vii':'7','viii':'8','ix':'9','x':'10'}
+    def _normalize_numerals(t: str) -> str:
+        # “II” -> “2”, “V”->“5”, etc. (en minúsculas ya por norm)
+        parts = t.split()
+        out = []
+        for p in parts:
+            out.append(ROMAN.get(p, p))
+        return ' '.join(out)
+
+    def _titles_match(a: str, b: str) -> bool:
+        # compara con tolerancia
+        a0, b0 = a, b
+        if a0 == b0:  # exacto
+            return True
+        a1, b1 = _strip_qualifiers(a0), _strip_qualifiers(b0)
+        if a1 == b1:  # exacto sin qualifiers
+            return True
+        a2, b2 = _normalize_numerals(a1), _normalize_numerals(b1)
+        # contains/startswith para casos “deluxe/expanded/…”
+        return a2 in b2 or b2 in a2 or a2.startswith(b2) or b2.startswith(a2)
+
     pick = None
-    for h in hits:
-        t = norm(h.get("title", ""))
-        arts = h.get("artists") or []
-        got = artist_tokens(", ".join(a.get("name", "") for a in arts if isinstance(a, dict)))
-        if t == want_title and (want_artset & got):
-            pick = h; break
-    if not pick: return None
+    for lim in (25, 50, 100):  # ampliamos pool
+        hits = Catalog.search_albums(f"{artist} {title}", limit=lim) or []
+
+        # 1) match exacto + artista
+        for h in hits:
+            t = norm(h.get("title", ""))
+            arts = h.get("artists") or []
+            got = artist_tokens(", ".join(a.get("name", "") for a in arts if isinstance(a, dict)))
+            if t == want_title and (want_artset & got):
+                pick = h; break
+        if pick: break
+
+        # 2) fallback tolerante por título + cruce de artista
+        for h in hits:
+            t = norm(h.get("title", ""))
+            arts = h.get("artists") or []
+            got = artist_tokens(", ".join(a.get("name", "") for a in arts if isinstance(a, dict)))
+            if (want_artset & got) and _titles_match(want_title, t):
+                pick = h; break
+        if pick: break
+
+        # pausa discreta solo una vez
+        if lim == 25:
+            time.sleep(3)
+
+    if not pick:
+        return None
+
     bid = pick.get("browseId")
-    if not bid: return None
+    if not bid:
+        return None
+
     info = Catalog.get_album(bid) or {}
-    artist_names = [a.get("name","") for a in (info.get("artists") or []) if isinstance(a, dict)]
+    artist_objs  = [a for a in (info.get("artists") or []) if isinstance(a, dict)]
+    artist_names = [a.get("name","") for a in artist_objs if a.get("name")]
+    artist_ids   = [a.get("id") for a in artist_objs if a.get("id")]
     thumbs = info.get("thumbnails") or (info.get("thumbnail", {}).get("thumbnails") or [])
+
     return {
-        "id": bid, "type": "album",
+        "id": bid,
+        "type": "album",
         "title": info.get("title") or title,
-        "artist": ", ".join([n for n in artist_names if n]) or artist,
-        "year": info.get("year") or "", "track_count": info.get("track_count") or "",
-        "thumb": last_thumb(thumbs), "url": f"/browse/{bid}",
+        "artist": ", ".join(artist_names) or artist,   
+        "artistId": artist_ids[0] if artist_ids else None,  #TODO: add two ids if its necessary.
+        "year": info.get("year") or "",
+        "track_count": info.get("track_count") or "",
+        "thumb": last_thumb(thumbs),
+        "url": f"/browse/{bid}",
     }
 
 def map_track(artist: str, title: str) -> Optional[Dict[str, Any]]:
@@ -74,3 +133,34 @@ def map_track(artist: str, title: str) -> Optional[Dict[str, Any]]:
         "duration_s": int(dur) if str(dur).isdigit() else None,
         "thumb": _pick_lh3(hit_thumbs), "url": f"/watch/{vid}",
     }
+
+def map_albums_until(
+    pairs: List[Dict[str, str]],
+    want: int = 25,
+    micro_pause: float = 0.4,
+    on_limit_reached: Optional[Callable[[int], None]] = None,
+) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    seen_ids: set[str] = set()
+
+    for i, p in enumerate(pairs):
+        artist = (p.get("artist") or "").strip()
+        title  = (p.get("title") or "").strip()
+        if not artist or not title:
+            continue
+
+        mapped = map_album(artist, title)
+        if mapped and (mid := mapped.get("id")) and mid not in seen_ids:
+            out.append(mapped)
+            seen_ids.add(mid)
+            
+            # ✅ Cortar cuando llegue a la meta
+            if len(out) >= want:
+                if on_limit_reached:
+                    on_limit_reached(len(out))
+                break  # ← Ahora SÍ cortamos
+
+        if micro_pause and (i % 3 == 2):
+            time.sleep(micro_pause)
+
+    return out

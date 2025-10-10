@@ -34,6 +34,8 @@ from utils.album_parser import parse_album_info, parse_album_tracks, parse_track
 from services.activity_service import try_log_activity_from_request
 from services.supabase_service import db_as_user  
 
+from services.feed_repo import list_new_releases_for_artist
+
 router = APIRouter()
 
 # --- CONFIG ---
@@ -766,6 +768,8 @@ def _artist_payload(artist_id: str):
         "related": parse_related_artists(contents[7]) if len(contents) > 7 else [],
     }
 
+    payload["newReleases"] = list_new_releases_for_artist(artist_id, limit=8)
+
     _ARTIST_CACHE[artist_id] = {"ts": now, "payload": payload}
 
     try:
@@ -790,7 +794,7 @@ def _album_payload(album_id: str):
     yt = InnerTube("WEB_REMIX")
     response = yt.browse(album_id)
 
-    info = parse_album_info(response)
+    """ info = parse_album_info(response)
     album_name = (info or {}).get("title") or (info or {}).get("name")
     album_year = (info or {}).get("year")
     try:
@@ -815,8 +819,8 @@ def _album_payload(album_id: str):
         print(f"[album][warm][WARN] {_e}")
 
     payload = {"id": album_id, "info": info, "tracks": tracks}
-    set_cached(f"album:{album_id}", payload, 30 * 60)
-    return payload
+    set_cached(f"album:{album_id}", payload, 30 * 60) """
+    return response
 
 @router.get("/album")
 def get_album_q(id: str = Query(...)):

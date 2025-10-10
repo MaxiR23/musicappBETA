@@ -27,8 +27,8 @@ def _row_from_album(kind: str, a: Dict[str, Any]) -> Dict[str, Any]:
         "year":        _to_int(a.get("year")),          # int4
         "track_count":  _to_int(a.get("track_count")),    # int4
         "release_date": a.get("release_date"),            # text  
+        "artist_id":   a.get("artist_id") or a.get("artistId"),
         # campos de track -> null
-        "artist_id":   None,
         "album":       None,
         "duration":    None,
         "duration_s":  None,
@@ -85,3 +85,13 @@ def list_feed(kind: str, media_type: str, limit: int = 25) -> List[Dict[str, Any
     q = q.limit(limit)
     res = q.execute()
     return (getattr(res, "data", None) or [])  # filas ya tienen el shape que espera el front
+
+def list_new_releases_for_artist(artist_id: str, limit: int = 8) -> List[Dict[str, Any]]:
+    q = sb.table(TABLE).select("*") \
+        .eq("kind", "new_releases") \
+        .eq("type", "album") \
+        .eq("artist_id", artist_id) \
+        .order("release_date", desc=True) \
+        .limit(limit)
+    res = q.execute()
+    return getattr(res, "data", None) or []
