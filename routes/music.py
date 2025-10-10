@@ -820,7 +820,7 @@ def _album_payload(album_id: str):
 
     payload = {"id": album_id, "info": info, "tracks": tracks}
     set_cached(f"album:{album_id}", payload, 30 * 60)
-    return response
+    return payload
 
 @router.get("/album")
 def get_album_q(id: str = Query(...)):
