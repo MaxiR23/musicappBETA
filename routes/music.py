@@ -790,7 +790,7 @@ def _album_payload(album_id: str):
     yt = InnerTube("WEB_REMIX")
     response = yt.browse(album_id)
 
-    """ info = parse_album_info(response)
+    info = parse_album_info(response)
     album_name = (info or {}).get("title") or (info or {}).get("name")
     album_year = (info or {}).get("year")
     try:
@@ -815,8 +815,8 @@ def _album_payload(album_id: str):
         print(f"[album][warm][WARN] {_e}")
 
     payload = {"id": album_id, "info": info, "tracks": tracks}
-    set_cached(f"album:{album_id}", payload, 30 * 60) """
-    return response
+    set_cached(f"album:{album_id}", payload, 30 * 60)
+    return payload
 
 @router.get("/album")
 def get_album_q(id: str = Query(...)):
