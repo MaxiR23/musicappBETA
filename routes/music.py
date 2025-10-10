@@ -12,9 +12,7 @@ import requests
 from requests.adapters import HTTPAdapter
 import yt_dlp
 from innertube import InnerTube
-import threading  # ← NUEVO
-
-import hashlib, traceback, json
+import threading 
 
 from services.cache_service import get_cached, set_cached
 from utils.search_parser import (
@@ -31,10 +29,10 @@ from utils.artist_parser import (
     parse_singles_eps,
     parse_related_artists,
 )
-from utils.album_parser import parse_album_info, parse_album_tracks
+from utils.album_parser import parse_album_info, parse_album_tracks, parse_tracks_from_audio_playlist
 
 from services.activity_service import try_log_activity_from_request
-from services.supabase_service import db_as_user  # ← NUEVO
+from services.supabase_service import db_as_user  
 
 router = APIRouter()
 
@@ -788,126 +786,27 @@ def get_artist_p(id: str = Path(...)):
 
 # ---------- ALBUM ----------
 
-# --- (1) helpers de normalización (arriba, junto a los otros helpers) ---
-_feat_re = re.compile(r"\b(feat\.?|ft\.?|con|with)\b.*$", re.IGNORECASE)
-_paren_re = re.compile(r"(\(|\[).{0,120}?(\)|\])")
-_noise_re = re.compile(r"\b(official\s*video|video\s*oficial|video\s*clip|lyrics?|remaster(?:ed)?\s*\d{2,4}?|remaster(?:ed)?|audio\s*only|visualizer|HD|4K)\b", re.IGNORECASE)
-
-def _clean_title(s: str) -> str:
-    s = s or ""
-    s = _paren_re.sub("", s)               # saca (Live), [Official], etc.
-    s = _feat_re.sub("", s)                # saca feat./ft./con
-    s = _noise_re.sub("", s)               # saca ruido común
-    s = re.sub(r"\s{2,}", " ", s).strip()
-    return s
-
-def _primary_artist(artists: list[dict]) -> str:
-    if not artists: return ""
-    # Solo el artista principal para no confundir con features
-    name = (artists[0].get("name") or "").strip()
-    # limpia ruido tipo (Topic), etc.
-    name = _paren_re.sub("", name)
-    return re.sub(r"\s{2,}", " ", name).strip()
-
-# --- (2) reusa tu _search_atv_first tal cual ---
-
-
-# ====== BLOQUE ACTUALIZADO ======
-def _album_tracks_force_songs(
-    tracks: list[dict],
-    album_name: str | None = None,
-    year: str | int | None = None,
-) -> list[dict]:
-    """
-    Regla pedida:
-      - Si VIENE ATV -> NO TOCAR.
-      - Si es OMV    -> FORZAR a ATV usando una query más estricta.
-    """
-    forced: list[dict] = []
-    try: print("[album][DBG] force_begin", {"album": album_name, "year": year, "tracks": len(tracks or [])})
-    except: pass
-
-    for idx, t in enumerate(tracks or [], start=1):
-        if not isinstance(t, dict):
-            forced.append(t); continue
-
-        title_in   = (t.get("title") or "").strip()
-        artists_in = t.get("artists") or []
-        mvt_in     = t.get("musicVideoType")
-        vid_in     = t.get("videoId")
-
-        # 1) Si ya es ATV, NO tocamos
-        if vid_in and mvt_in == "MUSIC_VIDEO_TYPE_ATV":
-            try: print("[album][DBG] skip_already_ATV", {"idx": idx, "videoId": vid_in})
-            except: pass
-            forced.append(t); continue
-
-        # 2) Si es OMV (o sin tipo), intentamos forzar ATV
-        prim_artist = _primary_artist(artists_in)
-        clean_title = _clean_title(title_in)
-        base_q = f"{prim_artist} {clean_title}".strip()
-
-        atv_id = None
-        if base_q:
-            atv_id = _search_atv_first(base_q, dbg=f"{album_name}#{idx}")
-
-        # Refuerzo con album + año si no encontró
-        if not atv_id and album_name:
-            extra_q = f"{base_q} {album_name} {year or ''}".strip()
-            atv_id = _search_atv_first(extra_q, dbg=f"{album_name}#{idx}/extra")
-
-        if atv_id:
-            t["videoId"] = atv_id
-            t["musicVideoType"] = "MUSIC_VIDEO_TYPE_ATV"
-            t["source"] = "forced_atv"
-            try: print("[album][DBG] forced_OMV_to_ATV", {"idx": idx, "videoId": atv_id, "q": base_q})
-            except: pass
-        else:
-            # Si no hay ATV confiable, dejamos el OMV como vino (mejor que errarle de tema)
-            t["source"] = "kept_omv_no_atv_found"
-            try: print("[album][DBG] keep_OMV_no_ATV", {"idx": idx, "q": base_q})
-            except: pass
-
-        forced.append(t)
-
-    try: print("[album][DBG] force_end", {"tracks_out": len(forced)})
-    except: pass
-    return forced
-# ====== FIN BLOQUE ======
-
-def _dedupe_tracks_by_video(tracks: list[dict]) -> list[dict]:
-    seen = set()
-    out = []
-    for t in tracks or []:
-        key = (t.get("videoId"), t.get("title"))
-        if t.get("videoId") and key in seen:
-            continue
-        if t.get("videoId"):
-            seen.add(key)
-        out.append(t)
-    return out
-
 def _album_payload(album_id: str):
     yt = InnerTube("WEB_REMIX")
     response = yt.browse(album_id)
 
-    info = parse_album_info(response)
+    """ info = parse_album_info(response)
     album_name = (info or {}).get("title") or (info or {}).get("name")
     album_year = (info or {}).get("year")
-    try: print("[album][DBG] album_open", {"album_id": album_id, "name": album_name, "year": album_year})
-    except: pass
-
-    tracks = parse_album_tracks(response)
-    try: print("[album][DBG] album_tracks_parsed", {"count": len(tracks or [])})
-    except: pass
-
-    tracks = _album_tracks_force_songs(tracks, album_name=album_name, year=album_year)
-    tracks = _dedupe_tracks_by_video(tracks)
-
     try:
-        print("[album][DBG] album_tracks_ready", {"count": len(tracks or [])})
+        print("[album][DBG] album_open", {"album_id": album_id, "name": album_name, "year": album_year})
     except:
         pass
+
+    # ✅ usar el audioPlaylistId (OLAK5…) para traer tracks
+    apid = (info or {}).get("audioPlaylistId")
+    if not apid:
+        print("[album][WARN] sin audioPlaylistId → tracks=[]")
+        payload = {"id": album_id, "info": info, "tracks": []}
+        set_cached(f"album:{album_id}", payload, 30 * 60)
+        return payload
+
+    tracks = parse_tracks_from_audio_playlist(apid)  # ← MISMO shape que parse_album_tracks
 
     try:
         ids = [t.get("videoId") for t in tracks if isinstance(t, dict) and t.get("videoId")]
@@ -916,8 +815,8 @@ def _album_payload(album_id: str):
         print(f"[album][warm][WARN] {_e}")
 
     payload = {"id": album_id, "info": info, "tracks": tracks}
-    set_cached(f"album:{album_id}", payload, 30 * 60)
-    return payload
+    set_cached(f"album:{album_id}", payload, 30 * 60) """
+    return response
 
 @router.get("/album")
 def get_album_q(id: str = Query(...)):

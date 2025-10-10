@@ -1,4 +1,8 @@
 import re
+from urllib.parse import urlparse, parse_qs
+from ytmusicapi import YTMusic
+
+ytm = YTMusic()
 
 def _find_album_header(response: dict):
     """
@@ -31,12 +35,12 @@ def _find_album_header(response: dict):
 
     return None
 
-
 def parse_album_info(response: dict):
     """
-    Extrae info general del álbum.
-    - PRIORIDAD de título/metadata: musicResponsiveHeaderRenderer (como pediste)
-    - Fallback para thumbs/url/etc: microformat (se mantiene)
+    Extrae info general del álbum desde el browse() crudo.
+    - PRIORIDAD de título/metadata: musicResponsiveHeaderRenderer
+    - Fallback para thumbs/url/etc: microformat
+    - AGREGA: audioPlaylistId (OLAK5…) y, si existe, recorta url -> OLAK5…
     """
     # ---------- Header (titulo/artist/songs/duration) ----------
     header = _find_album_header(response)
@@ -64,9 +68,8 @@ def parse_album_info(response: dict):
                 .get("browseId")
             )
 
-        # "10 songs • 43 minutes" (secondSubtitle)
+        # "N songs • M minutes" (secondSubtitle)
         ss_runs = ((header.get("secondSubtitle") or {}).get("runs") or [])
-        # Juntar en texto para detectar 'songs/canciones'
         joined = " ".join((r or {}).get("text", "") for r in ss_runs)
         m_songs = re.search(r"(\d+)\s*(?:songs?|canciones?)", joined, re.IGNORECASE)
         if m_songs:
@@ -75,7 +78,7 @@ def parse_album_info(response: dict):
             except Exception:
                 song_count = None
 
-        # Duración: tomar el primer run que mencione minutes/minutos/hours/horas
+        # Duración
         for r in ss_runs:
             low = (r or {}).get("text", "").lower()
             if any(k in low for k in ("minute", "minuto", "minutes", "minutos", "hour", "hora", "hours", "horas")):
@@ -104,21 +107,42 @@ def parse_album_info(response: dict):
     thumbnails = micro.get("thumbnail", {}).get("thumbnails", [])
     site_name = micro.get("siteName")
 
+    # Derivar audioPlaylistId desde urlCanonical / applinks
+    audio_playlist_id = None
+    candidatos = [
+        micro.get("urlCanonical"),
+        micro.get("urlApplinksWeb"),
+        micro.get("urlApplinksIos"),
+        micro.get("urlApplinksAndroid"),
+    ]
+    for c in candidatos:
+        if not c or not isinstance(c, str):
+            continue
+        if c.startswith("OLAK5"):
+            audio_playlist_id = c
+            break
+        try:
+            q = parse_qs(urlparse(c).query)
+            cand = (q.get("list") or [None])[0]
+            if cand and isinstance(cand, str) and cand.startswith("OLAK5"):
+                audio_playlist_id = cand
+                break
+        except Exception:
+            pass
+
+    # Si tenemos OLAK5… y url era una URL, la recortamos a sólo el ID (lo pediste explícitamente)
+    if audio_playlist_id:
+        url = audio_playlist_id
+
     # PRIORIDAD de título al header; fallback al micro
     title = title_hdr or title_micro
 
     payload = {
         "title": title,
         "description": description,
-        "url": url,
+        "url": url,  # queda "OLAK5…" si se pudo recortar
         "thumbnails": thumbnails,
         "siteName": site_name,
-        "links": {
-            "applinksWeb": micro.get("urlApplinksWeb"),
-            "applinksIos": micro.get("urlApplinksIos"),
-            "applinksAndroid": micro.get("urlApplinksAndroid"),
-        },
-        # Nuevos campos pedidos (no rompen shape existente)
         "artistName": artist_name,
         "artistId": artist_id,
         "songCount": song_count,
@@ -126,8 +150,10 @@ def parse_album_info(response: dict):
         "year": year,
     }
 
-    return payload
+    if audio_playlist_id:
+        payload["audioPlaylistId"] = audio_playlist_id
 
+    return payload
 
 def parse_album_thumbnails_from_background(node: dict):
     """
@@ -357,3 +383,49 @@ def parse_album_tracks(album_response: dict):
             })
 
     return tracks
+
+def parse_tracks_from_audio_playlist(audio_playlist_id: str) -> list[dict]:
+    """
+    Devuelve lista de tracks con el MISMO shape que parse_album_tracks(),
+    usando ytmusicapi.get_playlist (ATV). Nunca OMV.
+    """
+    ytm_local = YTMusic()  # evita estado raro del global
+    pl = ytm_local.get_playlist(audio_playlist_id, limit=None) or {}
+    src = pl.get("tracks") or []
+
+    out: list[dict] = []
+    for idx, t in enumerate(src, start=1):
+        # título
+        title = t.get("title")
+
+        # videoId
+        video_id = t.get("videoId")
+
+        # artistas -> [{id,name}]
+        artists = []
+        for a in (t.get("artists") or []):
+            if isinstance(a, dict):
+                nm = a.get("name")
+                bid = a.get("id")
+                if nm or bid:
+                    artists.append({"id": bid, "name": nm})
+
+        # duración: ytmusicapi usa 'duration' (a veces 'duration_seconds' también)
+        duration = t.get("duration") or t.get("length")
+
+        # índice impreso (string, como en parse_album_tracks)
+        index_print = str(idx)
+
+        # tipo: aseguramos ATV
+        mvt = "MUSIC_VIDEO_TYPE_ATV"
+
+        out.append({
+            "title": title,
+            "videoId": video_id,
+            "artists": artists,
+            "duration": duration,
+            "index": index_print,
+            "musicVideoType": mvt,
+        })
+
+    return out
