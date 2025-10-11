@@ -2,6 +2,9 @@ import re
 from urllib.parse import urlparse, parse_qs
 from ytmusicapi import YTMusic
 
+from .artist_parser import parse_albums as _artist_parse_albums, parse_singles_eps as _artist_parse_singles
+from innertube import InnerTube
+
 ytm = YTMusic()
 
 def _find_album_header(response: dict):
@@ -578,3 +581,60 @@ def parse_album_releases_for_you(album_response: dict) -> list[dict]:
             })
 
     return out
+
+def build_more_from_artist(artist_id: str, exclude_album_id: str | None = None, limit: int = 10) -> list[dict]:
+    """
+    Devuelve una mezcla de Albums + Singles/EPs del artista dado, excluyendo el álbum actual.
+    Shape de cada item: { id, title, type, year, thumbnails }
+    - type: "Album" | "Single" | "EP"
+    """
+    if not artist_id:
+        return []
+
+    try:
+        yt = InnerTube("WEB_REMIX")
+        aresp = yt.browse(artist_id)
+
+        # Navega a la misma ruta que ya usás para artista
+        acontents = (
+            aresp.get("contents", {})
+                 .get("singleColumnBrowseResultsRenderer", {})
+                 .get("tabs", [])[0]
+                 .get("tabRenderer", {})
+                 .get("content", {})
+                 .get("sectionListRenderer", {})
+                 .get("contents", [])
+        ) or []
+
+        out: list[dict] = []
+
+        # Álbumes (sección 1): marcamos type="Album"
+        if len(acontents) > 1:
+            for it in (_artist_parse_albums(acontents[1]) or []):
+                iid = it.get("id")
+                if iid and iid != exclude_album_id:
+                    row = dict(it)
+                    row["type"] = "Album"
+                    out.append(row)
+
+        # Singles / EPs (sección 2): ya traen "type"
+        if len(acontents) > 2:
+            for it in (_artist_parse_singles(acontents[2]) or []):
+                iid = it.get("id")
+                if iid and iid != exclude_album_id:
+                    out.append(it)
+
+        # Dedupe por id y recorte
+        seen: set[str] = set()
+        dedup: list[dict] = []
+        for it in out:
+            iid = it.get("id")
+            if not iid or iid in seen:
+                continue
+            seen.add(iid)
+            dedup.append(it)
+
+        return dedup[:max(0, int(limit))]
+    except Exception as e:
+        print("[album_parser][build_more_from_artist][WARN]", e)
+        return []

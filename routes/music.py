@@ -33,17 +33,22 @@ from utils.album_parser import (
     parse_album_info,
     parse_album_tracks,
     parse_tracks_from_audio_playlist,
-    parse_album_other_versions, parse_album_releases_for_you
+    parse_album_other_versions, 
+    parse_album_releases_for_you,
+    build_more_from_artist
 )
 from services.activity_service import try_log_activity_from_request
 from services.supabase_service import db_as_user  
 
 from services.feed_repo import list_new_releases_for_artist
 
+from utils.events_upcoming import fetch_upcoming_events_by_artist, EventsError
+
 router = APIRouter()
 
 # --- CONFIG ---
 CACHE_TTL          = 30 * 60
+EVENTS_TTL         = 30 * 60
 URL_TTL            = 15 * 60
 SEARCH_TTL         = 24 * 60 * 60
 SEARCH_RESULT_TTL  = 10 * 60
@@ -191,6 +196,13 @@ def _ttl_from_url(u: str) -> int:
 # ---------- Helpers OMV→ATV ----------
 _norm_re_strip = re.compile(r"(\(|\[).{0,80}?(\)|\])", re.IGNORECASE)
 _norm_re_noise = re.compile(r"\b(official\s*video|video\s*oficial|video\s*clip|lyrics?|audio\s*only|HD|4K)\b", re.IGNORECASE)
+
+def _events_cache_key_by_name(artist_name: str) -> str:
+    s = " ".join((artist_name or "").strip().split()).casefold()
+    return f"events:name:{s}"
+
+def _events_cache_key_by_aid(aid: str) -> str:
+    return f"events:aid:{(aid or '').strip()}"
 
 def _normalize_query(artist_names: str, title: str) -> str:
     base = f"{artist_names} {title}".strip() if artist_names else (title or "").strip()
@@ -871,6 +883,34 @@ def _artist_payload(artist_id: str):
         .get("contents", [])
     )
 
+    # 1) Upcoming events (Ticketmaster): 10 “oficiales” por attractionId
+    upcoming_events = []
+    try:
+        if name and name.strip():
+            ev_ckey = _events_cache_key_by_name(name)
+            ev_cached = get_cached(ev_ckey)
+
+            if ev_cached and isinstance(ev_cached, dict):
+                # hit: usar lo cacheado
+                upcoming_events = (ev_cached.get("events") or [])[:10]
+            else:
+                # miss: pedir a Ticketmaster y cachear
+                ev = fetch_upcoming_events_by_artist(name.strip(), limit=10, headliner_only=False)
+                upcoming_events = (ev.get("events") or [])[:10]
+
+                # cache por nombre normalizado (30m)
+                set_cached(ev_ckey, ev, EVENTS_TTL)
+
+                # si vino attractionId, duplicar cache por AID (útil después)
+                aid = (ev or {}).get("attractionId")
+                if aid:
+                    set_cached(_events_cache_key_by_aid(aid), ev, EVENTS_TTL)
+    except EventsError as _e:
+        # clave faltante o artista no encontrado → no rompemos el payload
+        print(f"[artist][events][WARN] {name}: {str(_e)}")
+    except Exception as _e:
+        print(f"[artist][events][ERR] {name}: {_e}")
+
     payload = {
         "header": {
             "name": name,
@@ -882,6 +922,7 @@ def _artist_payload(artist_id: str):
         "albums": parse_albums(contents[1]) if len(contents) > 1 else [],
         "singles_eps": parse_singles_eps(contents[2]) if len(contents) > 2 else [],
         "related": parse_related_artists(contents[7]) if len(contents) > 7 else [],
+        "upcomingEvents": upcoming_events,
     }
 
     payload["newReleases"] = list_new_releases_for_artist(artist_id, limit=8)
@@ -921,6 +962,57 @@ def _album_payload(album_id: str):
     other_versions = parse_album_other_versions(response) or []
     releases_for_you = parse_album_releases_for_you(response) or []
 
+    artist_id = (info or {}).get("artistId")
+    more_from_artist = build_more_from_artist(artist_id, exclude_album_id=album_id, limit=10) if artist_id else []
+    # ---------- UPCOMING EVENTS (mostrar 1 en álbum) ----------
+    upcoming_events_one = []
+    try:
+        # 1) nombre del artista con múltiples fallbacks (algunos álbumes traen estructuras distintas)
+        artist_name = (
+            (info or {}).get("artistName")
+            or ((info or {}).get("artists") or [{}])[0].get("name")
+            or (info or {}).get("artist")
+            or (info or {}).get("subtitle")  # a veces el parser mete "Artist • type"
+        )
+        # normaliza rápido si vino "Artist • ..." en subtitle
+        if isinstance(artist_name, str) and " • " in artist_name:
+            artist_name = artist_name.split(" • ", 1)[0].strip()
+
+        # 2) si el ARTISTA ya fue abierto, reusar SU payload desde _ARTIST_CACHE (cero llamadas)
+        #    => garantiza que TODOS los álbumes muestren evento tras abrir artista una vez
+        if artist_id and artist_id in _ARTIST_CACHE:
+            try:
+                evs_from_artist = (_ARTIST_CACHE[artist_id]["payload"].get("upcomingEvents") or [])
+                if evs_from_artist:
+                    upcoming_events_one = evs_from_artist[:1]
+            except Exception:
+                pass
+
+        # 3) si aún no tenemos evento, probamos cache por NOMBRE normalizado (30m)
+        if not upcoming_events_one and artist_name:
+            ev_ckey = _events_cache_key_by_name(artist_name)  # <- usa helper normalizado
+            ev_cached = get_cached(ev_ckey)
+            if ev_cached and isinstance(ev_cached, dict):
+                upcoming_events_one = (ev_cached.get("events") or [])[:1]
+
+        # 4) si tampoco hay cache (entraste por álbum primero), hacemos UNA llamada,
+        #    y sembramos cache (por nombre y, si viene attractionId, también por aid)
+        if not upcoming_events_one and artist_name:
+            ev = fetch_upcoming_events_by_artist(artist_name.strip(), limit=1, headliner_only=False)
+            upcoming_events_one = (ev or {}).get("events", [])[:1]
+
+            # cache 30m por nombre normalizado
+            set_cached(_events_cache_key_by_name(artist_name), ev, EVENTS_TTL)
+            # y si vino attractionId, también por AID (opcional pero útil)
+            aid = (ev or {}).get("attractionId")
+            if aid:
+                set_cached(_events_cache_key_by_aid(aid), ev, EVENTS_TTL)
+
+    except EventsError as _e:
+        print(f"[album][events][WARN] {album_id}: {str(_e)}")
+    except Exception as _e:
+        print(f"[album][events][ERR] {album_id}: {_e}")
+
     apid = (info or {}).get("audioPlaylistId")
     if not apid:
         print("[album][WARN] sin audioPlaylistId → tracks=[]")
@@ -929,6 +1021,8 @@ def _album_payload(album_id: str):
             "info": info,
             "tracks": [],
             "otherVersions": other_versions,
+            "moreFromArtist": more_from_artist,
+            "upcomingEvents": upcoming_events_one, 
             "releasesForYou": releases_for_you,
         }
         set_cached(f"album:{album_id}", payload, 30 * 60)
@@ -947,6 +1041,8 @@ def _album_payload(album_id: str):
         "info": info,
         "tracks": tracks,
         "otherVersions": other_versions,
+        "moreFromArtist": more_from_artist,
+        "upcomingEvents": upcoming_events_one, 
         "releasesForYou": releases_for_you,
     }
     set_cached(f"album:{album_id}", payload, 30 * 60)
