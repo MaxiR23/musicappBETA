@@ -48,6 +48,7 @@ def parse_top_songs(section):
 
         # Álbum (si está presente)
         album_id = None
+        album_title = None 
         try:
             album_runs = (
                 r.get("flexColumns", [])[3]
@@ -56,6 +57,9 @@ def parse_top_songs(section):
                  .get("runs", [])
             )
             if album_runs:
+                # título del álbum
+                album_title = album_runs[0].get("text") or None
+                # ID del álbum
                 album_id = (
                     album_runs[0]
                     .get("navigationEndpoint", {})
@@ -78,6 +82,7 @@ def parse_top_songs(section):
             "title": title,
             "thumbnail": thumbs[-1]["url"] if thumbs else None,
             "albumId": album_id,
+            "albumTitle": album_title,
 
             # Compat: se mantienen estos dos
             "artistId": primary_artist_id,
