@@ -38,6 +38,35 @@ def _find_album_header(response: dict):
 
     return None
 
+def _parse_strapline_artists(header: dict) -> list[dict]:
+    """
+    Devuelve todos los artistas del straplineTextOne:
+    [{ id: <browseId>, name: <texto> }, ...]
+    Ignora separadores tipo '&', '•', ','.
+    """
+    runs = ((header.get("straplineTextOne") or {}).get("runs") or [])
+    out = []
+    for r in runs:
+        name = (r.get("text") or "").strip()
+        be = ((r.get("navigationEndpoint") or {}).get("browseEndpoint") or {})
+        bid = be.get("browseId")
+        if not bid or not name or name in {"&", "•", ","}:
+            continue
+        out.append({"id": bid, "name": name})
+    return out
+
+def _parse_strapline_thumbnail(header: dict) -> list[dict]:
+    """
+    Devuelve la lista de thumbnails del straplineThumbnail.
+    """
+    return (
+        (header.get("straplineThumbnail") or {})
+          .get("musicThumbnailRenderer", {})
+          .get("thumbnail", {})
+          .get("thumbnails", [])
+        or []
+    )
+
 def parse_album_info(response: dict):
     """
     Extrae info general del álbum desde el browse() crudo.
@@ -54,6 +83,8 @@ def parse_album_info(response: dict):
     song_count = None
     duration_text = None
     year = None
+    included_artists = []
+    strapline_thumbs = []
 
     if header:
         # Título
@@ -70,6 +101,24 @@ def parse_album_info(response: dict):
                 ((r0.get("navigationEndpoint") or {}).get("browseEndpoint") or {})
                 .get("browseId")
             )
+
+        # More artists (straplineTextOne)
+        included_artists = _parse_strapline_artists(header)
+
+        # Compat: primer artista (si existe) igual que antes
+        if included_artists:
+            artist_name = included_artists[0].get("name")
+            artist_id = included_artists[0].get("id")
+        else:
+            # fallback al primer run como lo hacías
+            runs_one = ((header.get("straplineTextOne") or {}).get("runs") or [])
+            if runs_one:
+                r0 = runs_one[0] or {}
+                artist_name = r0.get("text")
+                artist_id = (
+                    ((r0.get("navigationEndpoint") or {}).get("browseEndpoint") or {})
+                    .get("browseId")
+                )
 
         # "N songs • M minutes" (secondSubtitle)
         ss_runs = ((header.get("secondSubtitle") or {}).get("runs") or [])
@@ -98,6 +147,9 @@ def parse_album_info(response: dict):
                 except Exception:
                     year = None
 
+    # thumbnails del strapline (si existen)
+    strapline_thumbs = _parse_strapline_thumbnail(header)
+
     # ---------- Microformat (thumbs/url/description/site) ----------
     micro = (
         response.get("microformat", {})
@@ -108,7 +160,6 @@ def parse_album_info(response: dict):
     description = micro.get("description")
     url = micro.get("urlCanonical")
     thumbnails = micro.get("thumbnail", {}).get("thumbnails", [])
-    site_name = micro.get("siteName")
 
     # Derivar audioPlaylistId desde urlCanonical / applinks
     audio_playlist_id = None
@@ -145,9 +196,17 @@ def parse_album_info(response: dict):
         "description": description,
         "url": url,  # queda "OLAK5…" si se pudo recortar
         "thumbnails": thumbnails,
-        "siteName": site_name,
-        "artistName": artist_name,
-        "artistId": artist_id,
+
+        ## TODO: { debería tener esto teniendo included_artists? 
+
+        "artistName": artist_name, 
+        "artistId": artist_id, 
+
+        ## TODO }
+
+        "includedArtists": included_artists,      # [{id,name}, ...]
+        "straplineThumbnail": strapline_thumbs,   # lista de thumbs del strapline
+
         "songCount": song_count,
         "durationText": duration_text,
         "year": year,
