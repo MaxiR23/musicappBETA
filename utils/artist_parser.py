@@ -219,6 +219,52 @@ def parse_featured_on(section):
 
     return featured
 
+def section_header_text(sec: dict) -> str:
+    """Devuelve el título del carrusel en minúsculas (si existe)."""
+    return (
+        sec.get("musicCarouselShelfRenderer", {})
+          .get("header", {})
+          .get("musicCarouselShelfBasicHeaderRenderer", {})
+          .get("title", {})
+          .get("runs", [{}])[0]
+          .get("text", "") or ""
+    ).strip().lower()
+
+def is_related_artists_section(sec: dict) -> bool:
+    """True si el header indica 'Artistas relacionados'."""
+    h = section_header_text(sec)
+    return any(k in h for k in (
+        "fans might also like",   # EN
+        "related artists",        # EN
+        "artistas relacionados",  # ES
+    ))
+
+def pick_related_artists_section(contents: list[dict]) -> dict | None:
+    """
+    Busca el section correcto para 'Artistas relacionados'.
+    1) Chequea índices (7, 9) por header.
+    2) Si no, escanea todos por header.
+    3) Fallback: devuelve el primero existente entre 7/9 que tenga carousel.
+    """
+    # 1) 7/9 por header
+    for i in (7, 9):
+        if i < len(contents) and is_related_artists_section(contents[i]):
+            return contents[i]
+
+    # 2) escaneo global por header (por si cambia de posición)
+    for sec in contents:
+        if is_related_artists_section(sec):
+            return sec
+
+    # 3) fallback: primer 7/9 con carrusel válido
+    for i in (7, 9):
+        if i < len(contents):
+            car = contents[i].get("musicCarouselShelfRenderer", {})
+            if car.get("contents"):
+                return contents[i]
+
+    return None
+
 def parse_related_artists(section: dict):
     """
     Devuelve artistas relacionados.

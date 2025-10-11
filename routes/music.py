@@ -28,6 +28,7 @@ from utils.artist_parser import (
     parse_albums,
     parse_singles_eps,
     parse_related_artists,
+    pick_related_artists_section
 )
 from utils.album_parser import ( 
     parse_album_info,
@@ -883,6 +884,8 @@ def _artist_payload(artist_id: str):
         .get("contents", [])
     )
 
+    rel_sec = pick_related_artists_section(contents)
+
     # 1) Upcoming events (Ticketmaster): 10 “oficiales” por attractionId
     upcoming_events = []
     try:
@@ -921,7 +924,7 @@ def _artist_payload(artist_id: str):
         "topSongs": parse_top_songs(contents[0]) if len(contents) > 0 else [],
         "albums": parse_albums(contents[1]) if len(contents) > 1 else [],
         "singles_eps": parse_singles_eps(contents[2]) if len(contents) > 2 else [],
-        "related": parse_related_artists(contents[7]) if len(contents) > 7 else [],
+        "related": parse_related_artists(rel_sec) if rel_sec else [],
         "upcomingEvents": upcoming_events,
     }
 
