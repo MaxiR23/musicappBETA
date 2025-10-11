@@ -452,8 +452,13 @@ def parse_tracks_from_audio_playlist(audio_playlist_id: str) -> list[dict]:
     usando ytmusicapi.get_playlist (ATV). Nunca OMV.
     """
     ytm_local = YTMusic()  # evita estado raro del global
-    pl = ytm_local.get_playlist(audio_playlist_id, limit=None) or {}
-    src = pl.get("tracks") or []
+    
+    try:
+        pl = ytm_local.get_playlist(audio_playlist_id, limit=None) or {}
+        src = pl.get("tracks") or []
+    except Exception as e:
+        print(f"[parse_tracks_from_audio_playlist][WARN] get_playlist failed: {e}")
+        return []
 
     out: list[dict] = []
     for idx, t in enumerate(src, start=1):
