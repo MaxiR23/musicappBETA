@@ -9,10 +9,11 @@ from services.feed_source import (
     fetch_most_played_raw,
     fetch_new_releases_pairs,
     fetch_new_releases_raw_tag_new as _raw_tag_new,
+    fetch_seed_tracks,
+    fetch_new_singles_tracks
 )
 from services.feed_repo import replace_feed
 from utils.feed_utils import norm as _norm, map_album as _map_album, map_track as _map_track, map_albums_until
-
 
 def build_most_played() -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     albums_raw, songs_raw = fetch_most_played_raw()
@@ -120,6 +121,9 @@ def build_new_releases(store: Optional[str], limit: Optional[int]) -> List[Dict[
 
     return albums
 
+def build_seed_tracks(want: int) -> List[Dict[str, Any]]:
+    return fetch_seed_tracks(limit_pairs=want * 2, want=want)
+
 def main(argv: Optional[List[str]] = None) -> int:
     p = argparse.ArgumentParser(description="Fetch → map → persist feed data")
     p.add_argument("--store", help="Store/country code for new-releases (e.g., AR, US)", default=None)
@@ -140,6 +144,20 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     print("[feed] persisting new_releases…")
     replace_feed(kind="new_releases", media_type="album", items=nr_albums)
+
+    print("[feed] building new_singles…")
+    new_singles = fetch_new_singles_tracks(store=args.store, want=(args.limit or 25))
+    print(f"[feed] new_singles: tracks={len(new_singles)}")
+
+    print("[feed] persisting new_singles…")
+    replace_feed(kind="new_singles", media_type="track", items=new_singles)
+
+    print("[feed] building seed_tracks…")
+    seed_tracks = build_seed_tracks(want=(args.limit or 25))
+    print(f"[feed] seed_tracks: tracks={len(seed_tracks)}")
+
+    print("[feed] persisting seed_tracks…")
+    replace_feed(kind="seed_tracks", media_type="track", items=seed_tracks)
 
     print("[feed] done.")
     return 0

@@ -3,6 +3,19 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 from functools import lru_cache
+import os
+from dataclasses import dataclass
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# ── ENV centralizado (DRY) ───────────────────────────────────────────────
+@dataclass(frozen=True)
+class _MusicEnv:
+    seed_playlist_id: str = (os.getenv("FEED_MUSIC_RELEASE_PLAYLIST_ID") or "").strip()
+    playlist_base_url: str = (os.getenv("RELEASED_PLAYLIST_BASE_URL") or "https://music.youtube.com").rstrip("/")
+
+_ENV = _MusicEnv()
 
 # Interno: proveedor real de metadata (no exponer su nombre afuera)
 try:
@@ -22,11 +35,33 @@ class MusicLookup:
     No expone detalles del proveedor subyacente.
     """
 
+    # ── Seed playlist → pares (title, artist) ────────────────────────────
+    @staticmethod
+    def get_seed_pairs(limit: int = 500) -> list[dict[str, str]]:
+        """
+        Lee la playlist semilla (ENV) y devuelve [{'title': '...', 'artist': 'A, B'}].
+        """
+        pid = _ENV.seed_playlist_id
+        if not pid:
+            raise RuntimeError("Falta FEED_MUSIC_RELEASE_PLAYLIST_ID en .env")
+
+        prov = _provider()
+        raw = prov.get_watch_playlist(playlistId=pid, limit=limit) or {}
+        tracks = raw.get("tracks") or []
+
+        pairs: list[dict[str, str]] = []
+        for t in tracks:
+            title = (t.get("title") or "").strip()
+            arts  = t.get("artists") or []
+            artist = ", ".join((a.get("name") or "").strip() for a in arts if isinstance(a, dict))
+            if title and artist:
+                pairs.append({"title": title, "artist": artist})
+        return pairs
+
     # ── Álbumes ───────────────────────────────────────────────────────────
     @staticmethod
     def search_albums(query: str, limit: int = 1) -> List[Dict[str, Any]]:
         prov = _provider()
-        # filter="albums" limita a álbumes
         return prov.search(query, filter="albums", limit=limit) or []
 
     @staticmethod
@@ -38,7 +73,6 @@ class MusicLookup:
     @staticmethod
     def search_songs(query: str, limit: int = 1) -> List[Dict[str, Any]]:
         prov = _provider()
-        # filter="songs" limita a canciones
         return prov.search(query, filter="songs", limit=limit) or []
 
     @staticmethod

@@ -6,6 +6,11 @@ import requests
 from dataclasses import dataclass
 from typing import Tuple, List, Dict, Any, Optional, Callable
 
+from services.music_lookup import MusicLookup
+from utils.feed_utils import map_track
+
+import time
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -215,3 +220,97 @@ def fetch_new_releases_pairs(
         pairs.append((artist, title))
 
     return pairs, release_by_key, tracks_by_key
+
+def fetch_new_singles_tracks(store: Optional[str] = None, want: int = 25, pages: int = 4, micro_pause: float = 0.35) -> List[Dict[str, Any]]:
+    import datetime
+
+    market = (store or CFG.store).upper()
+    cutoff = datetime.date.today() - datetime.timedelta(days=14)
+
+    tok = _get_feed_token()
+    headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {tok}",
+        "User-Agent": "feed-agent/1.0",
+        "Cache-Control": "no-cache",
+    }
+
+    pairs: List[Dict[str, str]] = []
+    offset, page_size = 0, 50
+
+    for _ in range(max(1, pages)):
+        # 🔁 URL desde .env (DRY)
+        base = FEED_NEW_RELEASES_URL.format(store=market, limit=page_size)
+        r = requests.get(base, headers=headers, params={"offset": offset}, timeout=20)  # ← sin hardcode
+        r.raise_for_status()
+        items = ((r.json() or {}).get("albums") or {}).get("items") or []
+        if not items:
+            break
+
+        for a in items:
+            if int(a.get("total_tracks") or 0) != 1:
+                continue
+            rd  = (a.get("release_date") or "").strip()
+            rdp = (a.get("release_date_precision") or "").strip()
+            try:
+                if rdp == "day":
+                    d = datetime.date.fromisoformat(rd)
+                elif rdp == "month":
+                    y, m = rd.split("-"); d = datetime.date(int(y), int(m), 1)
+                elif rdp == "year":
+                    d = datetime.date(int(rd), 1, 1)
+                else:
+                    d = None
+            except Exception:
+                d = None
+            if d and d < cutoff:
+                continue
+
+            title = (a.get("name") or "").strip()
+            arts  = a.get("artists") or []
+            artist = ", ".join(x.get("name") or "" for x in arts if isinstance(x, dict)).strip()
+            if title and artist:
+                pairs.append({"artist": artist, "title": title})
+
+        offset += page_size
+
+    out: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for i, p in enumerate(pairs):
+        t = map_track(p["artist"], p["title"])
+        if t and (vid := t.get("id")) and vid not in seen:
+            out.append(t); seen.add(vid)
+            if len(out) >= want:
+                break
+        if micro_pause and (i % 3 == 2):
+            time.sleep(micro_pause)
+
+    return out
+
+def fetch_seed_tracks(limit_pairs: int = 300, want: int = 50, micro_pause: float = 0.35) -> List[Dict[str, Any]]:
+    """
+    Lee (title, artist) desde la seed (ENV) y devuelve SOLO los tracks mapeados
+    con map_track (mismo shape que Apple/Spotify).
+    """
+
+    pairs = MusicLookup.get_seed_pairs(limit=limit_pairs)
+    out: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for i, p in enumerate(pairs):
+        artist = (p.get("artist") or "").strip()
+        title  = (p.get("title")  or "").strip()
+        if not artist or not title:
+            continue
+
+        t = map_track(artist, title)  # payload completo de la canción
+        if t and (vid := t.get("id")) and vid not in seen:
+            out.append(t)
+            seen.add(vid)
+            if len(out) >= want:
+                break
+
+        if micro_pause and (i % 3 == 2):
+            time.sleep(micro_pause)
+
+    return out
