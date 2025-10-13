@@ -1,6 +1,7 @@
 # routes/feed.py
 from __future__ import annotations
 import os
+from fastapi.responses import JSONResponse
 
 from fastapi import APIRouter, Request
 from typing import Any, Dict, List, Optional
@@ -37,22 +38,73 @@ async def get_seed_tracks_db(limit: Optional[int] = 25):
 
 #### TESTS 
 
-@router.get("/recommendations", summary="User recommendations (DB): artistas/álbumes")
+@router.get("/recommendations/me", summary="User recommendations (DB): usando el usuario del Bearer")
+async def get_user_recommendations_me(
+    request: Request,
+    bucket: str = "seed_recos_v1",
+):
+    u = getattr(request.state, "user", None) or {}
+    user_id = u.get("id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"ok": False, "error": "unauthorized"})
+
+    rows = list_user_recommendations(
+        user_id=user_id,
+        bucket=bucket,
+        item_type=None,
+        limit=500,
+    )
+
+    artists: List[Dict[str, Any]] = []
+    albums:  List[Dict[str, Any]] = []
+
+    for r in rows or []:
+        itype   = r.get("item_type")
+        iid     = r.get("item_id")
+        payload = r.get("payload") or {}
+
+        if itype == "artist":
+            item = {"id": iid, **payload}
+            if r.get("seed_id"):
+                item["similarTo"] = {
+                    "id":        r.get("seed_id"),
+                    "name":      r.get("seed_name"),
+                    "thumbnail": r.get("seed_thumb"),
+                }
+            artists.append(item)
+        elif itype == "album":
+            item = {"id": iid, **payload}
+            albums.append(item)
+
+    artists = artists[:_RECO_LIMIT_PER_TYPE]
+    albums  = albums[:_RECO_LIMIT_PER_TYPE]
+
+    return {
+        "ok": True,
+        "bucket": bucket,
+        "limit_per_type": _RECO_LIMIT_PER_TYPE,
+        "recommendations": {
+            "artists": artists,
+            "albums":  albums,
+        },
+    }
+
+# routes/feed.py  (dejá TODO lo demás igual; solo pegá este handler nuevo)
+@router.get("/recommendations", summary="User recommendations (DB): artistas/álbumes (by user_id)")
 async def get_user_recommendations_db(
     user_id: str,
     bucket: str = "seed_recos_v1",
 ):
     """
-    Devuelve las recomendaciones guardadas para (user_id, bucket),
-    aplicando un límite por tipo definido en el servidor.
-    No se expone 'limit' como query param.
+    Devuelve las recomendaciones guardadas para (user_id, bucket).
+    El límite por tipo lo fija el servidor (_RECO_LIMIT_PER_TYPE).
     """
     rows = list_user_recommendations(
         user_id=user_id,
         bucket=bucket,
         item_type=None,
-        limit=500,  # traemos holgado y recortamos por tipo abajo
-    )
+        limit=500,  # holgado; recortamos abajo
+    ) or []
 
     artists: List[Dict[str, Any]] = []
     albums:  List[Dict[str, Any]] = []
@@ -71,12 +123,11 @@ async def get_user_recommendations_db(
                     "thumbnail": r.get("seed_thumb"),
                 }
             artists.append(item)
-
         elif itype == "album":
             item = {"id": iid, **payload}
             albums.append(item)
 
-    # Recorte server-side (no visible en la URL)
+    # recorte server-side
     artists = artists[:_RECO_LIMIT_PER_TYPE]
     albums  = albums[:_RECO_LIMIT_PER_TYPE]
 
