@@ -131,45 +131,54 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         def error(self, msg):   pass
 
     opts = {
-        "format": "bestaudio[acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio[acodec^=opus]/bestaudio/best",
-        "format_sort": ["acodec:mp4a", "abr"],
+        "format": "bestaudio[ext=m4a]/bestaudio",
+        "format_sort": ["abr"],
+        "geo_bypass": True,
+        "age_limit": None,
+        "no_check_certificates": True,
         "prefer_free_formats": False,
         "youtube_include_dash_manifest": False,
         "youtube_include_hls_manifest": False,
-
-        "quiet": True,  # ⚡ cambiar a True
-        "no_warnings": True,  # ⚡ cambiar a True
-        "logger": _SilentLogger(),  # ⚡ descomentar
+        "quiet": True,
+        "no_warnings": True,
+        "logger": _SilentLogger(),
         "skip_download": True,
         "noplaylist": True,
         "check_formats": False,
-
-        # ⚡⚡⚡ OPTIMIZACIÓN CRÍTICA
+        "no_color": True,
+        "writesubtitles": False,
+        "writeautomaticsub": False,
+        "writethumbnail": False,
+        "writeinfojson": False,
+        "writedescription": False,
+        "writeannotations": False,
+        "getcomments": False,
         "extractor_args": {
             "youtube": {
                 "player_client": [client],
-                # ⚡ AGREGAR initial_data y js - elimina 2 requests (~2000ms menos)
                 "player_skip": ["configs", "webpage", "initial_data"],
-                "skip": ["hls", "dash", "translated_subs"],
+                "skip": ["hls", "dash", "translated_subs", "authcheck"],  # + authcheck
                 "max_comments": ["0"],
             }
         },
-
-        "cachedir": False,
-        "socket_timeout": 5,  # ⚡ reducir de 6 a 5
+        "cachedir": "/tmp/yt-dlp-cache",
+        "socket_timeout": 1,  # ⚡ MÁS AGRESIVO: 2→1
         "retries": 0,
         "extractor_retries": 0,
-        "sleep_requests": 0.0,
+        "fragment_retries": 0,
+        "sleep_requests": 0,
+        "sleep_interval": 0,
+        "max_sleep_interval": 0,
         "source_address": "0.0.0.0",
-        "nocheckcertificate": True,
-
-        # ⚡ Headers simplificados
+        "force_ipv4": True,
+        "http_chunk_size": 10485760,
         "http_headers": {
-            "User-Agent": "Mozilla/5.0",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "*/*",
             "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate",
             "Connection": "keep-alive",
         },
-
         "cookiefile": COOKIEFILE,
     }
     return yt_dlp.YoutubeDL(opts)
