@@ -134,60 +134,47 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         def error(self, msg):   pass
 
     opts = {
+        # Básicos
         "format": "bestaudio/best",
-        "geo_bypass": True,
-        "age_limit": None,
-        "no_check_certificates": True,
-        "prefer_free_formats": False,
-        "youtube_include_dash_manifest": False,
-        "youtube_include_hls_manifest": False,
         "quiet": True,
         "no_warnings": True,
         "logger": _SilentLogger(),
         "skip_download": True,
         "noplaylist": True,
-        "check_formats": False,
-        "no_color": True,
-        "writesubtitles": False,
-        "writeautomaticsub": False,
-        "writethumbnail": False,
-        "writeinfojson": False,
-        "writedescription": False,
-        "writeannotations": False,
-        "getcomments": False,
-        "ignoreerrors": False,  # Falla rápido sin reintentos
-        "lazy_playlist": True,  # No carga info innecesaria de playlists
-        "file_access_retries": 0,  # Sin reintentos de acceso a archivos
-        "no_check_formats": True,  # No valida formatos (más rápido que check_formats: False)
-
-        "buffersize": 32768,  # 16KB buffer (default 1024) - más eficiente para conexiones rápidas
-        "throttledratelimit": None,  # No detectes throttling (default: detecta bajo 100KB/s)
-
-        "ignore_no_formats_error": True,  # Ignora errores de "no formats"
-        "skip_unavailable_fragments": True,  # Skip fragmentos no disponibles (por las dudas)
-
+        "noprogress": True,
+        
+        # Optimizaciones
+        "geo_bypass": True,
+        "no_check_certificates": True,  # necesario para algunos servers
+        "no_check_formats": True,
+        "lazy_playlist": True,
+        "ignoreerrors": False,
+        "file_access_retries": 0,
+        "ignore_no_formats_error": True,
+        "skip_unavailable_fragments": True,
+        
+        # Extractor YouTube
         "extractor_args": {
             "youtube": {
                 "player_client": [client],
-                "player_skip": ["configs", "webpage", "initial_data"],
-                "playback_wait": "0", 
-                "skip": ["hls", "dash", "translated_subs", "authcheck", "comments"],
+                "player_skip": ["configs", "webpage", "initial_data"],  # ⚡ KEY
+                "skip": ["hls", "dash", "translated_subs"],
                 "include_live_dash": False,
-                "max_comments": ["0"],
-                "data_sync_id": ["116155465129624487769||"],
             }
         },
-        "cachedir": "/tmp/yt-dlp-cache",
-        "socket_timeout": 1,  # ⚡ MÁS AGRESIVO: 2→1
+        
+        # Timeouts agresivos
+        "socket_timeout": 2.5,
         "retries": 0,
         "extractor_retries": 0,
         "fragment_retries": 0,
         "sleep_requests": 0,
         "sleep_interval": 0,
         "max_sleep_interval": 0,
-        "source_address": "0.0.0.0",
+        
+        # HTTP
         "force_ipv4": True,
-        "http_chunk_size": 2097152,
+        "http_chunk_size": 2097152,  # 2MB
         "http_headers": {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Accept": "*/*",
@@ -195,9 +182,11 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
             "Accept-Encoding": "gzip, deflate",
             "Connection": "keep-alive",
         },
+        
+        # Cache y cookies
+        "cachedir": "/tmp/yt-dlp-cache",
         "cookiefile": COOKIEFILE,
-        "concurrent_fragment_downloads": 1, 
-        "noprogress": True,
+        "concurrent_fragment_downloads": 1,
     }
     return yt_dlp.YoutubeDL(opts)
 
@@ -584,8 +573,6 @@ def play_song(request: Request, id: str = Query(...), redir: int = Query(2)):
         audio_url = data["direct_url"]
         print(f"[play] ➤ solicitando ID → {id}")
 
-        t_probe = time.time()
-
         parsed_qs = urllib.parse.parse_qs(urllib.parse.urlsplit(audio_url).query)
         has_ip_param = "ip" in parsed_qs and parsed_qs["ip"] and parsed_qs["ip"][0]
         if redir == 1 and has_ip_param:
@@ -594,7 +581,6 @@ def play_song(request: Request, id: str = Query(...), redir: int = Query(2)):
         print({
             "id": id,
             "extract_ms": int((t_ex1 - t_ex0)*1000),
-            "preprobe_ms": int((t_probe - t_ex1)*1000),
             "until_stream_setup_ms": int((time.time() - t0)*1000),
             "redir": redir,
         })
