@@ -131,8 +131,10 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         def error(self, msg):   pass
 
     opts = {
-        "format": "bestaudio[acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio[acodec^=opus]/bestaudio/best",
-        "format_sort": ["acodec:mp4a:m4a,opus", "abr", "asr", "size"],
+        # ⚡ Formato simplificado (menos criterios = más rápido)
+        "format": "bestaudio[acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio/best",
+        "format_sort": ["acodec:mp4a", "abr"],  # ← solo 2 criterios
+        
         "prefer_free_formats": False,
         "youtube_include_dash_manifest": False,
         "youtube_include_hls_manifest": False,
@@ -144,25 +146,29 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         "noplaylist": True,
         "check_formats": False,
 
-        # ⚡ recorte de pasos de player para tv_embedded (menos requests)
+        # ⚡ MÁS skips (menos requests a YouTube)
         "extractor_args": {
             "youtube": {
-                "player_client": [client],                  # seguimos usando tv_embedded
-                "player_skip": ["configs","webpage","webpage_head", "watch"],
-                "skip": ["hls", "dash", "translated_subs", "manifests"],
+                "player_client": [client],
+                "player_skip": ["configs", "webpage"],  # ← agregado "js"
+                "skip": ["hls", "dash", "translated_subs", "automatic_captions"],  # ← agregado "automatic_captions"
                 "max_comments": ["0"],
             }
         },
 
-        "cachedir": os.path.join(tempfile.gettempdir(), "yt_dlp_cache"),
-        "socket_timeout": 3,
+        # ⚡ SIN CACHE DE DISCO (solo RAM)
+        "cachedir": False,
+        
+        # ⚡ Timeout menos agresivo (evita reintentos)
+        "socket_timeout": 5,  # antes: 3
+        
         "retries": 0,
+        "fragment_retries": 0,  # ← nuevo
         "extractor_retries": 0,
         "sleep_requests": 0.0,
         "source_address": "0.0.0.0",
         "nocheckcertificate": True,
 
-        # 🧠 encabezados coherentes con tv_embedded (evita redirecciones extras)
         "http_headers": {
             "User-Agent": "Mozilla/5.0",
             "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
@@ -205,84 +211,12 @@ def _events_cache_key_by_name(artist_name: str) -> str:
 def _events_cache_key_by_aid(aid: str) -> str:
     return f"events:aid:{(aid or '').strip()}"
 
-def _normalize_query(artist_names: str, title: str) -> str:
-    base = f"{artist_names} {title}".strip() if artist_names else (title or "").strip()
-    if not base: return ""
-    base = _norm_re_strip.sub("", base)
-    base = _norm_re_noise.sub("", base)
-    return re.sub(r"\s{2,}", " ", base).strip()
-
-def _search_atv_first(q: str, *, dbg: str | None = None) -> str | None:
-    """
-    Usa parse_search_first_song_or_top (de utils/search_parser.py).
-    Devuelve el videoId si el TopResult es ATV o si hay un ATV en el shelf 'Songs'.
-    """
-    def _log(tag: str, data: dict):
-        try: print(f"[album][DBG] _search_atv_first: {tag}", data)
-        except: pass
-
-    if not q:
-        _log("empty_query", {"dbg": dbg})
-        return None
-
-    ck = f"search_atv:{q.lower()}"
-    cached = get_cached(ck)
-    if cached is not None:
-        vid = (cached or {}).get("videoId")
-        _log("cache_hit", {"dbg": dbg, "q": q, "videoId": vid})
-        return vid
-
-    try:
-        _log("search", {"dbg": dbg, "q": q})
-        resp = _ytm().search(q)
-        source, song = parse_search_first_song_or_top(resp)
-        vid = song.get("videoId") if song else None
-        _log("result", {
-            "dbg": dbg, "q": q, "source": source,
-            "title": (song or {}).get("title"),
-            "musicVideoType": (song or {}).get("musicVideoType"),
-            "videoId": vid
-        })
-        if vid:
-            set_cached(ck, {"videoId": vid}, SEARCH_TTL)
-            return vid
-    except Exception as e:
-        _log("search_exc", {"dbg": dbg, "q": q, "err": f"{type(e).__name__}: {e}"})
-
-    # negativo corto para no clavar cache
-    set_cached(ck, {"videoId": None}, 30)
-    _log("no_result", {"dbg": dbg, "q": q})
-    return None
-
-def _force_atv_from_info(orig_id: str, info: dict) -> str:
-    now = time.time()
-    title  = (info.get("track") or info.get("title") or "").strip()
-    artist = (info.get("artist") or info.get("uploader") or "").strip()
-    if (not info.get("track")) and " - " in title and not artist:
-        try:
-            artist, title = [p.strip() for p in title.split(" - ", 1)]
-        except Exception:
-            pass
-    q   = _normalize_query(artist, title)
-    atv = _search_atv_first(q) if q else None
-    _FORCE_CACHE[orig_id] = {"atv": atv or orig_id, "ts": now}
-    return atv or orig_id
-
 # ---------- Extracción ----------
 def pick_best_audio(info: dict):
     """
-    Elige el mejor audio entre los formatos del MISMO cliente (tv_embedded).
-    Regla (parametrizable):
-      - CODEC_FIRST: prioriza m4a/mp4a > opus/webm > resto
-      - Si existe otro formato con kbps >= (mejor_m4a + BITRATE_DELTA_OVERRIDE),
-        se elige ese por bitrate (override). Poné BITRATE_DELTA_OVERRIDE = 0.0
-        si querés SIEMPRE el mayor kbps absoluto.
-    Devuelve: (url, best_fmt, diag_dict)
+    Versión RÁPIDA: early-exit apenas encontramos formato aceptable.
+    No analizamos TODOS los formatos, solo hasta encontrar uno bueno.
     """
-    # --- parámetros de regla ---
-    CODEC_FIRST = True
-    BITRATE_DELTA_OVERRIDE = 0.0  # bajalo a 0.0 para "siempre mayor kbps"
-
     fmts = info.get("formats") or []
     audios = [
         f for f in fmts
@@ -290,198 +224,144 @@ def pick_best_audio(info: dict):
         and (f.get("acodec") not in (None, "none"))
         and f.get("url")
     ]
+    
     if not audios:
         u = info.get("url")
         return (u if (u and isinstance(u, str) and u.startswith("http")) else None,
                 None, {"reason": "no_audio_formats"})
 
-    # KBPS por itag conocido (aprox)
-    ITAG_KBPS = {
-        # AAC/M4A
-        "139": 48, "140": 128, "141": 256,
-        # Opus/WebM
-        "249": 50, "250": 70, "251": 160,
-        "171": 128, "172": 256,
-    }
-
-    def to_float(x, d=0.0):
-        try:
-            return float(x)
-        except Exception:
-            try:
-                return float(str(x).replace(",", "."))
-            except Exception:
-                return d
-
-    def codec_rank(f):
-        ext = (f.get("ext") or "").lower()
-        ac  = (f.get("acodec") or "").lower()
-        if "mp4a" in ac or ext == "m4a":           return 3  # AAC/m4a
-        if "opus" in ac or ext in ("webm","weba"): return 2  # Opus
-        return 1
-
+    # Helper: inferir kbps del formato
     def infer_kbps(f):
         v = f.get("abr") or f.get("tbr")
         if v is not None:
-            return to_float(v, 0.0)
-        itag = str(f.get("format_id") or f.get("format") or "")
-        if itag in ITAG_KBPS:
-            return ITAG_KBPS[itag]
-        aq = (f.get("audio_quality") or f.get("quality") or "").upper()
-        if "VERY" in aq and "HIGH" in aq: return 256
-        if "HIGH" in aq:                 return 160
-        if "MEDIUM" in aq:               return 128
-        if "LOW" in aq:                  return 96
-        return 0.0
+            try:
+                return float(v)
+            except:
+                pass
+        
+        # Fallback por itag conocido
+        itag = str(f.get("format_id") or "")
+        ITAG_KBPS = {
+            "139": 48, "140": 128, "141": 256,  # AAC
+            "249": 50, "250": 70, "251": 160,   # Opus
+        }
+        return ITAG_KBPS.get(itag, 0.0)
 
-    def samplerate(f):
-        return to_float(f.get("asr") or f.get("audio_sample_rate"), 0.0)
+    # Helper: ¿es suficientemente bueno para servir?
+    def is_good_enough(f):
+        """
+        Criterio: AAC/M4A con 128kbps+ o Opus con 160kbps+
+        """
+        ext = (f.get("ext") or "").lower()
+        ac = (f.get("acodec") or "").lower()
+        kbps = infer_kbps(f)
+        
+        # AAC/M4A decente (la mayoría de casos)
+        if ("mp4a" in ac or ext == "m4a") and kbps >= 128:
+            return True
+        
+        # Opus de alta calidad
+        if ("opus" in ac) and kbps >= 160:
+            return True
+        
+        return False
 
-    def fsize(f):
-        return int((f.get("filesize") or f.get("filesize_approx") or 0) or 0)
+    # ⚡ EARLY EXIT: devolver el PRIMER formato aceptable
+    for f in audios:
+        if is_good_enough(f):
+            return f.get("url"), f, {
+                "reason": "early_exit",
+                "ext": f.get("ext"),
+                "kbps": infer_kbps(f),
+            }
 
-    # 1) pick por ranking de códec + kbps + asr + tamaño
-    def score_tuple(f):
-        return (codec_rank(f), infer_kbps(f), samplerate(f), fsize(f))
-
-    best_codec = max(audios, key=score_tuple)
-    best_codec_kbps = infer_kbps(best_codec)
-
-    # 2) override: si hay otro con kbps claramente mayor, preferirlo
-    best_kbps_any = max(audios, key=lambda f: (infer_kbps(f), samplerate(f), fsize(f)))
-    best_kbps_val = infer_kbps(best_kbps_any)
-
-    reason = "codec_pref"
-    winner = best_codec
-    if CODEC_FIRST and (best_kbps_val >= best_codec_kbps + BITRATE_DELTA_OVERRIDE):
-        winner = best_kbps_any
-        reason = "bitrate_override"
-    elif not CODEC_FIRST:
-        winner = best_kbps_any
-        reason = "kbps_only"
-
-    # diag
-    diag = {
-        "reason": reason,
-        "picked": {
-            "itag": str(winner.get("format_id") or winner.get("format") or ""),
-            "ext": (winner.get("ext") or "").lower(),
-            "acodec": (winner.get("acodec") or "").lower(),
-            "abr": to_float(winner.get("abr") or winner.get("tbr"), 0.0),
-            "kbps_inferred": infer_kbps(winner),
-            "asr": samplerate(winner),
-            "filesize": fsize(winner),
-        },
-        "candidates": len(audios),
-        "max_kbps_seen": max(infer_kbps(f) for f in audios) if audios else 0.0,
-        "codec_first": CODEC_FIRST,
-        "kbps_delta_override": BITRATE_DELTA_OVERRIDE,
+    # Fallback: si ninguno pasó el filtro, elegir el mejor disponible
+    # (esto casi nunca pasa)
+    best = max(audios, key=lambda f: (
+        3 if ("mp4a" in (f.get("acodec") or "").lower() or f.get("ext") == "m4a") else 1,
+        infer_kbps(f)
+    ))
+    
+    return best.get("url"), best, {
+        "reason": "fallback_best",
+        "kbps": infer_kbps(best)
     }
-
-    return winner.get("url"), winner, diag
-
 
 def _extract_best_url(video_id: str):
     """
-    Extrae info con yt_dlp (tv_embedded), elige mejor audio con pick_best_audio,
-    reintenta con un objeto "fresco" del MISMO cliente si falla, y loguea calidad.
+    Extrae info con yt_dlp (tv_embedded), elige mejor audio.
+    SIN RETRY - si falla, falla rápido.
     """
-    info = None
-    url = None
-    best_fmt = None
-    diag = None
-
     try:
         ydl = _ydl_global()
         with _YDL_LOCK:
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}",
-                                    download=False, process=False)
+            info = ydl.extract_info(
+                f"https://www.youtube.com/watch?v={video_id}",
+                download=False, 
+                process=False
+            )
+        
         url, best_fmt, diag = pick_best_audio(info)
-    except Exception:
-        info, url, best_fmt, diag = None, None, None, {"reason": "extract_failed_global"}
-
-    if not url:
-        # retry limpio del MISMO cliente (tv_embedded)
-        ydl_fresh = _ydl_for("tv_embedded")
-        info = ydl_fresh.extract_info(f"https://www.youtube.com/watch?v={video_id}",
-                                      download=False, process=False)
-        url, best_fmt, diag = pick_best_audio(info)
-
-    if not url:
-        raise RuntimeError("no_audio_format")
-
-    # ---- LOG mínimo de calidad elegida ----
-    try:
-        print("[audio][pick]", {
-            "id": video_id,
-            "client": "tv_embedded",
-            "reason": (diag or {}).get("reason"),
-            "ext": (best_fmt or {}).get("ext"),
-            "acodec": (best_fmt or {}).get("acodec"),
-            "itag": (best_fmt or {}).get("format_id"),
-            "abr": (best_fmt or {}).get("abr"),
-            "tbr": (best_fmt or {}).get("tbr"),
-            "kbps_inferred": (diag or {}).get("picked", {}).get("kbps_inferred"),
-            "asr": (best_fmt or {}).get("asr"),
-            "candidates": (diag or {}).get("candidates"),
-            "max_kbps_seen": (diag or {}).get("max_kbps_seen"),
-        })
-    except Exception:
-        pass
-
-    return info, url, "tv_embedded"
+        
+        if not url:
+            raise RuntimeError("no_audio_format")
+        
+        # ---- LOG mínimo de calidad elegida ---- 
+        try:
+            print("[audio][pick]", {
+                "id": video_id,
+                "client": "tv_embedded",
+                "reason": (diag or {}).get("reason"),
+                "ext": (best_fmt or {}).get("ext"),
+                "acodec": (best_fmt or {}).get("acodec"),
+                "itag": (best_fmt or {}).get("format_id"),
+                "abr": (best_fmt or {}).get("abr"),
+                "kbps_inferred": (diag or {}).get("kbps"),
+            })
+        except:
+            pass
+        
+        return info, url, "tv_embedded"
+        
+    except Exception as e:
+        # ❌ SIN RETRY CON OBJETO FRESCO
+        # Si falla, logueamos y propagamos error
+        print(f"[extract][ERROR] {video_id}: {type(e).__name__}: {e}")
+        raise RuntimeError(f"extract_failed: {type(e).__name__}")
 
 def _get_or_extract(video_id: str, _force: bool = False):
+    """
+    Extrae URL directa de audio. Con cache ultra-corta (60s) y sin fallbacks lentos.
+    """
     now = time.time()
 
-    # 1) Cache caliente  ← DESACTIVADO
-    # ent = _cache.get(video_id)
-    # if ent and ent.get("direct_url"):
-    #     fresh = (now - ent["ts"] < ent.get("ttl", URL_TTL))
-    #     if fresh:
-    #         return ent
-    #     if not _force:
-    #         try:
-    #             if _probe_url(ent["direct_url"]):
-    #                 try:
-    #                     _BACKGROUND_EXECUTOR.submit(_get_or_extract, video_id, True)
-    #                 except Exception:
-    #                     pass
-    #                 return ent
-    #         except Exception:
-    #             pass
+    # 1) Cache de 60s para evitar doble-extracción en re-clics
+    if not _force:
+        ent = _cache.get(video_id)
+        if ent and ent.get("direct_url"):
+            age = now - ent["ts"]
+            if age < 60:  # ← cache MUY corta
+                return ent
 
-    # 2) Intento primario...
-    info1, url1, client1 = None, None, None
-    forced_id = None
+    # 2) Extracción directa SIN buscar versiones ATV alternativas
     try:
         info1, url1, client1 = _extract_best_url(video_id)
-    except Exception:
-        try:
-            resolved_id = _FORCE_CACHE.get(video_id, {}).get("atv")
-            if not resolved_id or (now - _FORCE_CACHE.get(video_id, {}).get("ts", 0) > _FORCE_TTL):
-                resolved_id = _force_atv_from_info(video_id, {"track": "", "title": "", "artist": ""})
-            info1, url1, client1 = _extract_best_url(resolved_id)
-            forced_id = resolved_id
-        except Exception:
-            raise
+    except Exception as e:
+        print(f"[get_or_extract][ERROR] {video_id}: {type(e).__name__}: {e}")
+        raise
 
-    info, direct_url, client = info1, url1, client1
-
+    # 3) Construir respuesta
     data = {
-        "info": info,
-        "direct_url": direct_url,
-        "client": client,
+        "info": info1,
+        "direct_url": url1,
+        "client": client1,
         "ts": now,
-        "ttl": _ttl_from_url(direct_url),
-        # "served": (ent or {}).get("served", 0),  # ← ent ya no existe
+        "ttl": _ttl_from_url(url1),
     }
 
-    # ← ESCRITURA EN CACHÉ DESACTIVADA
-    # _cache[video_id] = data
-    # if forced_id and forced_id != video_id:
-    #     _cache[forced_id] = data
-
+    # 4) Guardar en cache por 60s
+    _cache[video_id] = data
+    
     return data
 
 def get_audio_info_quick(video_id: str):
