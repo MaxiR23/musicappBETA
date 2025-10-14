@@ -14,6 +14,8 @@ import yt_dlp
 from innertube import InnerTube
 import threading 
 
+from functools import lru_cache
+
 from services.cache_service import get_cached, set_cached
 from utils.search_parser import (
     parse_search_songs,
@@ -122,6 +124,7 @@ def _get_warm_executor() -> ThreadPoolExecutor:
         _WARM_EXECUTOR = ThreadPoolExecutor(max_workers=WARM_MAX_WORKERS)
     return _WARM_EXECUTOR
 
+@lru_cache(maxsize=4)
 # --- yt_dlp opts ---
 def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
     class _SilentLogger:
@@ -131,8 +134,7 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         def error(self, msg):   pass
 
     opts = {
-        "format": "bestaudio[ext=m4a]/bestaudio",
-        "format_sort": ["abr"],
+        "format": "bestaudio/best",
         "geo_bypass": True,
         "age_limit": None,
         "no_check_certificates": True,
@@ -153,12 +155,26 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         "writedescription": False,
         "writeannotations": False,
         "getcomments": False,
+        "ignoreerrors": False,  # Falla rápido sin reintentos
+        "lazy_playlist": True,  # No carga info innecesaria de playlists
+        "file_access_retries": 0,  # Sin reintentos de acceso a archivos
+        "no_check_formats": True,  # No valida formatos (más rápido que check_formats: False)
+
+        "buffersize": 32768,  # 16KB buffer (default 1024) - más eficiente para conexiones rápidas
+        "throttledratelimit": None,  # No detectes throttling (default: detecta bajo 100KB/s)
+
+        "ignore_no_formats_error": True,  # Ignora errores de "no formats"
+        "skip_unavailable_fragments": True,  # Skip fragmentos no disponibles (por las dudas)
+
         "extractor_args": {
             "youtube": {
                 "player_client": [client],
                 "player_skip": ["configs", "webpage", "initial_data"],
-                "skip": ["hls", "dash", "translated_subs", "authcheck"],  # + authcheck
+                "playback_wait": "0", 
+                "skip": ["hls", "dash", "translated_subs", "authcheck", "comments"],
+                "include_live_dash": False,
                 "max_comments": ["0"],
+                "data_sync_id": ["116155465129624487769||"],
             }
         },
         "cachedir": "/tmp/yt-dlp-cache",
@@ -171,7 +187,7 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         "max_sleep_interval": 0,
         "source_address": "0.0.0.0",
         "force_ipv4": True,
-        "http_chunk_size": 10485760,
+        "http_chunk_size": 2097152,
         "http_headers": {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Accept": "*/*",
@@ -180,6 +196,8 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
             "Connection": "keep-alive",
         },
         "cookiefile": COOKIEFILE,
+        "concurrent_fragment_downloads": 1, 
+        "noprogress": True,
     }
     return yt_dlp.YoutubeDL(opts)
 
@@ -456,7 +474,7 @@ def _download_full_to_cache(audio_url: str, cache_key: str):
     if os.path.exists(dst_path):
         return
     try:
-        with _SESSION_STREAM.get(audio_url, stream=True, timeout=(3, 30), allow_redirects=True) as r:
+        with _SESSION_STREAM.get(audio_url, stream=True, timeout=(3, 60), allow_redirects=True) as r:
             ct = r.headers.get("Content-Type") or "audio/mp4"
             with open(meta_path, "w", encoding="utf-8") as m:
                 m.write(ct)
@@ -470,96 +488,6 @@ def _download_full_to_cache(audio_url: str, cache_key: str):
             if os.path.exists(tmp_path): os.remove(tmp_path)
         except Exception:
             pass
-
-def _stream_fullmirror(audio_url: str, cache_key: str, range_header: str | None) -> StreamingResponse:
-    dst_path, tmp_path, meta_path = _cache_paths(cache_key)
-
-    if os.path.exists(dst_path):
-        media_type = "audio/mp4"
-        try:
-            if os.path.exists(meta_path):
-                with open(meta_path, "r", encoding="utf-8") as m:
-                    mt = (m.read() or "").strip()
-                    if mt: media_type = mt
-        except Exception:
-            pass
-        return _serve_file_range(dst_path, range_header, media_type)
-
-    if range_header and not range_header.strip().lower().startswith("bytes=0-"):
-        try:
-            _BACKGROUND_EXECUTOR.submit(_download_full_to_cache, audio_url, cache_key)
-        except Exception:
-            pass
-        return _stream_from_url(audio_url, range_header)
-
-    r = _SESSION_STREAM.get(audio_url, headers={"Accept-Encoding": "identity", "Connection": "keep-alive"},
-                            stream=True, timeout=(3, 20), allow_redirects=True)
-    r.raw.decode_content = False
-    ct = r.headers.get("Content-Type") or "audio/mp4"
-    try:
-        with open(meta_path, "w", encoding="utf-8") as m:
-            m.write(ct)
-    except Exception:
-        pass
-
-    ftmp = open(tmp_path, "wb")
-    CHUNK = 32 * 1024
-
-    def body():
-        try:
-            while True:
-                b = r.raw.read(CHUNK)
-                if not b:
-                    break
-                try:
-                    ftmp.write(b)
-                except Exception:
-                    pass
-                yield b
-        finally:
-            try:
-                r.close()
-            except:
-                pass
-            def _finish():
-                try:
-                    with _SESSION_STREAM.get(audio_url, headers={"Accept-Encoding": "identity"},
-                                             stream=True, timeout=(3, 30), allow_redirects=True) as r2:
-                        for b2 in r2.iter_content(256 * 1024):
-                            if not b2: break
-                            try:
-                                ftmp.write(b2)
-                            except Exception:
-                                pass
-                except Exception:
-                    pass
-                finally:
-                    try:
-                        ftmp.close()
-                    except Exception:
-                        pass
-                    try:
-                        os.replace(tmp_path, dst_path)
-                    except Exception:
-                        try:
-                            if os.path.exists(tmp_path): os.remove(tmp_path)
-                        except Exception:
-                            pass
-            try:
-                _BACKGROUND_EXECUTOR.submit(_finish)
-            except Exception:
-                try:
-                    ftmp.close()
-                    os.replace(tmp_path, dst_path)
-                except Exception:
-                    pass
-
-    resp_headers = {"Accept-Ranges": "bytes", "Connection": "keep-alive"}
-    cr = r.headers.get("Content-Range")
-    if cr:
-        resp_headers["Content-Range"] = cr
-
-    return StreamingResponse(body(), media_type=ct, headers=resp_headers, status_code=r.status_code)
 
 # ---------- Networking ----------
 def _probe_url(url: str) -> bool:
@@ -656,10 +584,6 @@ def play_song(request: Request, id: str = Query(...), redir: int = Query(2)):
         audio_url = data["direct_url"]
         print(f"[play] ➤ solicitando ID → {id}")
 
-        """ try:
-            _probe_url(audio_url)
-        except Exception:
-            pass """
         t_probe = time.time()
 
         parsed_qs = urllib.parse.parse_qs(urllib.parse.urlsplit(audio_url).query)
