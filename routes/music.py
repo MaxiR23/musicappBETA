@@ -131,49 +131,43 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         def error(self, msg):   pass
 
     opts = {
-        # ⚡ Formato simplificado (menos criterios = más rápido)
-        "format": "bestaudio[acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio/best",
-        "format_sort": ["acodec:mp4a", "abr"],  # ← solo 2 criterios
-        
+        "format": "bestaudio[acodec^=mp4a]/bestaudio[ext=m4a]/bestaudio[acodec^=opus]/bestaudio/best",
+        "format_sort": ["acodec:mp4a", "abr"],
         "prefer_free_formats": False,
         "youtube_include_dash_manifest": False,
         "youtube_include_hls_manifest": False,
 
-        "quiet": True,
-        "no_warnings": True,
-        "logger": _SilentLogger(),
+        "quiet": True,  # ⚡ cambiar a True
+        "no_warnings": True,  # ⚡ cambiar a True
+        "logger": _SilentLogger(),  # ⚡ descomentar
         "skip_download": True,
         "noplaylist": True,
         "check_formats": False,
 
-        # ⚡ MÁS skips (menos requests a YouTube)
+        # ⚡⚡⚡ OPTIMIZACIÓN CRÍTICA
         "extractor_args": {
             "youtube": {
                 "player_client": [client],
-                "player_skip": ["configs", "webpage"],  # ← agregado "js"
-                "skip": ["hls", "dash", "translated_subs", "automatic_captions"],  # ← agregado "automatic_captions"
+                # ⚡ AGREGAR initial_data y js - elimina 2 requests (~2000ms menos)
+                "player_skip": ["configs", "webpage", "initial_data"],
+                "skip": ["hls", "dash", "translated_subs"],
                 "max_comments": ["0"],
             }
         },
 
-        # ⚡ SIN CACHE DE DISCO (solo RAM)
         "cachedir": False,
-        
-        # ⚡ Timeout menos agresivo (evita reintentos)
-        "socket_timeout": 5,  # antes: 3
-        
+        "socket_timeout": 5,  # ⚡ reducir de 6 a 5
         "retries": 0,
-        "fragment_retries": 0,  # ← nuevo
         "extractor_retries": 0,
         "sleep_requests": 0.0,
         "source_address": "0.0.0.0",
         "nocheckcertificate": True,
 
+        # ⚡ Headers simplificados
         "http_headers": {
             "User-Agent": "Mozilla/5.0",
-            "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
-            "X-YouTube-Client-Name": "TVHTML5",
-            "X-YouTube-Client-Version": "7.202.08",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Connection": "keep-alive",
         },
 
         "cookiefile": COOKIEFILE,
@@ -181,11 +175,32 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
     return yt_dlp.YoutubeDL(opts)
 
 def _ydl_global() -> yt_dlp.YoutubeDL:
+    """
+    Reutiliza instancia global de yt_dlp para mantener conexiones HTTP abiertas.
+    Se recrea cada 50 requests para evitar memory leaks.
+    """
     global _YDL_GLOBAL
-    if _YDL_GLOBAL is None:
-        with _YDL_LOCK:
-            if _YDL_GLOBAL is None:  # doble check por threads
-                _YDL_GLOBAL = _ydl_for("tv_embedded")
+    
+    with _YDL_LOCK:
+        # Primera vez: crear
+        if _YDL_GLOBAL is None:
+            _YDL_GLOBAL = _ydl_for("tv_embedded")
+            _YDL_GLOBAL._request_count = 0
+        
+        # Incrementar contador
+        _YDL_GLOBAL._request_count = getattr(_YDL_GLOBAL, '_request_count', 0) + 1
+        
+        # Recrear cada 50 requests (evita memory leaks, mantiene performance)
+        if _YDL_GLOBAL._request_count > 100:
+            try:
+                # Cerrar vieja instancia
+                if hasattr(_YDL_GLOBAL, 'close'):
+                    _YDL_GLOBAL.close()
+            except:
+                pass
+            _YDL_GLOBAL = _ydl_for("tv_embedded")
+            _YDL_GLOBAL._request_count = 0
+    
     return _YDL_GLOBAL
 
 def _ttl_from_url(u: str) -> int:
@@ -288,44 +303,39 @@ def pick_best_audio(info: dict):
     }
 
 def _extract_best_url(video_id: str):
-    """
-    Extrae info con yt_dlp (tv_embedded), elige mejor audio.
-    SIN RETRY - si falla, falla rápido.
-    """
+    import time
+    
+    timings = {}
+    t0 = time.time()
+    
     try:
         ydl = _ydl_global()
+        timings["get_ydl"] = int((time.time() - t0) * 1000)
+        
+        t1 = time.time()
         with _YDL_LOCK:
+            # ⚡ CAMBIAR process=False a process=True para procesamiento inmediato
             info = ydl.extract_info(
                 f"https://www.youtube.com/watch?v={video_id}",
                 download=False, 
-                process=False
+                process=True  # ⚡ CAMBIO CRÍTICO
             )
+        timings["extract_info"] = int((time.time() - t1) * 1000)
         
+        t2 = time.time()
         url, best_fmt, diag = pick_best_audio(info)
+        timings["pick_audio"] = int((time.time() - t2) * 1000)
         
         if not url:
             raise RuntimeError("no_audio_format")
         
-        # ---- LOG mínimo de calidad elegida ---- 
-        try:
-            print("[audio][pick]", {
-                "id": video_id,
-                "client": "tv_embedded",
-                "reason": (diag or {}).get("reason"),
-                "ext": (best_fmt or {}).get("ext"),
-                "acodec": (best_fmt or {}).get("acodec"),
-                "itag": (best_fmt or {}).get("format_id"),
-                "abr": (best_fmt or {}).get("abr"),
-                "kbps_inferred": (diag or {}).get("kbps"),
-            })
-        except:
-            pass
+        timings["total"] = int((time.time() - t0) * 1000)
+        
+        print(f"[TIMING] {video_id}: {timings}")
         
         return info, url, "tv_embedded"
         
     except Exception as e:
-        # ❌ SIN RETRY CON OBJETO FRESCO
-        # Si falla, logueamos y propagamos error
         print(f"[extract][ERROR] {video_id}: {type(e).__name__}: {e}")
         raise RuntimeError(f"extract_failed: {type(e).__name__}")
 
@@ -340,10 +350,10 @@ def _get_or_extract(video_id: str, _force: bool = False):
         ent = _cache.get(video_id)
         if ent and ent.get("direct_url"):
             age = now - ent["ts"]
-            if age < 60:  # ← cache MUY corta
+            if age < 600:
                 return ent
 
-    # 2) Extracción directa SIN buscar versiones ATV alternativas
+    # 2) Extracción directa SIN buscar versiones ATV alternativasif ent and ent.get("direct_url"):
     try:
         info1, url1, client1 = _extract_best_url(video_id)
     except Exception as e:
