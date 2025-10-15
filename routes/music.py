@@ -126,6 +126,7 @@ def _get_warm_executor() -> ThreadPoolExecutor:
 
 @lru_cache(maxsize=4)
 # --- yt_dlp opts ---
+@lru_cache(maxsize=4)
 def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
     class _SilentLogger:
         def debug(self, msg):   pass
@@ -145,7 +146,7 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         
         # Optimizaciones
         "geo_bypass": True,
-        "no_check_certificates": True,  # necesario para algunos servers
+        "no_check_certificates": True,
         "no_check_formats": True,
         "lazy_playlist": True,
         "ignoreerrors": False,
@@ -157,7 +158,7 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         "extractor_args": {
             "youtube": {
                 "player_client": [client],
-                "player_skip": ["configs", "webpage", "initial_data"],  # ⚡ KEY
+                "player_skip": ["configs", "webpage", "initial_data"],
                 "skip": ["hls", "dash", "translated_subs"],
                 "include_live_dash": False,
             }
@@ -174,7 +175,7 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         
         # HTTP
         "force_ipv4": True,
-        "http_chunk_size": 2097152,  # 2MB
+        "http_chunk_size": 2097152,
         "http_headers": {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Accept": "*/*",
@@ -192,30 +193,34 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
 
 def _ydl_global() -> yt_dlp.YoutubeDL:
     """
-    Reutiliza instancia global de yt_dlp para mantener conexiones HTTP abiertas.
-    Se recrea cada 50 requests para evitar memory leaks.
+    Reutiliza instancia global. Lock SOLO para create/destroy.
+    extract_info() es thread-safe desde yt-dlp 2023+.
     """
     global _YDL_GLOBAL
     
-    with _YDL_LOCK:
-        # Primera vez: crear
-        if _YDL_GLOBAL is None:
-            _YDL_GLOBAL = _ydl_for("tv_embedded")
-            _YDL_GLOBAL._request_count = 0
-        
-        # Incrementar contador
-        _YDL_GLOBAL._request_count = getattr(_YDL_GLOBAL, '_request_count', 0) + 1
-        
-        # Recrear cada 50 requests (evita memory leaks, mantiene performance)
-        if _YDL_GLOBAL._request_count > 100:
-            try:
-                # Cerrar vieja instancia
-                if hasattr(_YDL_GLOBAL, 'close'):
-                    _YDL_GLOBAL.close()
-            except:
-                pass
-            _YDL_GLOBAL = _ydl_for("tv_embedded")
-            _YDL_GLOBAL._request_count = 0
+    # Crear instancia si no existe (con lock)
+    if _YDL_GLOBAL is None:
+        with _YDL_LOCK:
+            if _YDL_GLOBAL is None:  # double-check
+                _YDL_GLOBAL = _ydl_for("tv_embedded")
+                _YDL_GLOBAL._request_count = 0
+    
+    # Recrear cada 1000 requests (sin lock en lectura)
+    count = getattr(_YDL_GLOBAL, '_request_count', 0)
+    if count > 1000:
+        with _YDL_LOCK:
+            # Re-check por si otro thread ya recreó
+            if getattr(_YDL_GLOBAL, '_request_count', 0) > 1000:
+                try:
+                    if hasattr(_YDL_GLOBAL, 'close'):
+                        _YDL_GLOBAL.close()
+                except:
+                    pass
+                _YDL_GLOBAL = _ydl_for("tv_embedded")
+                _YDL_GLOBAL._request_count = 0
+    else:
+        # Incrementar contador (thread-safe con GIL de Python)
+        _YDL_GLOBAL._request_count = count + 1
     
     return _YDL_GLOBAL
 
@@ -329,12 +334,11 @@ def _extract_best_url(video_id: str):
         timings["get_ydl"] = int((time.time() - t0) * 1000)
         
         t1 = time.time()
-        with _YDL_LOCK:
-            # ⚡ CAMBIAR process=False a process=True para procesamiento inmediato
-            info = ydl.extract_info(
-                f"https://www.youtube.com/watch?v={video_id}",
-                download=False, 
-                process=True  # ⚡ CAMBIO CRÍTICO
+        # ⚡ CAMBIAR process=False a process=True para procesamiento inmediato
+        info = ydl.extract_info(
+            f"https://www.youtube.com/watch?v={video_id}",
+            download=False, 
+            process=True  # ⚡ CAMBIO CRÍTICO
             )
         timings["extract_info"] = int((time.time() - t1) * 1000)
         
