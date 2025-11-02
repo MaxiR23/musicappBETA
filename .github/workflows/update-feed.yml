@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   
   schedule:
-  - cron: '0 2 * * 1'
+  - cron: '0 5 * * 1' #2am Argentina = 5am UTC / * * = cualquier día/mes / lunes (0=domingo, 1=lunes)
 
 jobs:
   update-feed:
