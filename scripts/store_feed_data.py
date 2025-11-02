@@ -121,36 +121,51 @@ def main(argv: Optional[List[str]] = None) -> int:
     p = argparse.ArgumentParser(description="Fetch → map → persist feed data")
     p.add_argument("--store", help="Store/country code for new-releases (e.g., AR, US)", default=None)
     p.add_argument("--limit", help="Max albums for new-releases", type=int, default=None)
+    
+    # Nuevos flags para ejecutar feeds individuales
+    p.add_argument("--only-most-played", action="store_true", help="Only update most_played")
+    p.add_argument("--only-new-releases", action="store_true", help="Only update new_releases")
+    p.add_argument("--only-new-singles", action="store_true", help="Only update new_singles")
+    p.add_argument("--only-seed-tracks", action="store_true", help="Only update seed_tracks")
+    
     args = p.parse_args(argv)
 
-    print("[feed] building most_played…")
-    mp_albums, mp_tracks = build_most_played()
-    print(f"[feed] most_played: albums={len(mp_albums)} tracks={len(mp_tracks)}")
+    # Si no se especifica ningún flag, ejecutar todos (comportamiento original)
+    run_all = not any([
+        args.only_most_played,
+        args.only_new_releases,
+        args.only_new_singles,
+        args.only_seed_tracks
+    ])
 
-    print("[feed] persisting most_played…")
-    replace_feed(kind="most_played", media_type="album", items=mp_albums)
-    replace_feed(kind="most_played", media_type="track", items=mp_tracks)
+    if run_all or args.only_most_played:
+        print("[feed] building most_played…")
+        mp_albums, mp_tracks = build_most_played()
+        print(f"[feed] most_played: albums={len(mp_albums)} tracks={len(mp_tracks)}")
+        print("[feed] persisting most_played…")
+        replace_feed(kind="most_played", media_type="album", items=mp_albums)
+        replace_feed(kind="most_played", media_type="track", items=mp_tracks)
 
-    print("[feed] building new_releases…")
-    nr_albums = build_new_releases(store=args.store, limit=args.limit)
-    print(f"[feed] new_releases: albums={len(nr_albums)}")
+    if run_all or args.only_new_releases:
+        print("[feed] building new_releases…")
+        nr_albums = build_new_releases(store=args.store, limit=args.limit)
+        print(f"[feed] new_releases: albums={len(nr_albums)}")
+        print("[feed] persisting new_releases…")
+        replace_feed(kind="new_releases", media_type="album", items=nr_albums)
 
-    print("[feed] persisting new_releases…")
-    replace_feed(kind="new_releases", media_type="album", items=nr_albums)
+    if run_all or args.only_new_singles:
+        print("[feed] building new_singles…")
+        new_singles = fetch_new_singles_tracks(store=args.store, want=(args.limit or 25))
+        print(f"[feed] new_singles: tracks={len(new_singles)}")
+        print("[feed] persisting new_singles…")
+        replace_feed(kind="new_singles", media_type="track", items=new_singles)
 
-    print("[feed] building new_singles…")
-    new_singles = fetch_new_singles_tracks(store=args.store, want=(args.limit or 25))
-    print(f"[feed] new_singles: tracks={len(new_singles)}")
-
-    print("[feed] persisting new_singles…")
-    replace_feed(kind="new_singles", media_type="track", items=new_singles)
-
-    print("[feed] building seed_tracks…")
-    seed_tracks = build_seed_tracks(want=(args.limit or 25))
-    print(f"[feed] seed_tracks: tracks={len(seed_tracks)}")
-
-    print("[feed] persisting seed_tracks…")
-    replace_feed(kind="seed_tracks", media_type="track", items=seed_tracks)
+    if run_all or args.only_seed_tracks:
+        print("[feed] building seed_tracks…")
+        seed_tracks = build_seed_tracks(want=(args.limit or 25))
+        print(f"[feed] seed_tracks: tracks={len(seed_tracks)}")
+        print("[feed] persisting seed_tracks…")
+        replace_feed(kind="seed_tracks", media_type="track", items=seed_tracks)
 
     print("[feed] done.")
     return 0
