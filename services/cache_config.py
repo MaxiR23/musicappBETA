@@ -33,6 +33,7 @@ class CacheType(str, Enum):
 
     # Upcoming
     UPCOMING_RELEASES = "upcoming-releases"
+    UPCOMING_ARTIST = "upcoming-artist" # Tipo de caché por artista individual.
 
 class CacheSchedule(str, Enum):
     """Schedules de invalidación automática"""
@@ -69,6 +70,7 @@ CACHE_SCHEDULE: Dict[CacheType, CacheSchedule] = {
 
     # Upcoming
     CacheType.UPCOMING_RELEASES: CacheSchedule.MANUAL,  # TTL dinámico, no usa schedule
+    CacheType.UPCOMING_ARTIST: CacheSchedule.MANUAL,  # TTL dinámico, cache releases por ARTISTA.
 }
 
 # TTL por defecto (en segundos) si no se especifica
@@ -94,6 +96,7 @@ DEFAULT_TTL: Dict[CacheType, int] = {
     
     # Upcoming 
     CacheType.UPCOMING_RELEASES: 86400,  # Fallback (no se usa porque calculamos smart_ttl)
+    CacheType.UPCOMING_ARTIST: 86400,    # Fallback (rara vez se usa)
 }
 
 # ============================================================================

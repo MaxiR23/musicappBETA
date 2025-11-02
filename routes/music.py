@@ -37,7 +37,7 @@ from utils.artist_parser import (
     parse_related_artists,
     pick_related_artists_section,
 )
-from services.upcoming_releases_repo import get_upcoming_by_artist_id
+from services.upcoming_releases_repo import get_upcoming_by_artist_id_cached
 from utils.album_parser import ( 
     parse_album_info,
     parse_album_tracks,
@@ -818,7 +818,7 @@ def _artist_payload(artist_id: str):
     singles_section = artist_data.get("singles", {})
     has_more_singles = singles_section.get("browseId") is not None and len(singles_section.get("results", [])) >= 10
 
-    # 7) payload
+    # 7) payload (SIN upcoming_album)
     payload = {
         "header": {
             "name": name,
@@ -844,13 +844,6 @@ def _artist_payload(artist_id: str):
         print(f"[artist][new_releases][WARN] {artist_id}: {_e}")
         payload["newReleases"] = []
 
-    # 9) upcoming albums 
-    try:
-        payload["upcoming_album"] = get_upcoming_by_artist_id(artist_id) or None
-    except Exception as _e:
-        print(f"[artist][upcoming_album][WARN] {artist_id}: {_e}")
-        payload["upcoming_album"] = None    
-
     # 9) cache y warm
     _ARTIST_CACHE[artist_id] = {"ts": time.time(), "payload": payload}
     set_cached(CacheType.ARTIST, payload, suffix=artist_id)
@@ -864,15 +857,35 @@ def _artist_payload(artist_id: str):
 
 @router.get("/artist")
 def get_artist_q(id: str = Query(...)):
-    cached = get_cached(CacheType.ARTIST, suffix=id)       
-    if cached: return cached 
-    return _artist_payload(id)
+    # 1) Obtener datos cacheados del artista
+    cached = get_cached(CacheType.ARTIST, suffix=id)
+    if not cached:
+        cached = _artist_payload(id)
+    
+    # 2) Agregar upcoming_album con caché separado inteligente
+    try:
+        cached["upcoming_album"] = get_upcoming_by_artist_id_cached(id)
+    except Exception as _e:
+        print(f"[artist][upcoming_album][ERR] {id}: {_e}")
+        cached["upcoming_album"] = None
+    
+    return cached
 
 @router.get("/artist/{id}")
 def get_artist_p(id: str = Path(...)):
-    cached = get_cached(CacheType.ARTIST, suffix=id)       
-    if cached: return cached     
-    return _artist_payload(id)
+    # 1) Obtener datos cacheados del artista
+    cached = get_cached(CacheType.ARTIST, suffix=id)
+    if not cached:
+        cached = _artist_payload(id)
+    
+    # 2) Agregar upcoming_album con caché separado inteligente
+    try:
+        cached["upcoming_album"] = get_upcoming_by_artist_id_cached(id)
+    except Exception as _e:
+        print(f"[artist][upcoming_album][ERR] {id}: {_e}")
+        cached["upcoming_album"] = None
+    
+    return cached
 
 @router.get("/artist/{id}/albums")
 def get_artist_all_albums(id: str = Path(...)):
