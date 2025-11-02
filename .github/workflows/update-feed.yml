@@ -5,8 +5,8 @@ on:
   workflow_dispatch:
   
   schedule:
-    # Domingos 2am Argentina = 5am UTC
-    - cron: '0 5 * * 0'  # most_played
+    # Lunes 2am Argentina = 5am UTC
+    - cron: '0 5 * * 1'  # most_played
     
     # Cada 2 días a las 2am Argentina = 5am UTC (lun, mié, vie, dom)
     - cron: '0 5 * * 1,3,5,0'  # new_releases
