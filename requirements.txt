@@ -43,6 +43,7 @@ MarkupSafe==3.0.2
 mediate==0.1.8
 multidict==6.4.4
 oauthlib==3.2.2
+orjson==3.11.4
 packaging==25.0
 pluggy==1.6.0
 postgrest==0.16.11

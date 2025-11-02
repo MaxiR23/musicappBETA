@@ -34,16 +34,17 @@ class MusicLookup:
     Fachada genérica para búsquedas de álbumes y canciones.
     No expone detalles del proveedor subyacente.
     """
-
     # ── Seed playlist → pares (title, artist) ────────────────────────────
     @staticmethod
-    def get_seed_pairs(limit: int = 500) -> list[dict[str, str]]:
+    def get_seed_pairs(playlist_id: str = None, limit: int = 500) -> list[dict[str, str]]:
         """
-        Lee la playlist semilla (ENV) y devuelve [{'title': '...', 'artist': 'A, B'}].
+        Lee una playlist y devuelve [{'title': '...', 'artist': '...'}].
         """
-        pid = _ENV.seed_playlist_id
+        # Si no pasan playlist_id, usa el del ENV 
+        pid = playlist_id or _ENV.seed_playlist_id
+    
         if not pid:
-            raise RuntimeError("Falta FEED_MUSIC_RELEASE_PLAYLIST_ID en .env")
+            raise RuntimeError("Falta playlist_id o FEED_MUSIC_RELEASE_PLAYLIST_ID")
 
         prov = _provider()
         raw = prov.get_watch_playlist(playlistId=pid, limit=limit) or {}

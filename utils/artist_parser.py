@@ -1,4 +1,5 @@
-def parse_top_songs(section):
+# utils/artist_parser.py
+def parse_top_songs_legacy(section):
     songs = []
     shelf = section.get("musicShelfRenderer", {})
     for item in shelf.get("contents", []):
@@ -38,7 +39,6 @@ def parse_top_songs(section):
             name = (run.get("text") or "").strip()
             browse = run.get("navigationEndpoint", {}).get("browseEndpoint", {})
             bid = browse.get("browseId")
-            # ignorar separadores "•", "&", comas sueltas, etc., y quedarse con runs que tengan browseId
             if not bid or not name or name in {"•", "&", ","}:
                 continue
             artists.append({"id": bid, "name": name})
@@ -57,9 +57,7 @@ def parse_top_songs(section):
                  .get("runs", [])
             )
             if album_runs:
-                # título del álbum
                 album_title = album_runs[0].get("text") or None
-                # ID del álbum
                 album_id = (
                     album_runs[0]
                     .get("navigationEndpoint", {})
@@ -83,18 +81,58 @@ def parse_top_songs(section):
             "thumbnail": thumbs[-1]["url"] if thumbs else None,
             "albumId": album_id,
             "albumTitle": album_title,
-
-            # Compat: se mantienen estos dos
             "artistId": primary_artist_id,
             "artistName": artist_name_joined,
-
-            # Nuevo: lista completa de artistas
             "artists": artists,
-
             "duration": None,
             "durationSeconds": None,
         })
     return songs
+
+
+# Nueva función V2
+def parse_top_songs_v2(artist_data, yt_client):
+    """
+    Obtiene las top 10 songs usando get_playlist.
+    Requiere artist_data (de get_artist) y yt_client.
+    """
+    songs_browse_id = artist_data.get("songs", {}).get("browseId")
+    top_songs_raw = []
+    if songs_browse_id:
+        playlist_data = yt_client.get_playlist(songs_browse_id, limit=10)
+        top_songs_raw = (playlist_data.get("tracks", []))[:10]
+    
+    top_songs_filtered = []
+    for track in top_songs_raw:
+        # Artists
+        artists_list = track.get("artists", [])
+        artists = [{"id": a.get("id"), "name": a.get("name")} for a in artists_list]
+        artist_name = ", ".join(a["name"] for a in artists if a.get("name"))
+        primary_artist_id = artists[0]["id"] if artists else None
+        
+        # Album
+        album = track.get("album") or {}
+        album_id = album.get("id")
+        album_title = album.get("name")
+        
+        # Thumbnail
+        thumbs = track.get("thumbnails", [])
+        thumbnail = thumbs[-1]["url"] if thumbs else None
+        
+        top_songs_filtered.append({
+            "id": track.get("videoId"),
+            "title": track.get("title"),
+            "thumbnail": thumbnail,
+            "albumId": album_id,
+            "albumTitle": album_title,
+            "artistId": primary_artist_id,
+            "artistName": artist_name,
+            "artists": artists,
+            "duration": track.get("duration"),
+            "durationSeconds": track.get("duration_seconds")
+        })
+    
+    return top_songs_filtered
 
 def parse_albums(section):
     albums = []
@@ -118,7 +156,7 @@ def parse_albums(section):
         # Año (del subtitle)
         subtitle_runs = r.get("subtitle", {}).get("runs", [])
         year = None
-        if subtitle_runs:
+        if subtitle_runs and len(subtitle_runs) > 0:
             year = subtitle_runs[0].get("text")
 
         # Thumbnails

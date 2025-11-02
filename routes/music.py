@@ -1,7 +1,7 @@
 # routes/music.py
 from fastapi import APIRouter, Query, Path, Body, Request
 from fastapi.responses import StreamingResponse, JSONResponse, RedirectResponse
-import time
+import time, random
 import os
 import re
 import urllib.parse
@@ -16,7 +16,11 @@ import threading
 
 from functools import lru_cache
 
-from services.cache_service import get_cached, set_cached
+import concurrent.futures as cf
+
+from services.cache_service import get_cached, set_cached, invalidate, get_cached_legacy, set_cached_legacy
+from services.cache_config import CacheType
+
 from utils.search_parser import (
     parse_search_songs,
     parse_search_first_song_or_top,
@@ -26,12 +30,14 @@ from utils.search_parser import (
     parse_search_albums_and_songs,
 )
 from utils.artist_parser import (
-    parse_top_songs,
+    parse_top_songs_legacy,
+    parse_top_songs_v2,
     parse_albums,
     parse_singles_eps,
     parse_related_artists,
-    pick_related_artists_section
+    pick_related_artists_section,
 )
+from services.upcoming_releases_repo import get_upcoming_by_artist_id
 from utils.album_parser import ( 
     parse_album_info,
     parse_album_tracks,
@@ -50,13 +56,6 @@ from utils.events_upcoming import fetch_upcoming_events_by_artist, EventsError
 router = APIRouter()
 
 # --- CONFIG ---
-CACHE_TTL          = 30 * 60
-EVENTS_TTL         = 30 * 60
-URL_TTL            = 15 * 60
-SEARCH_TTL         = 24 * 60 * 60
-SEARCH_RESULT_TTL  = 10 * 60
-ARTIST_TTL         = 20 * 60
-RECENT_TTL         = 2 * 60
 MAX_WORKERS        = 8
 WARM_MAX_WORKERS   = 10
 WARM_ENABLED       = False
@@ -80,7 +79,6 @@ _cache: dict[str, dict] = {}  # videoId -> {info, direct_url, ttl, ts, served}
 _FORCE_CACHE: dict[str, dict] = {}  # OMV->ATV resolver: video_id -> {"atv": str, "ts": float}
 _FORCE_TTL = 24 * 60 * 60
 _ARTIST_CACHE: dict[str, dict] = {}
-_RECENT_CACHE: dict[str, dict] = {}
 _RECENT_VER: dict[str, int] = {}
 _WARM_INFLIGHT: dict[str, float] = {}
 _WARM_BURST = 20
@@ -124,7 +122,6 @@ def _get_warm_executor() -> ThreadPoolExecutor:
         _WARM_EXECUTOR = ThreadPoolExecutor(max_workers=WARM_MAX_WORKERS)
     return _WARM_EXECUTOR
 
-@lru_cache(maxsize=4)
 # --- yt_dlp opts ---
 @lru_cache(maxsize=4)
 def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
@@ -137,9 +134,9 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
     opts = {
         # Básicos
         "format": "bestaudio/best",
-        "quiet": True,
-        "no_warnings": True,
-        "logger": _SilentLogger(),
+        "quiet": False,
+        "no_warnings": False,
+        #"logger": _SilentLogger(),
         "skip_download": True,
         "noplaylist": True,
         "noprogress": True,
@@ -157,9 +154,11 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         # Extractor YouTube
         "extractor_args": {
             "youtube": {
-                "player_client": [client],
-                "player_skip": ["configs", "webpage", "initial_data"],
+                #"player_client": [client],
+                #"player_skip": ["configs", "webpage", "initial_data"],
                 "skip": ["hls", "dash", "translated_subs"],
+                "player_client": ["android_vr"],
+                "skip": ["hls", "dash"],
                 "include_live_dash": False,
             }
         },
@@ -186,7 +185,7 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         
         # Cache y cookies
         "cachedir": "/tmp/yt-dlp-cache",
-        "cookiefile": COOKIEFILE,
+        #"cookiefile": COOKIEFILE,
         "concurrent_fragment_downloads": 1,
     }
     return yt_dlp.YoutubeDL(opts)
@@ -202,7 +201,7 @@ def _ydl_global() -> yt_dlp.YoutubeDL:
     if _YDL_GLOBAL is None:
         with _YDL_LOCK:
             if _YDL_GLOBAL is None:  # double-check
-                _YDL_GLOBAL = _ydl_for("tv_embedded")
+                _YDL_GLOBAL = _ydl_for("android_vr")
                 _YDL_GLOBAL._request_count = 0
     
     # Recrear cada 1000 requests (sin lock en lectura)
@@ -216,7 +215,7 @@ def _ydl_global() -> yt_dlp.YoutubeDL:
                         _YDL_GLOBAL.close()
                 except:
                     pass
-                _YDL_GLOBAL = _ydl_for("tv_embedded")
+                _YDL_GLOBAL = _ydl_for("android_vr")
                 _YDL_GLOBAL._request_count = 0
     else:
         # Incrementar contador (thread-safe con GIL de Python)
@@ -240,19 +239,14 @@ def _ttl_from_url(u: str) -> int:
 _norm_re_strip = re.compile(r"(\(|\[).{0,80}?(\)|\])", re.IGNORECASE)
 _norm_re_noise = re.compile(r"\b(official\s*video|video\s*oficial|video\s*clip|lyrics?|audio\s*only|HD|4K)\b", re.IGNORECASE)
 
-def _events_cache_key_by_name(artist_name: str) -> str:
-    s = " ".join((artist_name or "").strip().split()).casefold()
-    return f"events:name:{s}"
-
-def _events_cache_key_by_aid(aid: str) -> str:
-    return f"events:aid:{(aid or '').strip()}"
-
 # ---------- Extracción ----------
 def pick_best_audio(info: dict):
     """
     Versión RÁPIDA: early-exit apenas encontramos formato aceptable.
     No analizamos TODOS los formatos, solo hasta encontrar uno bueno.
     """
+    video_id = info.get("id", "unknown")  # ← AGREGÁ ESTO
+    
     fmts = info.get("formats") or []
     audios = [
         f for f in fmts
@@ -263,6 +257,7 @@ def pick_best_audio(info: dict):
     
     if not audios:
         u = info.get("url")
+        print(f"[pick_audio] {video_id}: ❌ no_audio_formats")  # ← AGREGÁ
         return (u if (u and isinstance(u, str) and u.startswith("http")) else None,
                 None, {"reason": "no_audio_formats"})
 
@@ -275,57 +270,68 @@ def pick_best_audio(info: dict):
             except:
                 pass
         
-        # Fallback por itag conocido
         itag = str(f.get("format_id") or "")
         ITAG_KBPS = {
-            "139": 48, "140": 128, "141": 256,  # AAC
-            "249": 50, "250": 70, "251": 160,   # Opus
+            "139": 48, "140": 128, "141": 256,
+            "249": 50, "250": 70, "251": 160,
         }
         return ITAG_KBPS.get(itag, 0.0)
 
-    # Helper: ¿es suficientemente bueno para servir?
+    # ✅ android_vr: prioridad absoluta → OPUS itag 251
+    for f in audios:
+        itag = str(f.get("format_id") or "")
+        ac   = (f.get("acodec") or "").lower()
+        if itag == "251" and "opus" in ac and f.get("url"):
+            print(f"[pick_audio] {video_id}: ✅ itag_251_opus ({infer_kbps(f)}kbps)")  # ← AGREGÁ
+            return f.get("url"), f, {
+                "reason": "itag_251_opus",
+                "ext": f.get("ext"),
+                "kbps": infer_kbps(f),
+            }
+
+    # Helper: ¿es suficientemente bueno?
     def is_good_enough(f):
-        """
-        Criterio: AAC/M4A con 128kbps+ o Opus con 160kbps+
-        """
         ext = (f.get("ext") or "").lower()
         ac = (f.get("acodec") or "").lower()
         kbps = infer_kbps(f)
         
-        # AAC/M4A decente (la mayoría de casos)
         if ("mp4a" in ac or ext == "m4a") and kbps >= 128:
             return True
-        
-        # Opus de alta calidad
         if ("opus" in ac) and kbps >= 160:
             return True
         
         return False
 
-    # ⚡ EARLY EXIT: devolver el PRIMER formato aceptable
+    # ⚡ EARLY EXIT
     for f in audios:
         if is_good_enough(f):
+            itag = f.get("format_id")
+            ext = f.get("ext")
+            kbps = infer_kbps(f)
+            print(f"[pick_audio] {video_id}: ✅ early_exit itag={itag} {ext} {kbps}kbps")  # ← AGREGÁ
             return f.get("url"), f, {
                 "reason": "early_exit",
-                "ext": f.get("ext"),
-                "kbps": infer_kbps(f),
+                "ext": ext,
+                "kbps": kbps,
             }
 
-    # Fallback: si ninguno pasó el filtro, elegir el mejor disponible
-    # (esto casi nunca pasa)
+    # Fallback
     best = max(audios, key=lambda f: (
         3 if ("mp4a" in (f.get("acodec") or "").lower() or f.get("ext") == "m4a") else 1,
         infer_kbps(f)
     ))
     
+    itag = best.get("format_id")
+    ext = best.get("ext")
+    kbps = infer_kbps(best)
+    print(f"[pick_audio] {video_id}: ⚠️ fallback_best itag={itag} {ext} {kbps}kbps")  # ← AGREGÁ
+    
     return best.get("url"), best, {
         "reason": "fallback_best",
-        "kbps": infer_kbps(best)
+        "kbps": kbps
     }
 
 def _extract_best_url(video_id: str):
-    import time
-    
     timings = {}
     t0 = time.time()
     
@@ -353,7 +359,7 @@ def _extract_best_url(video_id: str):
         
         print(f"[TIMING] {video_id}: {timings}")
         
-        return info, url, "tv_embedded"
+        return info, url, "android_vr"
         
     except Exception as e:
         print(f"[extract][ERROR] {video_id}: {type(e).__name__}: {e}")
@@ -504,14 +510,39 @@ def _guess_audio_media_type(url: str, hdr_ct: str | None) -> str:
     return "audio/*"
 
 def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
-    hdrs = {"Accept-Encoding": "identity", "Connection": "keep-alive"}
-    if range_header:
-        hdrs["Range"] = range_header
+    """
+    Proxy de audio con:
+      - Conexión al origen con Connection: close (evita sockets colgados)
+      - Lectura por iter_content()
+      - Manejo silencioso de desconexiones del cliente (BrokenPipe/GeneratorExit)
+      - Reintento ÚNICO con Range "bytes=<enviado>-" si el origen corta a mitad
+    """
+    ORIGIN_CHUNK = 64 * 1024
 
-    r = _SESSION_STREAM.get(url, headers=hdrs, stream=True,
-                            timeout=(3, 20), allow_redirects=True)
-    r.raw.decode_content = False
+    def open_req(extra_range: str | None):
+        # Forzamos 'close' hacia el ORIGEN, mantenemos keep-alive hacia el CLIENTE
+        hdrs = {"Accept-Encoding": "identity", "Connection": "close"}
+        # Range del cliente → lo respetamos
+        if range_header:
+            hdrs["Range"] = range_header
+        # Si pedimos reintento con offset, lo pisamos (tiene prioridad)
+        if extra_range:
+            hdrs["Range"] = extra_range
 
+        r = _SESSION_STREAM.get(
+            url,
+            headers=hdrs,
+            stream=True,
+            timeout=(5, 120),          # subimos timeout de lectura
+            allow_redirects=True,
+        )
+        r.raw.decode_content = False
+        return r
+
+    # --- 1) primer intento ---
+    r = open_req(None)
+
+    # Encabezados que devolveremos al CLIENTE
     resp_headers = {"Accept-Ranges": "bytes", "Connection": "keep-alive"}
     ct = r.headers.get("Content-Type")
     cr = r.headers.get("Content-Range")
@@ -520,21 +551,84 @@ def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
 
     media_type = ct if ct else _guess_audio_media_type(url, None)
 
-    CHUNK = 32 * 1024
-    def body():
+    # Total esperado (si lo sabemos) para calcular offset en reintento
+    # Content-Range: "bytes start-end/total"
+    total_len = None
+    if cr and "/" in cr:
+        try:
+            total_len = int(cr.split("/", 1)[1])
+        except Exception:
+            total_len = None
+    if total_len is None:
+        try:
+            total_len = int(r.headers.get("Content-Length") or 0) or None
+        except Exception:
+            total_len = None
+
+    def streamer():
+        nonlocal r
+
+        sent = 0
+        tried_resume = False
+
         try:
             while True:
-                b = r.raw.read(CHUNK)
-                if not b:
+                try:
+                    for chunk in r.iter_content(ORIGIN_CHUNK):
+                        if not chunk:
+                            break
+                        sent += len(chunk)
+                        yield chunk
+                    # Si terminó limpio, salimos
                     break
-                yield b
+
+                except (requests.exceptions.ChunkedEncodingError,
+                        requests.exceptions.ConnectionError,
+                        requests.exceptions.ReadTimeout,
+                        TimeoutError) as _e:
+                    # Origen cortó. Intentamos UNA sola vez reanudar.
+                    if tried_resume:
+                        # Ya reintentamos: salir silenciosamente (evita 500)
+                        break
+                    tried_resume = True
+
+                    # Calculamos nuevo Range. Si venía uno del cliente y ya enviamos 'sent',
+                    # reanudamos desde 'sent' relativo al comienzo solicitado.
+                    # Caso simple: no había Range → bytes=<sent>-
+                    try:
+                        if range_header and range_header.lower().startswith("bytes="):
+                            # bytes=a-b  /  bytes=a-
+                            # Tomamos 'a' como base_offset
+                            base = range_header.split("=", 1)[1].split("-", 1)[0]
+                            base_offset = int(base) if base else 0
+                            new_start = base_offset + sent
+                        else:
+                            new_start = sent
+                        # Cerrar request anterior y abrir otro desde new_start
+                        try:
+                            r.close()
+                        except Exception:
+                            pass
+                        r = open_req(f"bytes={new_start}-")
+                        # Actualizar Content-Range que verá el cliente a partir de ahora (opcional)
+                        cr2 = r.headers.get("Content-Range")
+                        if cr2:
+                            resp_headers["Content-Range"] = cr2
+                        continue
+                    except Exception:
+                        # Si no pudimos reanudar, cortamos sin romper la respuesta
+                        break
+
+        except (BrokenPipeError, ConnectionResetError, GeneratorExit):
+            # El CLIENTE cortó: terminamos sin loguear error
+            pass
         finally:
             try:
                 r.close()
-            except:
+            except Exception:
                 pass
 
-    return StreamingResponse(body(), media_type=media_type,
+    return StreamingResponse(streamer(), media_type=media_type,
                              headers=resp_headers, status_code=r.status_code)
 
 # ---------- WARMING ----------
@@ -623,7 +717,7 @@ def search_music(request: Request, q: str = Query(..., description="Texto a busc
     mw_user = getattr(request.state, "user", None)
     print(f"[search] middleware.user => {mw_user}")
 
-    cached = get_cached(f"search:{q}")
+    cached = get_cached(CacheType.SEARCH, suffix=q.lower()[:100])
     if cached:
         try_log_activity_from_request(request, event_type="search", entity_type="query", metadata={"query": q})
         try:
@@ -634,7 +728,7 @@ def search_music(request: Request, q: str = Query(..., description="Texto a busc
             print(f"[search][cached][warm][WARN] {_e}")
         return cached
 
-    yt = InnerTube("WEB_REMIX")
+    yt = _ytm()  
     response = yt.search(q)
 
     artist        = parse_artist_card_info(response)
@@ -653,7 +747,7 @@ def search_music(request: Request, q: str = Query(..., description="Texto a busc
         "artistAlbums": artist_albums,
         "search": general,
     }
-    set_cached(f"search:{q}", result, SEARCH_RESULT_TTL)
+    set_cached(CacheType.SEARCH, result, suffix=q.lower()[:100])
 
     try_log_activity_from_request(request, event_type="search", entity_type="query", metadata={"query": q})
 
@@ -668,14 +762,17 @@ def search_music(request: Request, q: str = Query(..., description="Texto a busc
 
 # ---------- ARTIST ----------
 def _artist_payload(artist_id: str):
-    ent = _ARTIST_CACHE.get(artist_id)
-    now = time.time()
-    if ent and (now - ent["ts"] < ARTIST_TTL):
-        return ent["payload"]
+    # 0) cliente ytmusicapi
+    yt = _ytmusic_client()
+    
+    # 1) get_artist para top songs v2 y hasMore checks
+    artist_data = yt.get_artist(artist_id)
+    
+    # 2) InnerTube browse para parsers manuales
+    yt_inner = _ytm()
+    response = yt_inner.browse(artist_id)
 
-    yt = InnerTube("WEB_REMIX")
-    response = yt.browse(artist_id)
-
+    # 3) header + secciones desde browse (parsers legacy)
     header = response.get("header", {}).get("musicImmersiveHeaderRenderer", {})
     name = header.get("title", {}).get("runs", [{}])[0].get("text")
     desc = "".join(run.get("text", "") for run in header.get("description", {}).get("runs", []))
@@ -699,34 +796,29 @@ def _artist_payload(artist_id: str):
 
     rel_sec = pick_related_artists_section(contents)
 
-    # 1) Upcoming events (Ticketmaster): 10 “oficiales” por attractionId
+    # 4) Upcoming events
     upcoming_events = []
     try:
         if name and name.strip():
-            ev_ckey = _events_cache_key_by_name(name)
-            ev_cached = get_cached(ev_ckey)
-
-            if ev_cached and isinstance(ev_cached, dict):
-                # hit: usar lo cacheado
+            ev_cached = get_cached(CacheType.EVENTS, suffix=name.lower())
+            if isinstance(ev_cached, dict):
                 upcoming_events = (ev_cached.get("events") or [])[:10]
             else:
-                # miss: pedir a Ticketmaster y cachear
-                ev = fetch_upcoming_events_by_artist(name.strip(), limit=10, headliner_only=False)
-                upcoming_events = (ev.get("events") or [])[:10]
-
-                # cache por nombre normalizado (30m)
-                set_cached(ev_ckey, ev, EVENTS_TTL)
-
-                # si vino attractionId, duplicar cache por AID (útil después)
-                aid = (ev or {}).get("attractionId")
-                if aid:
-                    set_cached(_events_cache_key_by_aid(aid), ev, EVENTS_TTL)
-    except EventsError as _e:
-        # clave faltante o artista no encontrado → no rompemos el payload
-        print(f"[artist][events][WARN] {name}: {str(_e)}")
+                _schedule_events_refresh_by_name(name.strip())
     except Exception as _e:
-        print(f"[artist][events][ERR] {name}: {_e}")
+        print(f"[artist][events][WARN] {name}: {_e}")
 
+    # 5) Albums - parsers manuales + hasMore desde ytmusicapi
+    albums_filtered = (parse_albums(contents[1]) if len(contents) > 1 else [])[:10]
+    albums_section = artist_data.get("albums", {})
+    has_more_albums = albums_section.get("browseId") is not None and len(albums_section.get("results", [])) >= 10
+
+    # 6) Singles - parsers manuales + hasMore desde ytmusicapi
+    singles_filtered = (parse_singles_eps(contents[2]) if len(contents) > 2 else [])[:10]
+    singles_section = artist_data.get("singles", {})
+    has_more_singles = singles_section.get("browseId") is not None and len(singles_section.get("results", [])) >= 10
+
+    # 7) payload
     payload = {
         "header": {
             "name": name,
@@ -734,19 +826,36 @@ def _artist_payload(artist_id: str):
             "thumbnails": thumbs,
             "monthlyListeners": listeners,
         },
-        "topSongs": parse_top_songs(contents[0]) if len(contents) > 0 else [],
-        "albums": parse_albums(contents[1]) if len(contents) > 1 else [],
-        "singles_eps": parse_singles_eps(contents[2]) if len(contents) > 2 else [],
+        "topSongs": parse_top_songs_v2(artist_data, yt),
+        "albums": albums_filtered,
+        "singles_eps": singles_filtered,
+        "has_more": {
+            "albums": has_more_albums,
+            "singles": has_more_singles
+        },
         "related": parse_related_artists(rel_sec) if rel_sec else [],
         "upcomingEvents": upcoming_events,
     }
 
-    payload["newReleases"] = list_new_releases_for_artist(artist_id, limit=8)
-
-    _ARTIST_CACHE[artist_id] = {"ts": now, "payload": payload}
-
+    # 8) new releases
     try:
-        ids = [t.get("videoId") for t in payload["topSongs"] if t.get("videoId")]
+        payload["newReleases"] = list_new_releases_for_artist(artist_id, limit=8)
+    except Exception as _e:
+        print(f"[artist][new_releases][WARN] {artist_id}: {_e}")
+        payload["newReleases"] = []
+
+    # 9) upcoming albums 
+    try:
+        payload["upcoming_album"] = get_upcoming_by_artist_id(artist_id) or None
+    except Exception as _e:
+        print(f"[artist][upcoming_album][WARN] {artist_id}: {_e}")
+        payload["upcoming_album"] = None    
+
+    # 9) cache y warm
+    _ARTIST_CACHE[artist_id] = {"ts": time.time(), "payload": payload}
+    set_cached(CacheType.ARTIST, payload, suffix=artist_id)
+    try:
+        ids = [t.get("id") for t in payload["topSongs"] if t.get("id")]
         _schedule_warm(ids[:_WARM_BURST])
     except Exception as _e:
         print(f"[artist][warm][WARN] {_e}")
@@ -755,18 +864,144 @@ def _artist_payload(artist_id: str):
 
 @router.get("/artist")
 def get_artist_q(id: str = Query(...)):
+    cached = get_cached(CacheType.ARTIST, suffix=id)       
+    if cached: return cached 
     return _artist_payload(id)
 
 @router.get("/artist/{id}")
 def get_artist_p(id: str = Path(...)):
+    cached = get_cached(CacheType.ARTIST, suffix=id)       
+    if cached: return cached     
     return _artist_payload(id)
 
-# ---------- ALBUM ----------
+@router.get("/artist/{id}/albums")
+def get_artist_all_albums(id: str = Path(...)):
+    """Devuelve TODOS los albums del artista"""
+    # Chequear caché
+    cached = get_cached(CacheType.ARTIST_ALBUMS, suffix=id)
+    if cached is not None:
+        return cached
+    
+    try:
+        yt = _ytmusic_client()
+        artist_data = yt.get_artist(id)
+        
+        albums_section = artist_data.get("albums", {})
+        albums_browse_id = albums_section.get("browseId")
+        albums_params = albums_section.get("params")
+        
+        if albums_browse_id:
+            all_albums_raw = yt.get_artist_albums(albums_browse_id, albums_params)
+        else:
+            all_albums_raw = albums_section.get("results", [])
+        
+        albums_filtered = []
+        for album in all_albums_raw:
+            albums_filtered.append({
+                "id": album.get("browseId"),
+                "title": album.get("title"),
+                "year": album.get("year"),
+                "thumbnails": album.get("thumbnails", [])
+            })
+        
+        result = {
+            "artist_id": id,
+            "total": len(albums_filtered),
+            "albums": albums_filtered
+        }
+        
+        # Guardar en caché
+        set_cached(CacheType.ARTIST_ALBUMS, result, suffix=id)
+        return result
+        
+    except Exception as e:
+        import traceback
+        return JSONResponse(status_code=500, content={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
 
+@router.get("/artist/{id}/singles")
+def get_artist_all_singles(id: str = Path(...)):
+    """Devuelve TODOS los singles/EPs del artista"""
+    # Chequear caché
+    cached = get_cached(CacheType.ARTIST_SINGLES, suffix=id)
+    if cached is not None:
+        return cached
+    
+    try:
+        yt = _ytmusic_client()
+        artist_data = yt.get_artist(id)
+        
+        singles_section = artist_data.get("singles", {})
+        singles_browse_id = singles_section.get("browseId")
+        singles_params = singles_section.get("params")
+        
+        if singles_browse_id:
+            all_singles_raw = yt.get_artist_albums(singles_browse_id, singles_params)
+        else:
+            all_singles_raw = singles_section.get("results", [])
+        
+        with cf.ThreadPoolExecutor(max_workers=10) as executor:
+            def fetch_single_info(single):
+                browse_id = single.get("browseId")
+                album_info = yt.get_album(browse_id) if browse_id else {}
+                
+                return {
+                    "id": browse_id,
+                    "title": single.get("title"),
+                    "type": album_info.get("type", single.get("type", "Single")),
+                    "year": album_info.get("year"),
+                    "thumbnails": single.get("thumbnails", []),
+                    "trackCount": album_info.get("trackCount")
+                }
+            
+            singles_filtered = list(executor.map(fetch_single_info, all_singles_raw))
+        
+        result = {
+            "artist_id": id,
+            "total": len(singles_filtered),
+            "singles": singles_filtered
+        }
+        
+        # Guardar en caché
+        set_cached(CacheType.ARTIST_SINGLES, result, suffix=id)
+        return result
+        
+    except Exception as e:
+        import traceback
+        return JSONResponse(status_code=500, content={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+    
+def _schedule_events_refresh_by_name(artist_name: str):
+    """Si no hay eventos en cache, refrescarlos en background sin bloquear /album."""
+    if not artist_name:
+        return
+    def _bg():
+        try:
+            ev = fetch_upcoming_events_by_artist(artist_name.strip(), limit=1, headliner_only=False)
+            set_cached(CacheType.EVENTS, ev, suffix=artist_name.lower())
+            aid = (ev or {}).get("attractionId")
+            if aid:
+                set_cached(CacheType.EVENTS, ev, suffix=f"aid:{aid}")
+        except Exception:
+            pass
+    try:
+        _get_warm_executor().submit(_bg)
+    except Exception:
+        pass
+
+# ---------- ALBUM ----------
 def _album_payload(album_id: str):
-    yt = InnerTube("WEB_REMIX")
+    # 0) usar cliente global (evita latencia de nueva sesión)
+    yt = _ytm()  # InnerTube("WEB_REMIX") → _ytm() global reuse
+
+    # 1) browse una sola vez
     response = yt.browse(album_id)
 
+    # 2) parsers rápidos del mismo response
     info = parse_album_info(response)
     album_name = (info or {}).get("title") or (info or {}).get("name")
     album_year = (info or {}).get("year")
@@ -775,60 +1010,41 @@ def _album_payload(album_id: str):
     except:
         pass
 
-    other_versions = parse_album_other_versions(response) or []
+    other_versions   = parse_album_other_versions(response) or []
     releases_for_you = parse_album_releases_for_you(response) or []
 
     artist_id = (info or {}).get("artistId")
-    more_from_artist = build_more_from_artist(artist_id, exclude_album_id=album_id, limit=10) if artist_id else []
-    # ---------- UPCOMING EVENTS (mostrar 1 en álbum) ----------
+
+    # 3) UPCOMING EVENTS: usar SOLO cache inmediata; si no hay, agendar refresh en background
     upcoming_events_one = []
     try:
-        # 1) nombre del artista con múltiples fallbacks (algunos álbumes traen estructuras distintas)
         artist_name = (
             (info or {}).get("artistName")
             or ((info or {}).get("artists") or [{}])[0].get("name")
             or (info or {}).get("artist")
-            or (info or {}).get("subtitle")  # a veces el parser mete "Artist • type"
+            or (info or {}).get("subtitle")
         )
-        # normaliza rápido si vino "Artist • ..." en subtitle
         if isinstance(artist_name, str) and " • " in artist_name:
             artist_name = artist_name.split(" • ", 1)[0].strip()
 
-        # 2) si el ARTISTA ya fue abierto, reusar SU payload desde _ARTIST_CACHE (cero llamadas)
-        #    => garantiza que TODOS los álbumes muestren evento tras abrir artista una vez
+        # (a) si ya abriste el artista, reusá cache local en memoria
         if artist_id and artist_id in _ARTIST_CACHE:
-            try:
-                evs_from_artist = (_ARTIST_CACHE[artist_id]["payload"].get("upcomingEvents") or [])
-                if evs_from_artist:
-                    upcoming_events_one = evs_from_artist[:1]
-            except Exception:
-                pass
+            evs_from_artist = (_ARTIST_CACHE[artist_id]["payload"].get("upcomingEvents") or [])
+            if evs_from_artist:
+                upcoming_events_one = evs_from_artist[:1]
 
-        # 3) si aún no tenemos evento, probamos cache por NOMBRE normalizado (30m)
+        # (b) cache por nombre
         if not upcoming_events_one and artist_name:
-            ev_ckey = _events_cache_key_by_name(artist_name)  # <- usa helper normalizado
-            ev_cached = get_cached(ev_ckey)
-            if ev_cached and isinstance(ev_cached, dict):
+            ev_cached = get_cached(CacheType.EVENTS, suffix=artist_name.lower())
+            if isinstance(ev_cached, dict):
                 upcoming_events_one = (ev_cached.get("events") or [])[:1]
-
-        # 4) si tampoco hay cache (entraste por álbum primero), hacemos UNA llamada,
-        #    y sembramos cache (por nombre y, si viene attractionId, también por aid)
-        if not upcoming_events_one and artist_name:
-            ev = fetch_upcoming_events_by_artist(artist_name.strip(), limit=1, headliner_only=False)
-            upcoming_events_one = (ev or {}).get("events", [])[:1]
-
-            # cache 30m por nombre normalizado
-            set_cached(_events_cache_key_by_name(artist_name), ev, EVENTS_TTL)
-            # y si vino attractionId, también por AID (opcional pero útil)
-            aid = (ev or {}).get("attractionId")
-            if aid:
-                set_cached(_events_cache_key_by_aid(aid), ev, EVENTS_TTL)
-
-    except EventsError as _e:
-        print(f"[album][events][WARN] {album_id}: {str(_e)}")
+            else:
+                # no bloqueamos: lo resolvemos async
+                _schedule_events_refresh_by_name(artist_name)
     except Exception as _e:
         print(f"[album][events][ERR] {album_id}: {_e}")
 
+    # 4) TRACKS + MORE_FROM_ARTIST en paralelo (reduce wall-time)
     apid = (info or {}).get("audioPlaylistId")
     if not apid:
         print("[album][WARN] sin audioPlaylistId → tracks=[]")
@@ -837,15 +1053,41 @@ def _album_payload(album_id: str):
             "info": info,
             "tracks": [],
             "otherVersions": other_versions,
-            "moreFromArtist": more_from_artist,
-            "upcomingEvents": upcoming_events_one, 
+            "moreFromArtist": [],   # sin artistId no hay más
+            "upcomingEvents": upcoming_events_one,
             "releasesForYou": releases_for_you,
         }
-        set_cached(f"album:{album_id}", payload, 30 * 60)
+        set_cached(CacheType.ALBUM, payload, suffix=album_id)
         return payload
 
-    tracks = parse_tracks_from_audio_playlist(apid)
+    # Futures
+    fut_tracks = _BACKGROUND_EXECUTOR.submit(parse_tracks_from_audio_playlist, apid)
+    fut_mfa    = _BACKGROUND_EXECUTOR.submit(
+        build_more_from_artist, artist_id, album_id, 10
+    ) if artist_id else None
 
+    tracks = []
+    more_from_artist = []
+    try:
+        tracks = fut_tracks.result(timeout=2.5)  # ⚡ corta latencia en fríos/lentos
+    except cf.TimeoutError:
+        print(f"[album][tracks][TIMEOUT] {album_id}; devolviendo sin bloquear")
+        tracks = []
+    except Exception as _e:
+        print(f"[album][tracks][ERR] {album_id}: {_e}")
+        tracks = []
+
+    if fut_mfa:
+        try:
+            more_from_artist = fut_mfa.result(timeout=1.5)
+        except cf.TimeoutError:
+            print(f"[album][mfa][TIMEOUT] {album_id}")
+            more_from_artist = []
+        except Exception as _e:
+            print(f"[album][mfa][ERR] {album_id}: {_e}")
+            more_from_artist = []
+
+    # 5) calentar IDs (si hay)
     try:
         ids = [t.get("videoId") for t in tracks if isinstance(t, dict) and t.get("videoId")]
         _schedule_warm(ids[:_WARM_BURST])
@@ -858,21 +1100,21 @@ def _album_payload(album_id: str):
         "tracks": tracks,
         "otherVersions": other_versions,
         "moreFromArtist": more_from_artist,
-        "upcomingEvents": upcoming_events_one, 
+        "upcomingEvents": upcoming_events_one,
         "releasesForYou": releases_for_you,
     }
-    set_cached(f"album:{album_id}", payload, 30 * 60)
+    set_cached(CacheType.ALBUM, payload, suffix=album_id)
     return payload
 
 @router.get("/album")
 def get_album_q(id: str = Query(...)):
-    cached = get_cached(f"album:{id}")
+    cached = get_cached(CacheType.ALBUM, suffix=id)
     if cached: return cached
     return _album_payload(id)
 
 @router.get("/album/{id}")
 def get_album_p(id: str = Path(...)):
-    cached = get_cached(f"album:{id}")
+    cached = get_cached(CacheType.ALBUM, suffix=id)
     if cached: return cached
     return _album_payload(id)
 
@@ -1010,16 +1252,10 @@ def get_recent_plays(request: Request, limit: int = 20):
 
         db = db_as_user(jwt)
 
-        user_key = _user_cache_key_from_request(request)
-        ver = _RECENT_VER.get(user_key, 0)
-        ckey = f"recent:{user_key}:{limit}"
-        cent = _RECENT_CACHE.get(ckey)
-        now = time.time()
-        if cent and cent.get("ver") == ver and (now - cent.get("ts", 0) < RECENT_TTL):
-            return cent["payload"]
-
+        # Sin caché - siempre datos frescos
         hard_limit  = max(1, min(100, int(limit)))
         fetch_limit = min(3 * hard_limit, 150)
+        
         resp = (db.table("user_activity")
                   .select("entity_type, entity_id, occurred_at, metadata")
                   .eq("event_type", "play")
@@ -1032,27 +1268,40 @@ def get_recent_plays(request: Request, limit: int = 20):
         seen = set()
         items = []
         for row in rows:
-            t = row.get("entity_type"); i = row.get("entity_id")
-            if not t or not i: continue
+            t = row.get("entity_type")
+            i = row.get("entity_id")
+            if not t or not i:
+                continue
+            
             key = (t, i)
-            if key in seen: continue
+            if key in seen:
+                continue
             seen.add(key)
 
-            md  = row.get("metadata") or {}
+            md = row.get("metadata") or {}
             src = md.get("source") or {}
 
-            name = _first(md.get("display_name"), md.get("name"), md.get("title"),
-                          src.get("display_name"), src.get("name"), src.get("title"))
-            thumb = _first(md.get("thumbnail_url"), md.get("thumbnail"),
-                           src.get("thumbnail_url"), src.get("thumb"), src.get("thumbnail"))
+            name = _first(
+                md.get("display_name"), md.get("name"), md.get("title"),
+                src.get("display_name"), src.get("name"), src.get("title")
+            )
+            thumb = _first(
+                md.get("thumbnail_url"), md.get("thumbnail"),
+                src.get("thumbnail_url"), src.get("thumb"), src.get("thumbnail")
+            )
 
-            items.append({"type": t, "id": i, "occurred_at": row.get("occurred_at"),
-                          "name": name, "thumbnail_url": thumb})
-            if len(items) >= hard_limit: break
+            items.append({
+                "type": t,
+                "id": i,
+                "occurred_at": row.get("occurred_at"),
+                "name": name,
+                "thumbnail_url": thumb
+            })
+            
+            if len(items) >= hard_limit:
+                break
 
-        payload = {"items": items}
-        _RECENT_CACHE[ckey] = {"ts": now, "ver": ver, "payload": payload}
-        return payload
+        return {"items": items}
 
     except Exception as e:
         print(f"[recent][ERROR] {e}")
@@ -1131,7 +1380,6 @@ def move_playlist_track(
         print(f"[reorder] move old={old_position} -> new={new_position} id={track_row_id}")
 
         # ── SENTINEL SEGURO (int32 negativo) + reintento ──
-        import time, random
         base = int(time.time()) ^ random.randint(1, 1_000_000)
         candidate = - (1 + (abs(base) % 999_999))          # rango: [-999999, -1]
         parked = False
@@ -1256,7 +1504,7 @@ def _lyrics_browse_id_from_watch(yt, video_id: str) -> str | None:
 
 def _get_track_lyrics_backend(video_id: str) -> dict:
     ck = f"lyrics:{video_id}"
-    cached = get_cached(ck)
+    cached = get_cached_legacy(ck)
     if cached is not None:
         return cached
 
@@ -1265,7 +1513,7 @@ def _get_track_lyrics_backend(video_id: str) -> dict:
     if not b:
         out = {"ok": False, "reason": "no_lyrics"}
         # cache corto negativo para no insistir
-        set_cached(ck, out, 5 * 60)
+        set_cached_legacy(ck, out, 5 * 60)
         return out
 
     data = yt.get_lyrics(b) or {}
@@ -1274,7 +1522,7 @@ def _get_track_lyrics_backend(video_id: str) -> dict:
         "lyrics": data.get("lyrics"),
         "source": data.get("source"),
     }
-    set_cached(ck, out, _LYRICS_TTL)
+    set_cached_legacy(ck, out, _LYRICS_TTL)
     return out
 
 @router.get("/tracks/{track_id}/lyrics")
@@ -1292,4 +1540,143 @@ def get_track_lyrics(track_id: str = Path(...)):
         return JSONResponse(
             status_code=500,
             content={"ok": False, "error": "lyrics_failed", "detail": f"{type(e).__name__}: {e}"}
+        )
+
+# ---------- RELATED (YouTube Music) ----------
+_RELATED_TTL = 12 * 60 * 60  # 12h
+
+# Secciones a excluir
+_EXCLUDED_RELATED_SECTIONS = {
+    "Recommended playlists",
+    "Other performances",
+}
+
+def _get_track_related_backend(video_id: str) -> dict:
+    ck = f"related:{video_id}"
+    cached = get_cached_legacy(ck)
+    if cached is not None:
+        return cached
+
+    yt = _ytmusic_client()
+    
+    try:
+        # Obtenemos el watch playlist
+        watch = yt.get_watch_playlist(videoId=video_id)
+        if not watch:
+            out = {"ok": False, "reason": "no_watch_playlist"}
+            set_cached_legacy(ck, out, 5 * 60)
+            return out
+        
+        # El browseId viene en el campo "related"
+        rb = watch.get("related")
+        browse_id = rb.get("browseId") if isinstance(rb, dict) else rb
+        
+        if not browse_id:
+            out = {"ok": False, "reason": "no_browse_id"}
+            set_cached_legacy(ck, out, 5 * 60)
+            return out
+        
+        # Obtenemos las canciones relacionadas
+        related_data = yt.get_song_related(browse_id)
+        
+        # Filtramos las secciones no deseadas
+        if isinstance(related_data, list):
+            related_data = [
+                section for section in related_data
+                if section.get("title") not in _EXCLUDED_RELATED_SECTIONS
+            ]
+        
+        out = {
+            "ok": True,
+            "related": related_data
+        }
+        set_cached_legacy(ck, out, _RELATED_TTL)
+        return out
+        
+    except Exception as e:
+        out = {"ok": False, "reason": "error", "detail": str(e)}
+        set_cached(ck, out, 1 * 60)
+        return out
+
+@router.get("/tracks/{track_id}/related")
+def get_track_related(track_id: str = Path(...)):
+    """
+    Devuelve canciones relacionadas para un videoId.
+    """
+    try:
+        res = _get_track_related_backend(track_id)
+        if not res.get("ok"):
+            return JSONResponse(status_code=404, content=res)
+        return res
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": "related_failed", "detail": f"{type(e).__name__}: {e}"}
+        )
+    
+def _normalize_thumbnail(track: dict) -> dict:
+    """Extrae la mejor thumbnail y la pone como string"""
+    thumbs = track.get("thumbnail") or track.get("thumbnails") or []
+    best_url = thumbs[-1].get("url") if thumbs else None
+    return {**track, "thumbnail": best_url}
+
+# ---------- UP NEXT / QUEUE (YouTube Music) ----------
+_UPNEXT_TTL = 6 * 60 * 60  # 6h (más corto porque es dinámico)
+
+def _get_track_upnext_backend(video_id: str) -> dict:
+    ck = f"upnext:{video_id}"
+    cached = get_cached_legacy(ck)
+    if cached is not None:
+        return cached
+
+    yt = _ytmusic_client()
+    
+    try:
+        # 1) Detalles de la canción actual
+        song_raw = yt.get_song(video_id) or {}
+        video_details = song_raw.get("videoDetails") or {}
+        
+        # 2) Play Next (watch playlist)
+        watch = yt.get_watch_playlist(videoId=video_id) or {}
+        tracks = watch.get("tracks") or []
+        
+        if not tracks:
+            out = {"ok": False, "reason": "no_tracks"}
+            set_cached_legacy(ck, out, 5 * 60)
+            return out
+        
+        out = {
+            "ok": True,
+            "current": {
+                "videoId": video_details.get("videoId"),
+                "title": video_details.get("title"),
+                "author": video_details.get("author"),
+                "lengthSeconds": video_details.get("lengthSeconds"),
+            },
+            "upNext": [_normalize_thumbnail(t) for t in tracks],  # Ya viene formateado por ytmusicapi
+            "autoplay": watch.get("autoplay")  # Por si querés saber si tiene autoplay
+        }
+        set_cached_legacy(ck, out, _UPNEXT_TTL)
+        return out
+        
+    except Exception as e:
+        out = {"ok": False, "reason": "error", "detail": str(e)}
+        set_cached_legacy(ck, out, 1 * 60)
+        return out
+
+
+@router.get("/tracks/{track_id}/upnext")
+def get_track_upnext(track_id: str = Path(...)):
+    """
+    Devuelve la cola de reproducción (up next) para un videoId.
+    """
+    try:
+        res = _get_track_upnext_backend(track_id)
+        if not res.get("ok"):
+            return JSONResponse(status_code=404, content=res)
+        return res
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": "upnext_failed", "detail": f"{type(e).__name__}: {e}"}
         )

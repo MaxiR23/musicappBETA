@@ -9,6 +9,8 @@ from typing import Tuple, List, Dict, Any, Optional, Callable
 from services.music_lookup import MusicLookup
 from utils.feed_utils import map_track
 
+from utils.feed_utils import norm
+
 import time
 
 from dotenv import load_dotenv
@@ -117,11 +119,7 @@ def fetch_new_releases_pairs(
             if p == "year":  return datetime.date(int(d), 1, 1)
         except Exception:
             return None
-
-    def _norm_local(s: str) -> str:
-        s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
-        return re.sub(r'[\s\-\–\—\._"\'\[\]\(\)]+', ' ', (s or "").lower()).strip()
-
+        
     tok = _get_feed_token()
     headers = {
         "Accept": "application/json",
@@ -177,7 +175,7 @@ def fetch_new_releases_pairs(
                 artist = ", ".join(a.get("name") or "" for a in arts if isinstance(a, dict)).strip()
                 if not artist or not title:
                     continue
-                key = _norm_local(artist) + "|" + _norm_local(title)
+                key = norm(artist) + "|" + norm(title)
 
                 rd = (it.get("release_date") or "").strip()
                 if rd:
@@ -207,7 +205,7 @@ def fetch_new_releases_pairs(
         artist = ", ".join(a.get("name") or "" for a in arts if isinstance(a, dict)).strip()
         if not artist or not title:
             continue
-        key = _norm_local(artist) + "|" + _norm_local(title)
+        key = norm(artist) + "|" + norm(title)
 
         rd = (it.get("release_date") or "").strip()
         if rd:

@@ -1,23 +1,20 @@
 # routes/playlists.py
 from fastapi import APIRouter, Request, Body
 from services.supabase_service import db_as_user, supabase_service
-from services.cache_service import get_cached, set_cached, del_cached, del_many
+from services.cache_service import get_cached, set_cached, invalidate
+from services.cache_config import CacheType
 from services.jwt_utils import decode_jwt
 
 router = APIRouter(tags=["playlists"])
 
 def _get_user_id(request: Request) -> str | None:
-    # 1) si tu middleware ya puso user, usalo
     user = getattr(request.state, "user", None)
     if isinstance(user, dict) and user.get("id"):
         return user["id"]
-
-    # 2) fallback: decodificar JWT del header
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     claims = decode_jwt(token) or {}
     return claims.get("sub")
 
-# POST /api/playlists
 @router.post("/")
 async def create_playlist(request: Request, body: dict = Body(...)):
     jwt = request.headers.get("Authorization", "").replace("Bearer ", "")
@@ -41,12 +38,12 @@ async def create_playlist(request: Request, body: dict = Body(...)):
             "is_public": is_public,
             "owner_id": owner_id,
         }).execute()
-        del_cached(f"pl:list:{owner_id}")
+        
+        invalidate(CacheType.USER_PLAYLISTS, suffix=owner_id)
         return resp.data[0]
     except Exception as e:
         return {"error": "db_error", "detail": str(e)}
 
-# GET /api/playlists
 @router.get("/")
 async def get_playlists(request: Request):
     jwt = request.headers.get("Authorization", "").replace("Bearer ", "")
@@ -56,8 +53,7 @@ async def get_playlists(request: Request):
     if not owner_id:
         return {"error": "unauthorized"}
 
-    cache_key = f"pl:list:{owner_id}"
-    cached = get_cached(cache_key)
+    cached = get_cached(CacheType.USER_PLAYLISTS, suffix=owner_id)
     if cached:
         return cached
 
@@ -71,24 +67,24 @@ async def get_playlists(request: Request):
 
         payload = resp.data or []
 
-        # 🔀 Ordenar manualmente los tracks por posición
         for pl in payload:
             if "playlist_tracks" in pl and pl["playlist_tracks"]:
                 pl["playlist_tracks"].sort(key=lambda t: t.get("position") or 0)
 
-        set_cached(cache_key, payload, 30)
+        set_cached(CacheType.USER_PLAYLISTS, payload, suffix=owner_id)
         return payload
     except Exception as e:
         return {"error": "db_error", "detail": str(e)}
 
-# GET /api/playlists/:id
 @router.get("/{playlist_id}")
 async def get_playlist_by_id(request: Request, playlist_id: str):
     jwt = request.headers.get("Authorization", "").replace("Bearer ", "")
     db = db_as_user(jwt)
 
-    cache_key = f"pl:detail:{playlist_id}"
-    cached = get_cached(cache_key)
+    owner_id = _get_user_id(request)
+    cache_suffix = f"{playlist_id}:{owner_id}" if owner_id else playlist_id
+    
+    cached = get_cached(CacheType.USER_PLAYLISTS, suffix=cache_suffix)
     if cached:
         return cached
 
@@ -108,12 +104,11 @@ async def get_playlist_by_id(request: Request, playlist_id: str):
             ]
         }
 
-        set_cached(cache_key, payload, 30)
+        set_cached(CacheType.USER_PLAYLISTS, payload, suffix=cache_suffix)
         return payload
     except Exception as e:
         return {"error": "db_error", "detail": str(e)}
 
-# POST /api/playlists/:id/tracks
 @router.post("/{playlist_id}/tracks")
 async def add_track_to_playlist(request: Request, playlist_id: str, body: dict = Body(...)):
     jwt = request.headers.get("Authorization", "").replace("Bearer ", "")
@@ -128,8 +123,6 @@ async def add_track_to_playlist(request: Request, playlist_id: str, body: dict =
         return {"error": "unauthorized"}
 
     try:
-        # Upsert track (service role)
-        print("[add_track_to_playlist] body:", body)
         track_resp = supabase_service.table("tracks").upsert({
             "track_id": track_id,
             "title": body.get("title"),
@@ -140,10 +133,7 @@ async def add_track_to_playlist(request: Request, playlist_id: str, body: dict =
             "thumbnail_url": body.get("thumbnail_url"),
             "extra": body.get("extra"),
         }, on_conflict="track_id").execute()
-        print("[add_track_to_playlist] upsert tracks →", track_resp.data)
 
-        # 👇 FIX: calcular posición SIN usar head=True (no soportado por supabase-py)
-        # Traemos solo la última posición y sumamos 1.
         max_pos_resp = db.table("playlist_tracks") \
             .select("position") \
             .eq("playlist_id", playlist_id) \
@@ -154,7 +144,6 @@ async def add_track_to_playlist(request: Request, playlist_id: str, body: dict =
         if max_pos_resp.data and len(max_pos_resp.data) > 0:
             last_pos = max_pos_resp.data[0].get("position") or 0
         pos = (last_pos or 0) + 1
-        print("[add_track_to_playlist] new position →", pos)
 
         link_resp = db.table("playlist_tracks").insert({
             "playlist_id": playlist_id,
@@ -162,14 +151,14 @@ async def add_track_to_playlist(request: Request, playlist_id: str, body: dict =
             "position": pos,
             "added_by": added_by,
         }).execute()
-        print("[add_track_to_playlist] link inserted →", link_resp.data)
 
-        del_many([f"pl:list:{added_by}", f"pl:detail:{playlist_id}"])
+        invalidate(CacheType.USER_PLAYLISTS, suffix=added_by)
+        invalidate(CacheType.USER_PLAYLISTS, suffix=f"{playlist_id}:{added_by}")
+        
         return {"ok": True, "track": track_resp.data[0], "link": link_resp.data[0]}
     except Exception as e:
         return {"error": "db_error", "detail": str(e)}
 
-# DELETE /api/playlists/:id/tracks/:trackId
 @router.delete("/{playlist_id}/tracks/{track_id}")
 async def remove_track_from_playlist(request: Request, playlist_id: str, track_id: str):
     jwt = request.headers.get("Authorization", "").replace("Bearer ", "")
@@ -181,13 +170,13 @@ async def remove_track_from_playlist(request: Request, playlist_id: str, track_i
 
         owner_id = _get_user_id(request)
         if owner_id:
-            del_many([f"pl:list:{owner_id}", f"pl:detail:{playlist_id}"])
+            invalidate(CacheType.USER_PLAYLISTS, suffix=owner_id)
+            invalidate(CacheType.USER_PLAYLISTS, suffix=f"{playlist_id}:{owner_id}")
 
         return {"ok": True}
     except Exception as e:
         return {"error": "db_error", "detail": str(e)}
     
-# DELETE /api/playlists/:id
 @router.delete("/{playlist_id}")
 async def delete_playlist(request: Request, playlist_id: str):
     jwt = request.headers.get("Authorization", "").replace("Bearer ", "")
@@ -198,15 +187,11 @@ async def delete_playlist(request: Request, playlist_id: str):
         return {"error": "unauthorized"}
 
     try:
-        # borrar links primero (si no tenés ON DELETE CASCADE)
         db.table("playlist_tracks").delete().eq("playlist_id", playlist_id).execute()
-
-        # borrar la playlist SOLO si es del owner
         resp = db.table("playlists").delete().eq("id", playlist_id).eq("owner_id", owner_id).execute()
 
-        # invalidar caches
-        from services.cache_service import del_many
-        del_many([f"pl:list:{owner_id}", f"pl:detail:{playlist_id}"])
+        invalidate(CacheType.USER_PLAYLISTS, suffix=owner_id)
+        invalidate(CacheType.USER_PLAYLISTS, suffix=f"{playlist_id}:{owner_id}")
 
         return {"ok": True, "deleted": resp.data or []}
     except Exception as e:

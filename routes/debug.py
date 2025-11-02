@@ -4,6 +4,7 @@ from innertube import InnerTube
 from services.cache_service import get_cached, set_cached
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
+from fastapi.responses import StreamingResponse, JSONResponse, RedirectResponse
 
 router = APIRouter()
 
@@ -20,6 +21,7 @@ def _get_yt():
 # -------------------
 # Regex precompilado (micro-optimización)
 # -------------------
+
 _DURATION_RE = re.compile(
     r"(?:(\d+)\s+hours?,\s*)?(?:(\d+)\s+minutes?,\s*)?(\d+)\s+seconds?",
     re.IGNORECASE,
@@ -29,13 +31,10 @@ _DURATION_RE = re.compile(
 def playlists_root():
     return {"message": "DEBUG route OK"}
 
-
-
-
-
-
-
-
+def _ytmusic_client():
+    # import lazy para no cargar ytmusicapi si no se usa
+    from ytmusicapi import YTMusic
+    return YTMusic()
 
 ## SEARCH DEBUG {
 
@@ -832,8 +831,6 @@ def search_debug_improved_version(
         }
 
 ## SEARCH DEBUG }
-
-
 
 
 
@@ -1698,4 +1695,138 @@ def debug_album_ytmusicapi(
             "error": "ytmusicapi_album_or_apl_error",
             "message": str(e),
             "params": {"id": id, "apl": apl, "raw": raw}
+        })
+
+@router.get("/debug_artist_info")
+def debug_artist_info(id: str = Query(...)):
+    """Debug: muestra TODO lo que trae ytmusicapi.get_artist() sin filtros"""
+    try:
+        yt = _ytmusic_client()
+        artist_data = yt.get_artist(id)
+        
+        # Obtener top 10 songs
+        songs_browse_id = artist_data.get("songs", {}).get("browseId")
+        top_songs_raw = []
+        if songs_browse_id:
+            playlist_data = yt.get_playlist(songs_browse_id, limit=10)
+            top_songs_raw = (playlist_data.get("tracks", []))[:10]
+        
+        # Filtrar solo campos necesarios
+        top_songs_filtered = []
+        for track in top_songs_raw:
+            # Artists
+            artists_list = track.get("artists", [])
+            artists = [{"id": a.get("id"), "name": a.get("name")} for a in artists_list]
+            artist_name = ", ".join(a["name"] for a in artists if a.get("name"))
+            primary_artist_id = artists[0]["id"] if artists else None
+            
+            # Album
+            album = track.get("album") or {}
+            album_id = album.get("id")
+            album_title = album.get("name")
+            
+            # Thumbnail
+            thumbs = track.get("thumbnails", [])
+            thumbnail = thumbs[-1]["url"] if thumbs else None
+            
+            top_songs_filtered.append({
+                "id": track.get("videoId"),
+                "title": track.get("title"),
+                "thumbnail": thumbnail,
+                "albumId": album_id,
+                "albumTitle": album_title,
+                "artistId": primary_artist_id,
+                "artistName": artist_name,
+                "artists": artists,
+                "duration": track.get("duration"),
+                "durationSeconds": track.get("duration_seconds")
+            })
+        
+        return {
+            "artist_id": id,
+            "raw_data": artist_data,
+            "top_10_songs": top_songs_filtered
+        }
+    except Exception as e:
+        import traceback
+        return JSONResponse(status_code=500, content={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+    
+@router.get("/debug_artist_albums")
+def debug_artist_albums(id: str = Query(...)):
+    """Debug: trae TODOS los albums de un artista"""
+    try:
+        yt = _ytmusic_client()
+        artist_data = yt.get_artist(id)
+        
+        # Obtener TODOS los albums
+        albums_section = artist_data.get("albums", {})
+        albums_browse_id = albums_section.get("browseId")
+        albums_params = albums_section.get("params")
+        
+        all_albums_raw = []
+        if albums_browse_id:
+            all_albums_raw = yt.get_artist_albums(albums_browse_id, albums_params)
+        
+        return {
+            "artist_id": id,
+            "total_albums": len(all_albums_raw),
+            "all_albums_raw": all_albums_raw
+        }
+    except Exception as e:
+        import traceback
+        return JSONResponse(status_code=500, content={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+    
+@router.get("/debug_artist_singles")
+def debug_artist_singles(id: str = Query(...)):
+    """Debug: trae TODOS los singles/EPs de un artista"""
+    try:
+        yt = _ytmusic_client()
+        artist_data = yt.get_artist(id)
+        
+        # Obtener TODOS los singles
+        singles_section = artist_data.get("singles", {})
+        singles_browse_id = singles_section.get("browseId")
+        singles_params = singles_section.get("params")
+        
+        all_singles_raw = []
+        if singles_browse_id:
+            all_singles_raw = yt.get_artist_albums(singles_browse_id, singles_params)
+        
+        return {
+            "artist_id": id,
+            "total_singles": len(all_singles_raw),
+            "all_singles_raw": all_singles_raw
+        }
+    except Exception as e:
+        import traceback
+        return JSONResponse(status_code=500, content={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+    
+@router.get("/debug_artist_single_raw")
+def debug_artist_single_raw(id: str = Query(...)):
+    """Debug: TODO CRUDO COMPLETO"""
+    try:
+        yt = _ytmusic_client()
+        artist_data = yt.get_artist(id)
+        
+        singles_section = artist_data.get("singles")
+        
+        return {
+            "singles_section_completa": singles_section,
+            "artist_data_completo": artist_data
+        }
+        
+    except Exception as e:
+        import traceback
+        return JSONResponse(status_code=500, content={
+            "error": str(e),
+            "traceback": traceback.format_exc()
         })

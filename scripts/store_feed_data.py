@@ -8,7 +8,6 @@ import sys
 from services.feed_source import (
     fetch_most_played_raw,
     fetch_new_releases_pairs,
-    fetch_new_releases_raw_tag_new as _raw_tag_new,
     fetch_seed_tracks,
     fetch_new_singles_tracks
 )
@@ -50,8 +49,6 @@ def build_new_releases(store: Optional[str], limit: Optional[int]) -> List[Dict[
 
     # 1) Trae TODOS los pairs de 14 días + metadata extra
     pairs, release_by_key, tracks_by_key = fetch_new_releases_pairs(store=store, limit=limit)
-    
-    print(f"📊 Total pairs obtenidos: {len(pairs)}")
 
     # 2) Mapear hasta WANT, con límite razonable de entrada
     mapped = map_albums_until(
@@ -59,8 +56,6 @@ def build_new_releases(store: Optional[str], limit: Optional[int]) -> List[Dict[
         want=WANT,
         micro_pause=0.3,
     )
-    
-    print(f"📊 Total mapeados exitosos: {len(mapped)}")
 
     # 3) Merge + dedup
     albums: List[Dict[str, Any]] = []
@@ -116,8 +111,6 @@ def build_new_releases(store: Optional[str], limit: Optional[int]) -> List[Dict[
 
     albums.sort(key=lambda a: _date_key(a.get("release_date", "")), reverse=True)
     albums = albums[:WANT]
-    
-    print(f"📊 Álbumes finales: {len(albums)}")
 
     return albums
 

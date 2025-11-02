@@ -43,7 +43,7 @@ def _row_from_track(kind: str, t: Dict[str, Any]) -> Dict[str, Any]:
         "artist":      t.get("artist"),
         "thumb":       t.get("thumb"),
         "url":         t.get("url"),
-        "artist_id":   t.get("artistId"),
+        "artist_id":   t.get("artist_id") or t.get("artistId"),
         "album":       t.get("album"),
         "duration":    t.get("duration"),
         "duration_s":  _to_int(t.get("duration_s")),    # int4
@@ -59,21 +59,40 @@ def replace_feed(kind: str, media_type: str, items: Iterable[Dict[str, Any]]) ->
     Reemplaza TODO el contenido actual de feed_current para (kind, media_type)
     por 'items' (ya mapeados). Devuelve (#deleted | None, #inserted).
     """
+    
+    # 1) DELETE
     try:
         del_res = sb.table(TABLE).delete().eq("kind", kind).eq("type", media_type).execute()
         deleted = getattr(del_res, "count", None) or None
-    except Exception:
+    except Exception as e:
+        print(f"⚠️ Warning: DELETE falló: {e}")
         deleted = None
 
+    # 2) Preparar rows
     if media_type == "album":
         rows: List[Dict[str, Any]] = [_row_from_album(kind, it) for it in items]
     else:
         rows = [_row_from_track(kind, it) for it in items]
 
-    if rows:
-        sb.table(TABLE).insert(rows).execute()
+    # 3) ✅ DEDUPLICAR por ID antes de insertar (último gana)
+    rows_by_id: Dict[str, Dict[str, Any]] = {}
+    for r in rows:
+        row_id = r.get("id")
+        if row_id:
+            rows_by_id[row_id] = r
+    
+    unique_rows = list(rows_by_id.values())
+    
+    print(f"[feed_repo] {kind}/{media_type}: {len(rows)} items → {len(unique_rows)} únicos")
+    
+    # 4) UPSERT
+    if unique_rows:
+        sb.table(TABLE).upsert(
+            unique_rows,
+            on_conflict="kind,type,id"
+        ).execute()
 
-    return deleted, len(rows)
+    return deleted, len(unique_rows)
 
 def list_feed(kind: str, media_type: str, limit: int = 25) -> List[Dict[str, Any]]:
     q = sb.table(TABLE).select("*").eq("kind", kind).eq("type", media_type)

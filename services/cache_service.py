@@ -1,32 +1,305 @@
-# services/cache_service.py
+"""
+Cache Service
+-------------
+Sistema de caché en memoria con versionado automático.
+Preparado para migrar a Redis en el futuro sin cambiar el código que lo usa.
+
+Migración a Redis:
+    1. pip install redis
+    2. Descomentar la sección REDIS
+    3. Comentar la sección IN-MEMORY
+    4. Listo! El resto del código sigue funcionando igual.
+"""
+
 import time
+import json
+from functools import wraps
+from typing import Optional, Callable, Any, TypeVar, ParamSpec
+from .cache_config import CacheType, get_version, get_ttl
 
-_cache = {}
-DEFAULT_TTL = 30 * 60  # 30 minutos
+# ============================================================================
+# STORAGE BACKEND - Cambia entre IN-MEMORY y REDIS sin tocar el resto
+# ============================================================================
 
-def get_cached(key: str):
-    """Devuelve valor cacheado si no expiró"""
-    now = time.time()
-    if key in _cache:
-        entry = _cache[key]
-        if now - entry["ts"] < entry.get("ttl", DEFAULT_TTL):
+# === OPCIÓN 1: IN-MEMORY (desarrollo local) ===
+_cache: dict = {}
+
+def _get(key: str) -> Optional[str]:
+    """Lee del storage (memoria)"""
+    return _cache.get(key)
+
+def _set(key: str, value: str, ttl: Optional[int] = None):
+    """Escribe al storage (memoria)"""
+    _cache[key] = value
+
+def _delete(key: str):
+    """Elimina del storage (memoria)"""
+    _cache.pop(key, None)
+
+def _clear():
+    """Limpia todo el storage (memoria)"""
+    _cache.clear()
+
+def _keys_pattern(pattern: str) -> list[str]:
+    """Busca keys que matcheen el pattern (memoria)"""
+    if pattern.endswith("*"):
+        prefix = pattern[:-1]
+        return [k for k in _cache.keys() if k.startswith(prefix)]
+    return [k for k in _cache.keys() if k == pattern]
+
+
+# === OPCIÓN 2: REDIS (producción) ===
+# Descomentar cuando migres a Kamatera:
+"""
+import redis
+
+_redis = redis.Redis(
+    host='localhost',  # o tu IP de Redis
+    port=6379,
+    decode_responses=True,
+    db=0
+)
+
+def _get(key: str) -> Optional[str]:
+    return _redis.get(key)
+
+def _set(key: str, value: str, ttl: Optional[int] = None):
+    if ttl:
+        _redis.setex(key, ttl, value)
+    else:
+        _redis.set(key, value)
+
+def _delete(key: str):
+    _redis.delete(key)
+
+def _clear():
+    _redis.flushdb()
+
+def _keys_pattern(pattern: str) -> list[str]:
+    return [k.decode() if isinstance(k, bytes) else k for k in _redis.keys(pattern)]
+"""
+
+
+# ============================================================================
+# CACHE FUNCTIONS - NO tocar cuando migres a Redis
+# ============================================================================
+
+def _make_key(cache_type: CacheType, suffix: str = "") -> str:
+    """
+    Genera la key del caché con versión automática.
+    
+    Ejemplos:
+        _make_key(CacheType.NEW_RELEASES)
+        → "new-releases:v-20251025"
+        
+        _make_key(CacheType.SIMILAR_TO, "artist123")
+        → "similar-to:v-2025-w43-SUN:artist123"
+    """
+    version = get_version(cache_type)
+    base = f"{cache_type.value}:{version}"
+    return f"{base}:{suffix}" if suffix else base
+
+
+def get_cached(cache_type: CacheType, suffix: str = "") -> Optional[Any]:
+    """
+    Lee del caché. Maneja expiración automática (TTL).
+    
+    Args:
+        cache_type: Tipo de caché (ej: CacheType.NEW_RELEASES)
+        suffix: Sufijo opcional para la key (ej: user_id)
+        
+    Returns:
+        Datos cacheados o None si no existe/expiró
+        
+    Example:
+        data = get_cached(CacheType.NEW_RELEASES)
+        user_data = get_cached(CacheType.USER_RECOMMENDATIONS, suffix=user_id)
+    """
+    key = _make_key(cache_type, suffix)
+    raw = _get(key)
+    
+    if raw is None:
+        return None
+    
+    try:
+        # Formato: {"data": ..., "ts": ..., "ttl": ...}
+        entry = json.loads(raw)
+        
+        # Chequea expiración
+        now = time.time()
+        if now - entry["ts"] < entry.get("ttl", get_ttl(cache_type)):
             return entry["data"]
-    return None
+        
+        # Expiró, lo borra
+        _delete(key)
+        return None
+        
+    except (json.JSONDecodeError, KeyError):
+        # Caché corrupto, lo borra
+        _delete(key)
+        return None
 
-def set_cached(key: str, data, ttl: int = DEFAULT_TTL):
-    """Guarda valor en cache"""
-    _cache[key] = {"data": data, "ts": time.time(), "ttl": ttl}
+
+def set_cached(
+    cache_type: CacheType,
+    data: Any,
+    suffix: str = "",
+    ttl: Optional[int] = None
+):
+    """
+    Guarda en caché con versión automática.
+    
+    Args:
+        cache_type: Tipo de caché
+        data: Datos a cachear (debe ser JSON-serializable)
+        suffix: Sufijo opcional para la key
+        ttl: TTL en segundos (usa default del tipo si no se especifica)
+        
+    Example:
+        set_cached(CacheType.NEW_RELEASES, albums_data)
+        set_cached(CacheType.USER_RECOMMENDATIONS, user_data, suffix=user_id, ttl=3600)
+    """
+    key = _make_key(cache_type, suffix)
+    
+    entry = {
+        "data": data,
+        "ts": time.time(),
+        "ttl": ttl or get_ttl(cache_type)
+    }
+    
+    _set(key, json.dumps(entry), ttl=entry["ttl"])
+
+
+# ============================================================================
+# DECORATOR - Para aplicar caché de forma declarativa
+# ============================================================================
+
+P = ParamSpec('P')
+T = TypeVar('T')
+
+def cached(
+    cache_type: CacheType,
+    ttl: Optional[int] = None,
+    key_builder: Optional[Callable[..., str]] = None
+):
+    """
+    Decorator para cachear automáticamente funciones/endpoints.
+    
+    Args:
+        cache_type: Tipo de caché
+        ttl: TTL en segundos (opcional)
+        key_builder: Función para construir suffix de la key desde los args (opcional)
+        
+    Example:
+        # Caché simple
+        @cached(CacheType.NEW_RELEASES)
+        async def get_new_releases():
+            return fetch_from_db()
+        
+        # Caché por usuario
+        @cached(CacheType.USER_RECOMMENDATIONS, key_builder=lambda user_id: user_id)
+        async def get_user_reco(user_id: str):
+            return fetch_user_data(user_id)
+    """
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
+        @wraps(func)
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            # Construye suffix si hay key_builder
+            suffix = ""
+            if key_builder:
+                try:
+                    suffix = key_builder(*args, **kwargs)
+                except Exception:
+                    pass  # Si falla, usa key sin suffix
+            
+            # Intenta leer del caché
+            cached_data = get_cached(cache_type, suffix)
+            if cached_data is not None:
+                print(f"[CACHE HIT] {cache_type.value}:{suffix or '(no-suffix)'}")
+                return cached_data
+            
+            # Cache miss - ejecuta función
+            print(f"[CACHE MISS] {cache_type.value}:{suffix or '(no-suffix)'}")
+            result = await func(*args, **kwargs)
+            
+            # Guarda en caché
+            set_cached(cache_type, result, suffix, ttl)
+            return result
+        
+        return wrapper
+    return decorator
+
+
+# ============================================================================
+# INVALIDACIÓN - Para borrar caché manualmente
+# ============================================================================
+
+def invalidate(cache_type: CacheType, suffix: str = ""):
+    """
+    Invalida un caché específico.
+    
+    Example:
+        invalidate(CacheType.NEW_RELEASES)
+        invalidate(CacheType.USER_RECOMMENDATIONS, suffix=user_id)
+    """
+    key = _make_key(cache_type, suffix)
+    _delete(key)
+    print(f"[CACHE INVALIDATED] {key}")
+
+
+def invalidate_all(cache_type: CacheType):
+    """
+    Invalida TODAS las keys de un tipo (útil para caché con suffix).
+    
+    Example:
+        # Borra todos los USER_RECOMMENDATIONS de todos los usuarios
+        invalidate_all(CacheType.USER_RECOMMENDATIONS)
+    """
+    pattern = f"{cache_type.value}:*"
+    keys = _keys_pattern(pattern)
+    for key in keys:
+        _delete(key)
+    print(f"[CACHE INVALIDATED ALL] {cache_type.value} ({len(keys)} keys)")
+
+
+def clear_all_cache():
+    """Limpia TODO el caché. Usar con cuidado."""
+    _clear()
+    print("[CACHE CLEARED] Todo el caché fue eliminado")
+
+
+# ============================================================================
+# COMPATIBILIDAD - Mantiene tus funciones viejas funcionando
+# ============================================================================
+
+DEFAULT_TTL = 30 * 60  # 30 minutos
+_legacy_cache: dict = {}
+
+def get_cached_legacy(key: str) -> Optional[Any]:
+    """Legacy: para endpoints que usan strings (lyrics, related, upnext)"""
+    entry = _legacy_cache.get(key)
+    if not entry:
+        return None
+    
+    if time.time() - entry["ts"] > entry["ttl"]:
+        _legacy_cache.pop(key, None)
+        return None
+    
+    return entry["data"]
+
+def set_cached_legacy(key: str, data: Any, ttl: int = 1800):
+    """Legacy: para endpoints que usan strings"""
+    _legacy_cache[key] = {"data": data, "ts": time.time(), "ttl": ttl}
 
 def del_cached(key: str):
-    """Elimina una clave del cache"""
-    if key in _cache:
-        del _cache[key]
+    """Legacy: elimina una key sin versionado"""
+    _delete(key)
 
 def del_many(keys: list[str]):
-    """Elimina varias claves del cache"""
+    """Legacy: elimina varias keys sin versionado"""
     for k in keys:
-        _cache.pop(k, None)
+        _delete(k)
 
 def clear_cache():
-    """Vacía todo el cache"""
-    _cache.clear()
+    """Legacy: limpia todo"""
+    clear_all_cache()

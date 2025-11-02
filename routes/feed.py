@@ -6,47 +6,107 @@ from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Request
 from typing import Any, Dict, List, Optional
 
-from services.feed_source import fetch_new_releases_raw_tag_new as _raw_tag_new
 from services.feed_repo import list_feed
 from services.recommendations_repo import list_user_recommendations
+
+from services.cache_service import cached, invalidate
+from services.cache_config import CacheType, get_all_versions
 
 router = APIRouter(tags=["feed"])
 
 _RECO_LIMIT_PER_TYPE = int(os.getenv("RECO_LIMIT_PER_TYPE", "20"))
 
+
+# ============================================================================
+# ENDPOINT DE VERSIONES - Para que el front sepa qué versión usar
+# ============================================================================
+
+@router.get("/cache/versions", summary="Versiones actuales del caché")
+async def get_cache_versions():
+    """
+    Devuelve las versiones actuales de todos los tipos de caché.
+    El frontend usa esto para saber si debe invalidar su caché local.
+    
+    Example response:
+        {
+            "ok": true,
+            "versions": {
+                "new-releases": "v-20251025",
+                "top-tracks": "v-2025-w43-FRI",
+                "seed-tracks": "v-2025-w43-FRI",
+                ...
+            }
+        }
+    """
+    return {
+        "ok": True,
+        "versions": get_all_versions()
+    }
+
+
+# ============================================================================
+# ENDPOINTS CON CACHÉ APLICADO
+# ============================================================================
+
 @router.get("/most-played", summary="Feed (DB) most_played albums & tracks")
+@cached(CacheType.TOP_ALBUMS)  # ✨ Caché automático!
 async def get_feed_db(limit: Optional[int] = 25):
+    """Se cachea con versión v-2025-w43-FRI (se invalida cada viernes)"""
     albums = list_feed("most_played", "album", limit or 25)
     tracks = list_feed("most_played", "track", limit or 25)
     return {"ok": True, "albums": albums, "tracks": tracks}
 
+
 @router.get("/db/new-releases", summary="Feed (DB) new releases")
+@cached(CacheType.NEW_RELEASES)  # ✨ Se invalida cada día automáticamente
 async def get_new_releases_db(limit: Optional[int] = 25):
+    """Se cachea con versión v-20251025 (cambia cada día)"""
     albums = list_feed("new_releases", "album", limit or 25)
     return {"ok": True, "new_releases": albums}
 
-# routes/feed.py
+
 @router.get("/db/new-singles", summary="Feed (DB) singles nuevos")
+@cached(CacheType.NEW_RELEASES, ttl=43200)  # ✨ TTL custom: 12 horas
 async def get_new_singles_db(limit: Optional[int] = 25):
+    """Usa el mismo tipo de caché que new-releases"""
     tracks = list_feed("new_singles", "track", limit or 25)
     return {"ok": True, "tracks": tracks}
 
+
 @router.get("/db/seed-tracks", summary="Feed (DB) seed tracks")
+@cached(CacheType.SEED_TRACKS)  # ✨ Se invalida cada viernes
 async def get_seed_tracks_db(limit: Optional[int] = 25):
+    """Se cachea con versión v-2025-w43-FRI"""
     tracks = list_feed("seed_tracks", "track", limit or 25)
     return {"ok": True, "tracks": tracks}
 
-#### TESTS 
 
-@router.get("/recommendations/me", summary="User recommendations (DB): usando el usuario del Bearer")
+# ============================================================================
+# RECOMENDACIONES - Con caché por usuario
+# ============================================================================
+
+@router.get("/recommendations/me", summary="User recommendations (Bearer auth)")
+@cached(
+    CacheType.USER_RECOMMENDATIONS,
+    ttl=3600,  # 1 hora
+    key_builder=lambda request, **_: getattr(request.state, "user", {}).get("id", "")
+)
 async def get_user_recommendations_me(
     request: Request,
     bucket: str = "seed_recos_v1",
 ):
+    """
+    Recomendaciones del usuario autenticado.
+    Se cachea por user_id: user-recommendations:v-static:USER_123
+    """
     u = getattr(request.state, "user", None) or {}
     user_id = u.get("id")
+    
     if not user_id:
-        return JSONResponse(status_code=401, content={"ok": False, "error": "unauthorized"})
+        return JSONResponse(
+            status_code=401,
+            content={"ok": False, "error": "unauthorized"}
+        )
 
     rows = list_user_recommendations(
         user_id=user_id,
@@ -89,21 +149,26 @@ async def get_user_recommendations_me(
         },
     }
 
-# routes/feed.py  (dejá TODO lo demás igual; solo pegá este handler nuevo)
-@router.get("/recommendations", summary="User recommendations (DB): artistas/álbumes (by user_id)")
+
+@router.get("/recommendations", summary="User recommendations (by user_id)")
+@cached(
+    CacheType.USER_RECOMMENDATIONS,
+    ttl=3600,
+    key_builder=lambda user_id, **_: user_id  # ✨ Cachea por user_id
+)
 async def get_user_recommendations_db(
     user_id: str,
     bucket: str = "seed_recos_v1",
 ):
     """
-    Devuelve las recomendaciones guardadas para (user_id, bucket).
-    El límite por tipo lo fija el servidor (_RECO_LIMIT_PER_TYPE).
+    Recomendaciones por user_id.
+    Se cachea por usuario: user-recommendations:v-static:abc123
     """
     rows = list_user_recommendations(
         user_id=user_id,
         bucket=bucket,
         item_type=None,
-        limit=500,  # holgado; recortamos abajo
+        limit=500,
     ) or []
 
     artists: List[Dict[str, Any]] = []
@@ -127,7 +192,6 @@ async def get_user_recommendations_db(
             item = {"id": iid, **payload}
             albums.append(item)
 
-    # recorte server-side
     artists = artists[:_RECO_LIMIT_PER_TYPE]
     albums  = albums[:_RECO_LIMIT_PER_TYPE]
 
@@ -140,3 +204,26 @@ async def get_user_recommendations_db(
             "albums":  albums,
         },
     }
+
+
+# ============================================================================
+# EJEMPLO: Endpoint para invalidar caché manualmente (opcional)
+# ============================================================================
+
+@router.post("/cache/invalidate/{cache_type}", summary="Invalida caché manualmente")
+async def invalidate_cache(cache_type: str):
+    """
+    Endpoint de administración para invalidar caché manualmente.
+    Útil para testing o si necesitás forzar un refresh.
+    
+    Example: POST /feed/cache/invalidate/new-releases
+    """
+    try:
+        ct = CacheType(cache_type)
+        invalidate(ct)
+        return {"ok": True, "message": f"Caché {cache_type} invalidado"}
+    except ValueError:
+        return JSONResponse(
+            status_code=400,
+            content={"ok": False, "error": f"Tipo de caché inválido: {cache_type}"}
+        )
