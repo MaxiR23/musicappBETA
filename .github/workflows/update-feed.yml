@@ -29,6 +29,13 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FEED_CLIENT_ID: ${{ secrets.FEED_CLIENT_ID }}
+          FEED_CLIENT_SECRET: ${{ secrets.FEED_CLIENT_SECRET }}
+          FEED_MOST_PLAYED_ALBUMS_URL: ${{ secrets.FEED_MOST_PLAYED_ALBUMS_URL }}
+          FEED_MOST_PLAYED_SONGS_URL: ${{ secrets.FEED_MOST_PLAYED_SONGS_URL }}
+          FEED_NEW_RELEASES_URL: ${{ secrets.FEED_NEW_RELEASES_URL }}
+          FEED_STORE: US
+          FEED_LIMIT: 25
           PYTHONPATH: .
         run: |
           python scripts/store_feed_data.py --store AR --limit 25
