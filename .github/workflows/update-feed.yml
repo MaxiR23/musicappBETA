@@ -1,0 +1,44 @@
+# .github/workflows/update-feed.yml
+name: Update Feed Data
+
+on:
+  # Para probar: ejecutar manualmente
+  workflow_dispatch:
+  
+  # Para testing: cada 5 minutos (BORRAR DESPUES)
+  schedule:
+    - cron: '*/5 * * * *'
+  
+  # Para produccion: 2am todos los lunes (DESCOMENTAR DESPUES)
+  # schedule:
+  #   - cron: '0 2 * * 1'
+
+jobs:
+  update-feed:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Run feed update
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          python scripts/store_feed_data.py --store AR --limit 25
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "Feed update completed"
+          echo "Time: $(date)"
