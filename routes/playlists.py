@@ -1,7 +1,7 @@
 # routes/playlists.py
 from fastapi import APIRouter, Request, Body
 from services.supabase_service import db_as_user, supabase_service
-from services.cache_service import get_cached_legacy, set_cached_legacy, invalidate
+from services.cache_service import get_cached, set_cached, invalidate
 from services.cache_config import CacheType
 from services.jwt_utils import decode_jwt
 
@@ -53,7 +53,7 @@ async def get_playlists(request: Request):
     if not owner_id:
         return {"error": "unauthorized"}
 
-    cached = get_cached_legacy(CacheType.USER_PLAYLISTS, suffix=owner_id)
+    cached = get_cached(CacheType.USER_PLAYLISTS, suffix=owner_id)
     if cached:
         return cached
 
@@ -71,7 +71,7 @@ async def get_playlists(request: Request):
             if "playlist_tracks" in pl and pl["playlist_tracks"]:
                 pl["playlist_tracks"].sort(key=lambda t: t.get("position") or 0)
 
-        set_cached_legacy(CacheType.USER_PLAYLISTS, payload, suffix=owner_id)
+        set_cached(CacheType.USER_PLAYLISTS, payload, suffix=owner_id)
         return payload
     except Exception as e:
         return {"error": "db_error", "detail": str(e)}
@@ -84,7 +84,7 @@ async def get_playlist_by_id(request: Request, playlist_id: str):
     owner_id = _get_user_id(request)
     cache_suffix = f"{playlist_id}:{owner_id}" if owner_id else playlist_id
     
-    cached = get_cached_legacy(CacheType.USER_PLAYLISTS, suffix=cache_suffix)
+    cached = get_cached(CacheType.USER_PLAYLISTS, suffix=cache_suffix)
     if cached:
         return cached
 
@@ -104,7 +104,7 @@ async def get_playlist_by_id(request: Request, playlist_id: str):
             ]
         }
 
-        set_cached_legacy(CacheType.USER_PLAYLISTS, payload, suffix=cache_suffix)
+        set_cached(CacheType.USER_PLAYLISTS, payload, suffix=cache_suffix)
         return payload
     except Exception as e:
         return {"error": "db_error", "detail": str(e)}
