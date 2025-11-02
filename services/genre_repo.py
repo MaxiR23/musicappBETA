@@ -91,19 +91,19 @@ def upsert_track(track: Dict[str, Any]) -> None:
     Args:
         track: Dict con formato {track_id, title, artist, album, duration_ms, thumbnail_url, artist_id}
     """
+    # TODO: map_track should return duration_ms directly instead of duration_s for consistency
     data = {
         "track_id": track.get("id") or track.get("track_id"),
         "title": track.get("title"),
         "artist": track.get("artist"),
         "album": track.get("album"),
-        "duration_ms": track.get("duration_ms"),
+        "duration_ms": track.get("duration_ms") or (track.get("duration_s") * 1000 if track.get("duration_s") else None),
         "thumbnail_url": track.get("thumbnail_url") or track.get("thumb"),
         "artist_id": track.get("artist_id") or track.get("artistId"),
     }
     
     # Upsert por track_id (unique constraint)
     sb.table("tracks").upsert(data, on_conflict="track_id").execute()
-
 
 def insert_genre_playlist_tracks(playlist_id: str, tracks: List[Dict[str, Any]]) -> int:
     """
