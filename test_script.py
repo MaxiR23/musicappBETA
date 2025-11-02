@@ -609,12 +609,14 @@ def main():
     
     # Guardar JSON
     import json
-    output_file = 'albums_covers_2026.json'
+    """ from pathlib import Path """
+    # Crear carpeta data si no existe
+    """ Path('data').mkdir(exist_ok=True) """
+
+    output_file = 'data/albums_covers.json'
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(albums, f, indent=2, ensure_ascii=False)
-    
-    print(f"💾 Guardado en '{output_file}'")
-    print()
+        print(f"Guardado en '{output_file}'")
 
 if __name__ == "__main__":
     main()
