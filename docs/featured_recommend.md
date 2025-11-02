@@ -176,7 +176,7 @@ import yt_dlp
 from innertube import InnerTube
 import threading 
 
-from services.cache_service import get_cached, set_cached
+from services.cache_service import get_cached, set_cached ##TODO CAMBIAR A LEGACY.
 from utils.search_parser import (
     parse_search_songs,
     parse_search_first_song_or_top,

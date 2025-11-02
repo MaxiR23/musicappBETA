@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 from datetime import date,  datetime
 
 from services.supabase_service import supabase_service as sb
-from services.cache_service import get_cached, set_cached
+from services.cache_service import get_cached_legacy, set_cached_legacy
 from services.cache_config import CacheType
 
 TABLE = "upcoming_releases"
@@ -101,7 +101,7 @@ def list_upcoming_releases_cached(
     cache_key = f"tba={include_tba}:limit={limit}"
     
     # Intenta leer del caché
-    cached = get_cached(CacheType.UPCOMING_RELEASES, suffix=cache_key)
+    cached = get_cached_legacy(CacheType.UPCOMING_RELEASES, suffix=cache_key)
     if cached is not None:
         return cached
     
@@ -112,7 +112,7 @@ def list_upcoming_releases_cached(
     smart_ttl = calculate_smart_ttl()
     
     # Cachea con el TTL dinámico
-    set_cached(CacheType.UPCOMING_RELEASES, releases, suffix=cache_key, ttl=smart_ttl)
+    set_cached_legacy(CacheType.UPCOMING_RELEASES, releases, suffix=cache_key, ttl=smart_ttl)
     
     print(f"[UPCOMING_RELEASES] Cacheado por {smart_ttl // 3600}h ({smart_ttl}s)")
     

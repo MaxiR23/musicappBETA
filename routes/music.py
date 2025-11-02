@@ -18,7 +18,7 @@ from functools import lru_cache
 
 import concurrent.futures as cf
 
-from services.cache_service import get_cached, set_cached, invalidate, get_cached_legacy, set_cached_legacy
+from services.cache_service import get_cached_legacy, set_cached_legacy
 from services.cache_config import CacheType
 
 from utils.search_parser import (

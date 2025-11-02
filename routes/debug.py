@@ -1,7 +1,7 @@
 # routes/debug.py
 from fastapi import APIRouter, Query
 from innertube import InnerTube
-from services.cache_service import get_cached, set_cached
+from services.cache_service import get_cached_legacy, set_cached_legacy
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import re
 from fastapi.responses import StreamingResponse, JSONResponse, RedirectResponse
@@ -1131,7 +1131,7 @@ def _best_atv_from_search(yt, title, artist_names, target_album, target_dur_s, c
     """
     # cache por título+artista
     key = f"resolve_atv:{title}:{','.join(artist_names or [''])}"
-    cached = get_cached(key)
+    cached = get_cached_legacy(key)
     if cached is not None:
         return cached
 
@@ -1177,7 +1177,7 @@ def _best_atv_from_search(yt, title, artist_names, target_album, target_dur_s, c
         if best and best_score >= 1.5:
             break
 
-    set_cached(key, best, ttl=cache_ttl)
+    set_cached_legacy(key, best, ttl=cache_ttl)
     return best
 
 def _get_watch(mrlir):
@@ -1419,7 +1419,7 @@ def album_tracks_audio_resolved(
     """
     cache_key = f"album_audio_resolved:{id}"
     if use_cache:
-        cached = get_cached(cache_key)
+        cached = get_cached_legacy(cache_key)
         if cached is not None:
             return cached
 
@@ -1440,7 +1440,7 @@ def album_tracks_audio_resolved(
                     "tracks": q_tracks,
                     "unresolved": []
                 }
-                if use_cache: set_cached(cache_key, out, ttl=600)
+                if use_cache: set_cached_legacy(cache_key, out, ttl=600)
                 return out
         except Exception:
             pass  # si falla, seguimos con el fallback
@@ -1481,7 +1481,7 @@ def album_tracks_audio_resolved(
         "tracks": [t for t in tracks_raw if t.get("type") == "audio"],
         "unresolved": [t for t in tracks_raw if t.get("type") != "audio"],
     }
-    if use_cache: set_cached(cache_key, out, ttl=600)
+    if use_cache: set_cached_legacy(cache_key, out, ttl=600)
     return out
 
 @router.get("/new_releases_global")
@@ -1493,7 +1493,7 @@ def new_releases_global(use_cache: bool = Query(True, description="Usar cache"))
     """
     cache_key = "new_releases_global"
     if use_cache:
-        cached = get_cached(cache_key)
+        cached = get_cached_legacy(cache_key)
         if cached is not None:
             return cached
 
@@ -1501,7 +1501,7 @@ def new_releases_global(use_cache: bool = Query(True, description="Usar cache"))
         yt = _get_yt()
         resp = yt.browse("FEmusic_new_releases")  # 🔴 feed global
         if use_cache:
-            set_cached(cache_key, resp, ttl=600)
+            set_cached_legacy(cache_key, resp, ttl=600)
         return resp
     except Exception as e:
         return {"error": "new_releases_global_error", "detail": str(e)}

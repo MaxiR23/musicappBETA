@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 import threading
 
 from innertube import InnerTube
-from services.cache_service import get_cached, set_cached
+from services.cache_service import get_cached_legacy, set_cached_legacy
 from services.activity_repo import recent_seeds_from_activity
 from utils.artist_parser import parse_related_artists, pick_related_artists_section
 from utils.album_parser import parse_album_releases_for_you
@@ -38,7 +38,7 @@ def _seed_artist_info(seed: Dict[str, Any], yt: InnerTube) -> Dict[str, Optional
     # fallback liviano: header del artista cacheado
     try:
         ckey = f"artist:header:{aid}"
-        cached = get_cached(ckey)
+        cached = get_cached_legacy(ckey)
         if cached:
             return {"id": aid, "name": cached.get("name"), "thumbnail": cached.get("thumb")}
 
@@ -53,14 +53,14 @@ def _seed_artist_info(seed: Dict[str, Any], yt: InnerTube) -> Dict[str, Optional
                   .get("thumbnails", []) or []
         )
         h_thumb = (thumbs[-1] or {}).get("url") if thumbs else None
-        set_cached(ckey, {"name": h_name, "thumb": h_thumb}, 30 * 60)
+        set_cached_legacy(ckey, {"name": h_name, "thumb": h_thumb}, 30 * 60)
         return {"id": aid, "name": h_name, "thumbnail": h_thumb}
     except Exception:
         return {"id": aid, "name": name or None, "thumbnail": thumb or None}
 
 def _browse_artist_related(yt: InnerTube, artist_id: str, limit_each: int = 5) -> List[Dict[str, Any]]:
     ckey = f"artist:related:{artist_id}"
-    cached = get_cached(ckey)
+    cached = get_cached_legacy(ckey)
     if cached is not None:
         return (cached or [])[:limit_each]
 
@@ -76,7 +76,7 @@ def _browse_artist_related(yt: InnerTube, artist_id: str, limit_each: int = 5) -
     )
     rel_sec = pick_related_artists_section(contents)
     out = parse_related_artists(rel_sec)[:limit_each] if rel_sec else []
-    set_cached(ckey, out, _RECO_TTL)
+    set_cached_legacy(ckey, out, _RECO_TTL)
     return out
 
 def _browse_album_related(yt: InnerTube, album_id: str, limit_each: int = 5) -> List[Dict[str, Any]]:
@@ -84,14 +84,14 @@ def _browse_album_related(yt: InnerTube, album_id: str, limit_each: int = 5) -> 
     Por ahora solo 'Releases For You' (sin similarTo). Lo de álbumes se mejora después.
     """
     ckey = f"album:recos:{album_id}"
-    cached = get_cached(ckey)
+    cached = get_cached_legacy(ckey)
     if cached is not None:
         return (cached or [])[:limit_each]
 
     resp = yt.browse(album_id) or {}
     rel_for_you = parse_album_releases_for_you(resp) or []
     out = rel_for_you[:limit_each] if rel_for_you else []
-    set_cached(ckey, out, _RECO_TTL if out else 5 * 60)
+    set_cached_legacy(ckey, out, _RECO_TTL if out else 5 * 60)
     return out
 
 # ---------- API del servicio ----------
