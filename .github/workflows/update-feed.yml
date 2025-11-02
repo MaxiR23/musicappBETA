@@ -2,16 +2,10 @@
 name: Update Feed Data
 
 on:
-  # Para probar: ejecutar manualmente
   workflow_dispatch:
   
-  # Para testing: cada 5 minutos (BORRAR DESPUES)
   schedule:
     - cron: '*/5 * * * *'
-  
-  # Para produccion: 2am todos los lunes (DESCOMENTAR DESPUES)
-  # schedule:
-  #   - cron: '0 2 * * 1'
 
 jobs:
   update-feed:
@@ -28,7 +22,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
+          pip install --no-deps -r requirements.txt
       
       - name: Run feed update
         env:
