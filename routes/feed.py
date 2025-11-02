@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from services.feed_repo import list_feed
 from services.recommendations_repo import list_user_recommendations
 
-from services.cache_service import cached, invalidate
+from services.cache_service import cached
 from services.cache_config import CacheType, get_all_versions
 
 router = APIRouter(tags=["feed"])
@@ -49,7 +49,7 @@ async def get_cache_versions():
 # ============================================================================
 
 @router.get("/most-played", summary="Feed (DB) most_played albums & tracks")
-@cached(CacheType.TOP_ALBUMS)  # ✨ Caché automático!
+@cached(CacheType.TOP_ALBUMS)
 async def get_feed_db(limit: Optional[int] = 25):
     """Se cachea con versión v-2025-w43-FRI (se invalida cada viernes)"""
     albums = list_feed("most_played", "album", limit or 25)
@@ -58,7 +58,7 @@ async def get_feed_db(limit: Optional[int] = 25):
 
 
 @router.get("/db/new-releases", summary="Feed (DB) new releases")
-@cached(CacheType.NEW_RELEASES)  # ✨ Se invalida cada día automáticamente
+@cached(CacheType.NEW_RELEASES)
 async def get_new_releases_db(limit: Optional[int] = 25):
     """Se cachea con versión v-20251025 (cambia cada día)"""
     albums = list_feed("new_releases", "album", limit or 25)
@@ -66,7 +66,7 @@ async def get_new_releases_db(limit: Optional[int] = 25):
 
 
 @router.get("/db/new-singles", summary="Feed (DB) singles nuevos")
-@cached(CacheType.NEW_RELEASES, ttl=43200)  # ✨ TTL custom: 12 horas
+@cached(CacheType.NEW_RELEASES, ttl=43200)
 async def get_new_singles_db(limit: Optional[int] = 25):
     """Usa el mismo tipo de caché que new-releases"""
     tracks = list_feed("new_singles", "track", limit or 25)
@@ -74,7 +74,7 @@ async def get_new_singles_db(limit: Optional[int] = 25):
 
 
 @router.get("/db/seed-tracks", summary="Feed (DB) seed tracks")
-@cached(CacheType.SEED_TRACKS)  # ✨ Se invalida cada viernes
+@cached(CacheType.SEED_TRACKS)
 async def get_seed_tracks_db(limit: Optional[int] = 25):
     """Se cachea con versión v-2025-w43-FRI"""
     tracks = list_feed("seed_tracks", "track", limit or 25)
@@ -88,7 +88,7 @@ async def get_seed_tracks_db(limit: Optional[int] = 25):
 @router.get("/recommendations/me", summary="User recommendations (Bearer auth)")
 @cached(
     CacheType.USER_RECOMMENDATIONS,
-    ttl=3600,  # 1 hora
+    ttl=3600,
     key_builder=lambda request, **_: getattr(request.state, "user", {}).get("id", "")
 )
 async def get_user_recommendations_me(
@@ -154,7 +154,7 @@ async def get_user_recommendations_me(
 @cached(
     CacheType.USER_RECOMMENDATIONS,
     ttl=3600,
-    key_builder=lambda user_id, **_: user_id  # ✨ Cachea por user_id
+    key_builder=lambda user_id, **_: user_id
 )
 async def get_user_recommendations_db(
     user_id: str,
@@ -204,26 +204,3 @@ async def get_user_recommendations_db(
             "albums":  albums,
         },
     }
-
-
-# ============================================================================
-# EJEMPLO: Endpoint para invalidar caché manualmente (opcional)
-# ============================================================================
-
-@router.post("/cache/invalidate/{cache_type}", summary="Invalida caché manualmente")
-async def invalidate_cache(cache_type: str):
-    """
-    Endpoint de administración para invalidar caché manualmente.
-    Útil para testing o si necesitás forzar un refresh.
-    
-    Example: POST /feed/cache/invalidate/new-releases
-    """
-    try:
-        ct = CacheType(cache_type)
-        invalidate(ct)
-        return {"ok": True, "message": f"Caché {cache_type} invalidado"}
-    except ValueError:
-        return JSONResponse(
-            status_code=400,
-            content={"ok": False, "error": f"Tipo de caché inválido: {cache_type}"}
-        )
