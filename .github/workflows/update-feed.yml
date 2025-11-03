@@ -13,6 +13,9 @@ on:
 
     # Viernes 2am Argentina = 5am UTC
     - cron: '0 5 * * 5'  # seed_tracks
+    
+    # Lunes 4am Argentina = 7am UTC
+    - cron: '0 7 * * 1'  # recommendations
 
 jobs:
   update-most-played:
@@ -104,3 +107,31 @@ jobs:
       
       - name: Summary
         run: echo "Seed tracks updated - $(date)"
+
+  update-recommendations:
+    if: github.event.schedule == '0 7 * * 1' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install --no-deps -r requirements.txt
+      
+      - name: Update user recommendations
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FEED_CLIENT_ID: ${{ secrets.FEED_CLIENT_ID }}
+          FEED_CLIENT_SECRET: ${{ secrets.FEED_CLIENT_SECRET }}
+          PYTHONPATH: .
+        run: python scripts/store_user_recommendations.py --all-users
+      
+      - name: Summary
+        run: echo "User recommendations updated - $(date)"
