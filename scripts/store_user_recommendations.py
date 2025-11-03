@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from services.recommendations_seed_service import build_seed_recommendations
 from services.recommendations_repo import replace_user_recommendations
 from services.users_repo import get_all_user_ids
+from services.supabase_service import supabase_service as sb
 from utils.recommendation_utils import (
     calc_valid_until, id_any, thumbnails, artist_name, album_title
 )
@@ -17,6 +18,17 @@ def generate_weekly_bucket() -> str:
     year = now.year
     week = now.isocalendar()[1]
     return f"weekly_{year}w{week:02d}"
+
+def cleanup_old_buckets(user_id: str, keep_bucket: str):
+    """Borra todos los buckets del usuario EXCEPTO el actual"""
+    try:
+        sb.table("user_recommendations") \
+          .delete() \
+          .eq("user_id", user_id) \
+          .neq("bucket", keep_bucket) \
+          .execute()
+    except Exception as e:
+        print(f"  Warning: cleanup failed for {user_id} - {e}")
 
 def gather_until(
     user_id: str,
@@ -125,7 +137,6 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--source",       default="seed_recos_v1")
     args = p.parse_args(argv)
 
-    # Determinar usuarios
     if args.all_users:
         user_ids = get_all_user_ids()
     elif args.user_id:
@@ -134,13 +145,17 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("Error: specify --user-id or --all-users")
         return 1
 
-    # Bucket automático si no se especifica
     bucket = args.bucket or generate_weekly_bucket()
     valid_until = calc_valid_until(args.valid_days)
     
     print(f"Using bucket: {bucket}")
+    print(f"Cleaning old buckets...")
     
-    # Procesar cada usuario
+    for user_id in user_ids:
+        cleanup_old_buckets(user_id, bucket)
+    
+    print(f"Processing {len(user_ids)} users...")
+    
     for user_id in user_ids:
         try:
             artists, albums = gather_until(

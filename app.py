@@ -58,8 +58,8 @@ async def log_requests(request: Request, call_next):
     return response
 
 # También tu middleware supa_auth
-""" app.middleware("http")(supa_auth)
-print("🔐 Middleware supa_auth registrado") """
+app.middleware("http")(supa_auth)
+print("🔐 Middleware supa_auth registrado")
 
 # 🚨 Global exception handler
 logger = logging.getLogger("uvicorn.error")
