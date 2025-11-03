@@ -1,13 +1,22 @@
 # scripts/store_user_recommendations.py
 from __future__ import annotations
 import argparse
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from services.recommendations_seed_service import build_seed_recommendations
 from services.recommendations_repo import replace_user_recommendations
+from services.users_repo import get_all_user_ids
 from utils.recommendation_utils import (
     calc_valid_until, id_any, thumbnails, artist_name, album_title
 )
+
+def generate_weekly_bucket() -> str:
+    """Genera bucket automático: weekly_2025w44"""
+    now = datetime.now()
+    year = now.year
+    week = now.isocalendar()[1]
+    return f"weekly_{year}w{week:02d}"
 
 def gather_until(
     user_id: str,
@@ -104,8 +113,9 @@ def to_items_for_db(
 
 def main(argv: Optional[List[str]] = None) -> int:
     p = argparse.ArgumentParser(description="Persiste recomendaciones por usuario en public.user_recommendations")
-    p.add_argument("--user-id", required=True)
-    p.add_argument("--bucket", default="seed_recos_v1")
+    p.add_argument("--user-id")
+    p.add_argument("--all-users", action="store_true")
+    p.add_argument("--bucket")
     p.add_argument("--want-artists", type=int, default=10)
     p.add_argument("--want-albums",  type=int, default=10)
     p.add_argument("--per-seed",     type=int, default=5)
@@ -115,20 +125,39 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--source",       default="seed_recos_v1")
     args = p.parse_args(argv)
 
-    artists, albums = gather_until(
-        user_id=args.user_id,
-        want_artists=max(0, args.want_artists),
-        want_albums=max(0, args.want_albums),
-        per_seed=max(1, args.per_seed),
-        lookback=max(1, args.lookback),
-        start_per_type=2,
-        max_per_type=max(2, args.max_per_type),
-    )
-    valid_until = calc_valid_until(args.valid_days)
-    items = to_items_for_db(artists, albums, source=args.source, valid_until=valid_until)
+    # Determinar usuarios
+    if args.all_users:
+        user_ids = get_all_user_ids()
+    elif args.user_id:
+        user_ids = [args.user_id]
+    else:
+        print("Error: specify --user-id or --all-users")
+        return 1
 
-    res = replace_user_recommendations(user_id=args.user_id, bucket=args.bucket, items=items)
-    print({"ok": True, "inserted": res.get("inserted"), "deleted": res.get("deleted")})
+    # Bucket automático si no se especifica
+    bucket = args.bucket or generate_weekly_bucket()
+    valid_until = calc_valid_until(args.valid_days)
+    
+    print(f"Using bucket: {bucket}")
+    
+    # Procesar cada usuario
+    for user_id in user_ids:
+        try:
+            artists, albums = gather_until(
+                user_id=user_id,
+                want_artists=max(0, args.want_artists),
+                want_albums=max(0, args.want_albums),
+                per_seed=max(1, args.per_seed),
+                lookback=max(1, args.lookback),
+                start_per_type=2,
+                max_per_type=max(2, args.max_per_type),
+            )
+            items = to_items_for_db(artists, albums, source=args.source, valid_until=valid_until)
+            res = replace_user_recommendations(user_id=user_id, bucket=bucket, items=items)
+            print(f"{user_id}: {res.get('inserted')} inserted")
+        except Exception as e:
+            print(f"{user_id}: ERROR - {e}")
+
     return 0
 
 if __name__ == "__main__":
