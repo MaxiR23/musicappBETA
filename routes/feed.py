@@ -88,7 +88,6 @@ async def get_seed_tracks_db(limit: Optional[int] = 25):
 @router.get("/recommendations/me", summary="User recommendations (Bearer auth)")
 @cached(
     CacheType.USER_RECOMMENDATIONS,
-    ttl=3600,
     key_builder=lambda request, **_: getattr(request.state, "user", {}).get("id", "")
 )
 async def get_user_recommendations_me(
@@ -97,7 +96,8 @@ async def get_user_recommendations_me(
 ):
     """
     Recomendaciones del usuario autenticado.
-    Se cachea por user_id: user-recommendations:v-static:USER_123
+    Se cachea por user_id: user-recommendations:v-2025-w44-MON:USER_123
+    TTL: 7 días (se rompe cada lunes)
     """
     u = getattr(request.state, "user", None) or {}
     user_id = u.get("id")
@@ -153,7 +153,6 @@ async def get_user_recommendations_me(
 @router.get("/recommendations", summary="User recommendations (by user_id)")
 @cached(
     CacheType.USER_RECOMMENDATIONS,
-    ttl=3600,
     key_builder=lambda user_id, **_: user_id
 )
 async def get_user_recommendations_db(
@@ -162,7 +161,8 @@ async def get_user_recommendations_db(
 ):
     """
     Recomendaciones por user_id.
-    Se cachea por usuario: user-recommendations:v-static:abc123
+    Se cachea por usuario: user-recommendations:v-2025-w44-MON:abc123
+    TTL: 7 días (se rompe cada lunes)
     """
     rows = list_user_recommendations(
         user_id=user_id,

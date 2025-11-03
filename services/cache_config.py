@@ -39,6 +39,7 @@ class CacheSchedule(str, Enum):
     """Schedules de invalidación automática"""
     TWICE_WEEKLY = "twice-weekly"  # Se rompe Lun, Mié, Vie, Dom (sincronizado con cron de new_releases)
     DAILY = "daily"                # Se rompe cada día a las 00:00
+    MONDAY = "monday"              # Se rompe cada lunes
     FRIDAY = "friday"              # Se rompe cada viernes
     SUNDAY = "sunday"              # Se rompe cada domingo
     MANUAL = "manual"              # Solo se invalida manualmente
@@ -54,7 +55,7 @@ CACHE_SCHEDULE: Dict[CacheType, CacheSchedule] = {
     CacheType.SEED_TRACKS: CacheSchedule.FRIDAY,         # Viernes 2am
     CacheType.RECO_ALBUMS: CacheSchedule.SUNDAY,
     CacheType.SIMILAR_TO: CacheSchedule.SUNDAY,
-    CacheType.USER_RECOMMENDATIONS: CacheSchedule.MANUAL,
+    CacheType.USER_RECOMMENDATIONS: CacheSchedule.MONDAY,
     CacheType.USER_PLAYLISTS: CacheSchedule.MANUAL,
     
     # Music
@@ -81,7 +82,7 @@ DEFAULT_TTL: Dict[CacheType, int] = {
     CacheType.SEED_TRACKS: 604800,          # 7 días
     CacheType.RECO_ALBUMS: 604800,          # 7 días
     CacheType.SIMILAR_TO: 604800,           # 7 días
-    CacheType.USER_RECOMMENDATIONS: 3600,   # 1 hora
+    CacheType.USER_RECOMMENDATIONS: 604800, # 7 días
     CacheType.USER_PLAYLISTS: 3600,
 
     CacheType.ARTIST: 86400,     # 24 horas
@@ -165,6 +166,7 @@ def get_version(cache_type: CacheType) -> str:
     La versión cambia automáticamente cuando se debe invalidar el caché:
     - TWICE_WEEKLY: v-2025-w44-LUN/MIE/VIE/DOM (cambia lun, mié, vie, dom)
     - DAILY: v-20251025 (cambia cada día)
+    - MONDAY: v-2025-w43-MON (cambia cada lunes)
     - FRIDAY: v-2025-w43-FRI (cambia cada viernes)
     - SUNDAY: v-2025-w43-SUN (cambia cada domingo)
     - MANUAL: v-static (nunca cambia automáticamente)
@@ -209,6 +211,11 @@ def get_version(cache_type: CacheType) -> str:
                 dow_key = dow
         
         return f"v-{year}-w{week:02d}-{day_names[dow_key]}"
+    
+    elif schedule == CacheSchedule.MONDAY:
+        # v-2025-w43-MON
+        year, week, _ = now.isocalendar()
+        return f"v-{year}-w{week:02d}-MON"
     
     elif schedule == CacheSchedule.FRIDAY:
         # v-2025-w43-FRI (año-semana-día)
