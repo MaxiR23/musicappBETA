@@ -47,16 +47,16 @@ def process_playlist(
     Returns:
         Lista de tracks mapeados (versión ATV limpia)
     """
-    print(f"   🎵 Extrayendo '{playlist_title}'...")
+    print(f"Extrayendo '{playlist_title}'...")
     
     # 1. Extraer pares (artist, title) de la playlist
     try:
         pairs = MusicLookup.get_seed_pairs(playlist_id=playlist_id, limit=limit)
     except Exception as e:
-        print(f"   ❌ Error extrayendo playlist: {e}")
+        print(f"Error extrayendo playlist: {e}")
         return []
     
-    print(f"   📋 {len(pairs)} tracks encontrados en playlist")
+    print(f"{len(pairs)} tracks encontrados en playlist")
     
     if not pairs:
         return []
@@ -81,17 +81,17 @@ def process_playlist(
                 seen_ids.add(track_id)
                 
                 if i % 10 == 0:
-                    print(f"   ⏳ Mapeados {len(mapped_tracks)}/{len(pairs)} tracks...")
+                    print(f"Mapeados {len(mapped_tracks)}/{len(pairs)} tracks...")
             
         except Exception as e:
-            print(f"   ⚠️ Error mapeando '{artist} - {title}': {e}")
+            print(f"Error mapeando '{artist} - {title}': {e}")
             continue
         
         # Micro pausa cada 3 tracks
         if micro_pause and i % 3 == 0:
             time.sleep(micro_pause)
     
-    print(f"   ✅ {len(mapped_tracks)} tracks mapeados correctamente")
+    print(f"{len(mapped_tracks)} tracks mapeados correctamente")
     return mapped_tracks
 
 
@@ -116,7 +116,7 @@ def populate_genre_entry(
     
     category_str = f" [{category}]" if category else ""
     print(f"\n{'=' * 70}")
-    print(f"🎸 GÉNERO: {genre_name}{category_str}")
+    print(f"Género: {genre_name}{category_str}")
     print(f"{'=' * 70}")
     
     # 1. Upsert género
@@ -126,9 +126,9 @@ def populate_genre_entry(
             slug=genre_slug,
             sort_order=sort_order,
         )
-        print(f"✅ Género '{genre_name}' → {genre_id}")
+        print(f"Género '{genre_name}' → {genre_id}")
     except Exception as e:
-        print(f"❌ Error insertando género: {e}")
+        print(f"Error insertando género: {e}")
         return
     
     # 2. Procesar cada playlist
@@ -139,7 +139,7 @@ def populate_genre_entry(
         playlist_id = playlist_data.get("id")
         
         print(f"\n📀 [{idx}/{total_playlists}] {playlist_title}")
-        print(f"   ID: {playlist_id}")
+        print(f"ID: {playlist_id}")
         
         # 2.1 Extraer y mapear tracks
         tracks = process_playlist(
@@ -149,7 +149,7 @@ def populate_genre_entry(
         )
         
         if not tracks:
-            print(f"   ⚠️ No se obtuvieron tracks, saltando...")
+            print(f"No se obtuvieron tracks, saltando...")
             continue
         
         # 2.2 Upsert playlist en DB
@@ -160,22 +160,22 @@ def populate_genre_entry(
                 category=category,
                 sort_order=idx,
             )
-            print(f"   💾 Playlist creada/actualizada → {db_playlist_id}")
+            print(f"Playlist creada/actualizada → {db_playlist_id}")
         except Exception as e:
-            print(f"   ❌ Error creando playlist en DB: {e}")
+            print(f"Error creando playlist en DB: {e}")
             continue
         
         # 2.3 Insertar tracks en DB
         try:
             inserted = insert_genre_playlist_tracks(db_playlist_id, tracks)
-            print(f"   ✅ {inserted} tracks insertados en DB")
+            print(f"{inserted} tracks insertados en DB")
         except Exception as e:
-            print(f"   ❌ Error insertando tracks: {e}")
+            print(f"Error insertando tracks: {e}")
             continue
         
         # 2.4 Rate limiting: esperar entre playlists
         if idx < total_playlists:
-            print(f"   ⏸️  Esperando {wait_between_playlists}s antes de la próxima playlist...")
+            print(f"Esperando {wait_between_playlists}s antes de la próxima playlist...")
             time.sleep(wait_between_playlists)
 
 
@@ -208,13 +208,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
     
     print("=" * 70)
-    print("🎵 POPULATE GENRE PLAYLISTS")
+    print("POPULATE GENRE PLAYLISTS")
     print("=" * 70)
-    print(f"📊 Config:")
-    print(f"   - Limit por playlist: {args.limit} tracks")
-    print(f"   - Wait entre playlists: {args.wait}s")
+    print(f"Config:")
+    print(f" - Limit por playlist: {args.limit} tracks")
+    print(f" - Wait entre playlists: {args.wait}s")
     if args.genre:
-        print(f"   - Filtro género: {args.genre}")
+        print(f" - Filtro género: {args.genre}")
     print()
     
     # Filtrar entries si se especificó un género
@@ -227,10 +227,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         ]
         
         if not entries_to_process:
-            print(f"❌ No se encontró el género '{args.genre}'")
+            print(f"No se encontró el género '{args.genre}'")
             return 1
     
-    print(f"📋 Total de entradas a procesar: {len(entries_to_process)}")
+    print(f"Total de entradas a procesar: {len(entries_to_process)}")
     
     # Procesar cada entrada
     for entry in entries_to_process:
@@ -241,18 +241,17 @@ def main(argv: Optional[List[str]] = None) -> int:
                 wait_between_playlists=args.wait,
             )
         except KeyboardInterrupt:
-            print("\n\n⚠️ Interrupción por usuario. Saliendo...")
+            print("\n\n Interrupción por usuario. Saliendo...")
             return 130
         except Exception as e:
-            print(f"\n❌ Error procesando entrada: {e}")
+            print(f"\n Error procesando entrada: {e}")
             continue
     
     print("\n" + "=" * 70)
-    print("✅ PROCESO COMPLETADO")
+    print("PROCESO COMPLETADO")
     print("=" * 70)
     
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

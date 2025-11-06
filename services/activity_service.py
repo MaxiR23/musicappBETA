@@ -7,14 +7,12 @@ from services.supabase_service import db_as_user
 from services.jwt_utils import decode_jwt
 
 # --- enums simples para validar (evita typos) ---
-EVENT_TYPES = {"search", "play", "like", "unlike"}
-ENTITY_TYPES = {"query", "track", "album", "artist", "playlist"}
-
+EVENT_TYPES = {"play", "like", "unlike"}
+ENTITY_TYPES = {"track", "album", "artist", "playlist"}
 
 def _utc_now_iso() -> str:
     # ISO con timezone Z, compatible con timestamptz
     return datetime.now(timezone.utc).isoformat()
-
 
 def _get_user_id_from_request(request) -> Optional[str]:
     """
@@ -80,7 +78,7 @@ def _upsert_album_artist_play(
         # Busco 1 existente para esa combinación
         sel = (
             db.table("user_activity")
-            .select("id, occurred_at")
+            .select("id, occurred_at, play_count")
             .eq("user_id", user_id)
             .eq("event_type", "play")
             .eq("entity_type", entity_type)
@@ -97,7 +95,10 @@ def _upsert_album_artist_play(
             print(f"[activity][UPSERT] encontrado id={row_id} → UPDATE occurred_at={new_time}")
 
             # Si querés refrescar contexto/metadatos, lo hacemos acá (no pisamos si vienen None)
-            update_payload: Dict[str, Any] = {"occurred_at": new_time}
+            update_payload: Dict[str, Any] = {
+                "occurred_at": new_time,
+                "play_count": existing[0].get("play_count", 1) + 1
+            }
             if context_type is not None:
                 update_payload["context_type"] = context_type
             if context_id is not None:
@@ -176,7 +177,7 @@ def _upsert_like_unlike(
         print(f"[activity][UPSERT-LIKE] lookup → user={user_id} {event_type} {entity_type}={entity_id}")
         sel = (
             db.table("user_activity")
-            .select("id, occurred_at")
+            .select("id, occurred_at, play_count")
             .eq("user_id", user_id)
             .eq("event_type", event_type)        # like o unlike
             .eq("entity_type", entity_type)
@@ -295,7 +296,7 @@ def log_activity(
         return {"ok": False, "error": f"invalid_entity_type '{entity_type}'"}
 
     # Nueva rama: plays de álbum/artista → no duplicar filas, refrescar timestamp.
-    if event_type == "play" and entity_type in {"album", "artist"}:
+    if event_type == "play" and entity_type in {"album", "artist", "track"}:
         return _upsert_album_artist_play(
             db,
             user_id=user_id,

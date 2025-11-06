@@ -1,0 +1,35 @@
+name: Purge Old Data
+
+on:
+  workflow_dispatch:  # Permite ejecución manual
+  
+  schedule:
+    # Cada domingo a las 4:00 AM Argentina = Lunes 7:00 UTC
+    # (Después de la agregación semanal)
+    - cron: '0 7 * * 1'
+
+jobs:
+  purge-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install --no-deps -r requirements.txt
+      
+      - name: Run purge
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PYTHONPATH: .
+        run: python scripts/purge_old_data.py
+      
+      - name: Summary
+        run: echo "Old data purged - $(date)"

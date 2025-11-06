@@ -13,6 +13,8 @@ PUBLIC_PREFIXES = (
     "/debug",
     "/test",
     "/api/music",
+    "/api/genres",
+    "/api/playlists1"
 )
 
 PUBLIC_ROUTES = {

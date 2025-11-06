@@ -1184,6 +1184,22 @@ def log_play_artist(request: Request, artist_id: str = Path(...), body: dict | N
     except Exception: pass
     return {"ok": True}
 
+@router.post("/plays/tracks/{track_id}")
+def log_play_track(request: Request, track_id: str = Path(...), body: dict | None = Body(None)):
+    b = body or {}
+    meta = {}
+    if b.get("source"): meta["source"] = b["source"]
+    dn = b.get("display_name") or b.get("name") or b.get("title")
+    th = b.get("thumbnail_url") or b.get("thumbnail")
+    if dn: meta["display_name"] = dn
+    if th: meta["thumbnail_url"] = th
+
+    try_log_activity_from_request(request, event_type="play", entity_type="track", entity_id=track_id,
+                                  context_type="track", context_id=track_id, metadata=meta or None)
+    try: _bump_recent_version(_user_cache_key_from_request(request))
+    except Exception: pass
+    return {"ok": True}
+
 @router.post("/likes/tracks/{track_id}")
 def like_track(request: Request, track_id: str = Path(...), body: dict | None = Body(None)):
     source = (body or {}).get("source")
