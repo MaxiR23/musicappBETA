@@ -102,6 +102,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FEED_CLIENT_ID: ${{ secrets.FEED_CLIENT_ID }}
           FEED_CLIENT_SECRET: ${{ secrets.FEED_CLIENT_SECRET }}
+          FEED_MUSIC_RELEASE_PLAYLIST_ID: ${{ secrets.FEED_MUSIC_RELEASE_PLAYLIST_ID }}
           PYTHONPATH: .
         run: python scripts/store_feed_data.py --only-seed-tracks --limit 25
       
