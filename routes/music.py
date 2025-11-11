@@ -799,11 +799,20 @@ def _artist_payload(artist_id: str):
     # 4) Upcoming events
     upcoming_events = []
     try:
-        if name and name.strip():
+        # (a) Intentar cache global por artist_id primero
+        if artist_id in _ARTIST_CACHE:
+            cached_payload = _ARTIST_CACHE[artist_id].get("payload", {})
+            cached_evs = cached_payload.get("upcomingEvents") or []
+            if cached_evs:
+                upcoming_events = cached_evs[:10]
+        
+        # (b) Si no, buscar por nombre
+        if not upcoming_events and name and name.strip():
             ev_cached = get_cached(CacheType.EVENTS, suffix=name.lower())
             if isinstance(ev_cached, dict):
                 upcoming_events = (ev_cached.get("events") or [])[:10]
             else:
+                # Agendar refresh async
                 _schedule_events_refresh_by_name(name.strip())
     except Exception as _e:
         print(f"[artist][events][WARN] {name}: {_e}")
@@ -862,7 +871,18 @@ def get_artist_q(id: str = Query(...)):
     if not cached:
         cached = _artist_payload(id)
     
-    # 2) Agregar upcoming_album con caché separado inteligente
+    # 2) ENRIQUECER upcomingEvents si está vacío (post-cache)
+    if not cached.get("upcomingEvents"):
+        try:
+            artist_name = cached.get("header", {}).get("name")
+            if artist_name and artist_name.strip():
+                ev_cached = get_cached(CacheType.EVENTS, suffix=artist_name.lower())
+                if isinstance(ev_cached, dict) and ev_cached.get("events"):
+                    cached["upcomingEvents"] = (ev_cached.get("events") or [])[:10]
+        except Exception as _e:
+            print(f"[artist][events_enrich][ERR] {id}: {_e}")
+    
+    # 3) Agregar upcoming_album con caché separado inteligente
     try:
         cached["upcoming_album"] = get_upcoming_by_artist_id_cached(id)
     except Exception as _e:
@@ -878,7 +898,18 @@ def get_artist_p(id: str = Path(...)):
     if not cached:
         cached = _artist_payload(id)
     
-    # 2) Agregar upcoming_album con caché separado inteligente
+    # 2) ENRIQUECER upcomingEvents si está vacío (post-cache)
+    if not cached.get("upcomingEvents"):
+        try:
+            artist_name = cached.get("header", {}).get("name")
+            if artist_name and artist_name.strip():
+                ev_cached = get_cached(CacheType.EVENTS, suffix=artist_name.lower())
+                if isinstance(ev_cached, dict) and ev_cached.get("events"):
+                    cached["upcomingEvents"] = (ev_cached.get("events") or [])[:10]
+        except Exception as _e:
+            print(f"[artist][events_enrich][ERR] {id}: {_e}")
+    
+    # 3) Agregar upcoming_album con caché separado inteligente
     try:
         cached["upcoming_album"] = get_upcoming_by_artist_id_cached(id)
     except Exception as _e:

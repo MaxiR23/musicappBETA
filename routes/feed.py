@@ -42,7 +42,7 @@ async def get_new_releases_db(limit: Optional[int] = 25):
 
 
 @router.get("/db/new-singles", summary="Feed (DB) singles nuevos")
-@cached(CacheType.NEW_RELEASES, ttl=43200)
+@cached(CacheType.NEW_SINGLES, ttl=43200)
 async def get_new_singles_db(limit: Optional[int] = 25):
     tracks = list_feed("new_singles", "track", limit or 25)
     return {"ok": True, "tracks": tracks}

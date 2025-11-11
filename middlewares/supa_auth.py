@@ -6,21 +6,14 @@ from services.supabase_service import supabase_anon
 from services.jwt_utils import decode_jwt
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
-# Prefijos/rutas públicas
-PUBLIC_PREFIXES = (
-    "/debug",
-    "/test",
-    "/api/music",
-    "/api/genres",
-    "/api/playlists1"
-)
-
-PUBLIC_ROUTES = {
+# Rutas publicas SOLO en PRODUCTION (solo cache)
+PRODUCTION_PUBLIC_ROUTES = {
     ("GET", "/api"),
     ("GET", "/api/feed/cache/versions"),
     ("GET", "/api/cache/versions"),
+    ("GET", "/api/music/play"), # TODO: temporal, remover de aqui.
 }
 
 def _is_public(request: Request) -> bool:
@@ -29,20 +22,21 @@ def _is_public(request: Request) -> bool:
     
     path = request.url.path
     
-    if any(path.startswith(p) for p in PUBLIC_PREFIXES):
+    if ENVIRONMENT == "development":
         return True
-    if (request.method, path) in PUBLIC_ROUTES:
+    
+    if (request.method, path) in PRODUCTION_PUBLIC_ROUTES:
         return True
     
     return False
 
 async def supa_auth(request: Request, call_next):
-    # En development, setear user fake si no hay token
-    if ENVIRONMENT == "development" and _is_public(request):
-        if not request.headers.get("Authorization"):
-            request.state.user = {"id": "dev-user-id", "email": "dev@test.com"}
-            request.state.jwt = "dev-token"
-            return await call_next(request)
+    # En DEVELOPMENT, SIEMPRE usar usuario fake (ignorar tokens completamente)
+    if ENVIRONMENT == "development":
+        request.state.user = {"id": "dev-user-id", "email": "dev@test.com"}
+        request.state.jwt = "dev-token"
+        print(f"[DEV] User fake: {request.method} {request.url.path}")
+        return await call_next(request)
     
     if _is_public(request):
         return await call_next(request)
@@ -64,6 +58,8 @@ async def supa_auth(request: Request, call_next):
         resp = supabase_anon.auth.get_user(token)
         user_obj = getattr(resp, "user", None)
     except Exception as e:
+        if ENVIRONMENT == "production":
+            return JSONResponse(status_code=401, content={"error": "invalid token"})
         return JSONResponse(status_code=401, content={"error": "invalid token", "detail": str(e)})
 
     if not user_obj:

@@ -47,19 +47,19 @@ app = FastAPI(
 add_cors_middleware(app)
 
 # Middleware de auth siempre activo (para debug)
-ENV = os.getenv("NODE_ENV", "development")
+ENV = os.getenv("ENVIRONMENT", "development")
 print(f"🚀 Iniciando FastAPI con ENV={ENV}")
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    print(f"➡️ Request recibido: {request.method} {request.url}")
+    print(f"Request recibido: {request.method} {request.url}")
     response = await call_next(request)
-    print(f"⬅️ Response enviado: {response.status_code} {request.url}")
+    print(f"Response enviado: {response.status_code} {request.url}")
     return response
 
 # También tu middleware supa_auth
 app.middleware("http")(supa_auth)
-print("🔐 Middleware supa_auth registrado")
+print("Middleware supa_auth registrado")
 
 # 🚨 Global exception handler
 logger = logging.getLogger("uvicorn.error")
