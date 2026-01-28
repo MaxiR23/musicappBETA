@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Script combinado: Scrapea álbumes de Wikipedia 2025 + busca covers en iTunes
-EJECUTAR EN TU MÁQUINA LOCAL, NO EN CLAUDE
 
 Dependencias:
 pip install requests beautifulsoup4 httpx ytmusicapi
@@ -151,7 +150,7 @@ def parse_tba_albums(table):
     return albums
 
 def scrape_wikipedia_albums():
-    """Scrapea todos los álbumes de Wikipedia 2025"""
+    """Scrapea todos los álbumes de Wikipedia segun el año que estamos"""
     print("🎵 Scrapeando Wikipedia...")
     
     url = "https://en.wikipedia.org/wiki/List_of_2026_albums"
