@@ -4,6 +4,7 @@ import argparse
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+from services.cache_config import set_manual_version, CacheType
 from services.recommendations_seed_service import build_seed_recommendations
 from services.recommendations_repo import replace_user_recommendations
 from services.users_repo import get_all_user_ids
@@ -172,6 +173,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(f"{user_id}: {res.get('inserted')} inserted")
         except Exception as e:
             print(f"{user_id}: ERROR - {e}")
+
+    set_manual_version(CacheType.USER_RECOMMENDATIONS)
+    print("[recommendations] cache invalidado: USER_RECOMMENDATIONS")        
 
     return 0
 
