@@ -241,11 +241,8 @@ _norm_re_noise = re.compile(r"\b(official\s*video|video\s*oficial|video\s*clip|l
 
 # ---------- Extracción ----------
 def pick_best_audio(info: dict):
-    """
-    Versión RÁPIDA: early-exit apenas encontramos formato aceptable.
-    No analizamos TODOS los formatos, solo hasta encontrar uno bueno.
-    """
-    video_id = info.get("id", "unknown")  # ← AGREGÁ ESTO
+    """Busca formatos de alta calidad en orden de preferencia"""
+    video_id = info.get("id", "unknown")
     
     fmts = info.get("formats") or []
     audios = [
@@ -255,81 +252,37 @@ def pick_best_audio(info: dict):
         and f.get("url")
     ]
     
+    # LOGGING TEMPORAL: ver todos los formatos
+    """ print(f"\n[pick_audio] {video_id}: Formatos disponibles:")
+    for f in audios:
+        itag = f.get("format_id")
+        ext = f.get("ext")
+        codec = f.get("acodec")
+        kbps = f.get("abr") or f.get("tbr") or "?"
+        print(f"  - itag={itag:5} {ext:5} {codec:20} {kbps}kbps")
+    print() """
+
     if not audios:
-        u = info.get("url")
-        print(f"[pick_audio] {video_id}: ❌ no_audio_formats")  # ← AGREGÁ
-        return (u if (u and isinstance(u, str) and u.startswith("http")) else None,
-                None, {"reason": "no_audio_formats"})
+        return (info.get("url"), None, {"reason": "no_audio_formats"})
 
-    # Helper: inferir kbps del formato
-    def infer_kbps(f):
-        v = f.get("abr") or f.get("tbr")
-        if v is not None:
-            try:
-                return float(v)
-            except:
-                pass
-        
-        itag = str(f.get("format_id") or "")
-        ITAG_KBPS = {
-            "139": 48, "140": 128, "141": 256,
-            "249": 50, "250": 70, "251": 160,
-        }
-        return ITAG_KBPS.get(itag, 0.0)
-
-    # ✅ android_vr: prioridad absoluta → OPUS itag 251
-    for f in audios:
-        itag = str(f.get("format_id") or "")
-        ac   = (f.get("acodec") or "").lower()
-        if itag == "251" and "opus" in ac and f.get("url"):
-            print(f"[pick_audio] {video_id}: ✅ itag_251_opus ({infer_kbps(f)}kbps)")  # ← AGREGÁ
-            return f.get("url"), f, {
-                "reason": "itag_251_opus",
-                "ext": f.get("ext"),
-                "kbps": infer_kbps(f),
-            }
-
-    # Helper: ¿es suficientemente bueno?
-    def is_good_enough(f):
-        ext = (f.get("ext") or "").lower()
-        ac = (f.get("acodec") or "").lower()
-        kbps = infer_kbps(f)
-        
-        if ("mp4a" in ac or ext == "m4a") and kbps >= 128:
-            return True
-        if ("opus" in ac) and kbps >= 160:
-            return True
-        
-        return False
-
-    # ⚡ EARLY EXIT
-    for f in audios:
-        if is_good_enough(f):
-            itag = f.get("format_id")
-            ext = f.get("ext")
-            kbps = infer_kbps(f)
-            print(f"[pick_audio] {video_id}: ✅ early_exit itag={itag} {ext} {kbps}kbps")  # ← AGREGÁ
-            return f.get("url"), f, {
-                "reason": "early_exit",
-                "ext": ext,
-                "kbps": kbps,
-            }
-
-    # Fallback
-    best = max(audios, key=lambda f: (
-        3 if ("mp4a" in (f.get("acodec") or "").lower() or f.get("ext") == "m4a") else 1,
-        infer_kbps(f)
-    ))
+    # ORDEN DE PREFERENCIA (mejor a peor)
+    PRIORITY = ["141", "251", "140", "250", "249", "139"]
     
-    itag = best.get("format_id")
-    ext = best.get("ext")
-    kbps = infer_kbps(best)
-    print(f"[pick_audio] {video_id}: ⚠️ fallback_best itag={itag} {ext} {kbps}kbps")  # ← AGREGÁ
+    for preferred_itag in PRIORITY:
+        for f in audios:
+            if str(f.get("format_id")) == preferred_itag:
+                kbps = f.get("abr") or f.get("tbr") or 0
+                print(f"[pick_audio] {video_id}: itag={preferred_itag} "
+                      f"{f.get('ext')} {kbps}kbps")
+                return f.get("url"), f, {
+                    "reason": f"itag_{preferred_itag}",
+                    "kbps": kbps
+                }
     
-    return best.get("url"), best, {
-        "reason": "fallback_best",
-        "kbps": kbps
-    }
+    # Fallback: el de mayor bitrate
+    best = max(audios, key=lambda f: f.get("abr") or f.get("tbr") or 0)
+    print(f"[pick_audio] {video_id}: fallback itag={best.get('format_id')}")
+    return best.get("url"), best, {"reason": "fallback"}
 
 def _extract_best_url(video_id: str):
     timings = {}
@@ -376,7 +329,10 @@ def _get_or_extract(video_id: str, _force: bool = False):
         ent = _cache.get(video_id)
         if ent and ent.get("direct_url"):
             age = now - ent["ts"]
-            if age < 600:
+            ttl = ent.get("ttl", 1800)  # TTL dinámico
+            if age < ttl:
+                ##DBG: verificar url.
+                print(f"[get_or_extract] {video_id}: CACHE HIT (age={int(age)}s, ttl={ttl}s)")
                 return ent
 
     # 2) Extracción directa SIN buscar versiones ATV alternativasif ent and ent.get("direct_url"):
