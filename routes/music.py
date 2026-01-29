@@ -204,9 +204,9 @@ def _ydl_global() -> yt_dlp.YoutubeDL:
                 _YDL_GLOBAL = _ydl_for("android_vr")
                 _YDL_GLOBAL._request_count = 0
     
-    # Recrear cada 1000 requests (sin lock en lectura)
+    # Recrear cada 3000 requests (sin lock en lectura)
     count = getattr(_YDL_GLOBAL, '_request_count', 0)
-    if count > 1000:
+    if count > 3000:
         with _YDL_LOCK:
             # Re-check por si otro thread ya recreó
             if getattr(_YDL_GLOBAL, '_request_count', 0) > 1000:
