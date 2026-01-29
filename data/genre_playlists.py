@@ -263,7 +263,7 @@ GENRE_PLAYLISTS = [
         "playlists": [
             {"title": "Hot Reggaeton", "id": "RDCLAK5uy_kV0Nh-OIcnh8LppyiFE4lhhWZEvaPQEOY"},
             {"title": "Reggaeton Essential Hits", "id": "RDCLAK5uy_mFaoBNPmTUVcY51UGFuAYedXv4kXuqg5M"},
-            {"title": "Urbano 2025", "id": "RDCLAK5uy_mB1zoU6QkDs2Ls369_DU8_JbHCp3Wdd90"},
+            {"title": "Urbano 2026", "id": "RDCLAK5uy_mB1zoU6QkDs2Ls369_DU8_JbHCp3Wdd90"},
             {"title": "Old-School Reggaeton", "id": "RDCLAK5uy_lk7bC42AIcIBpSBiioTBrFdJeDNLSGCyE"},
         ]
     },
