@@ -1696,3 +1696,66 @@ def get_track_upnext(track_id: str = Path(...)):
             status_code=500,
             content={"ok": False, "error": "upnext_failed", "detail": f"{type(e).__name__}: {e}"}
         )
+
+# ==================== USER MONTHLY STATS ====================
+# TEST {
+@router.get("/me/monthly-stats")
+def get_user_monthly_stats(request: Request, month: str | None = Query(None)):
+    """
+    Devuelve las estadísticas mensuales del usuario autenticado.
+    Si no se especifica mes, trae el mes pasado por defecto.
+    """
+    try:
+        # Auth
+        jwt = (request.headers.get("Authorization") or "").replace("Bearer ", "").strip()
+        if not jwt:
+            return JSONResponse(status_code=401, content={"ok": False, "error": "unauthorized"})
+
+        db = db_as_user(jwt)
+
+        # Si no viene mes, usar el mes pasado
+        if not month:
+            from datetime import datetime, timedelta
+            today = datetime.now()
+            first_of_this_month = today.replace(day=1)
+            last_month = first_of_this_month - timedelta(days=1)
+            month = last_month.replace(day=1).strftime('%Y-%m-%d')
+
+        # Query
+        response = db.table('user_monthly_stats') \
+            .select('*') \
+            .eq('month', month) \
+            .execute()
+
+        data = response.data or []
+
+        # Organizar por tipo
+        stats_by_type = {
+            'artist': None,
+            'album': None,
+            'track': None
+        }
+
+        for row in data:
+            entity_type = row.get('entity_type')
+            if entity_type in stats_by_type:
+                stats_by_type[entity_type] = {
+                    'month': row.get('month'),
+                    'count': len(row.get('stats', [])),
+                    'stats': row.get('stats', [])
+                }
+
+        return {
+            "ok": True,
+            "month": month,
+            "data": stats_by_type
+        }
+
+    except Exception as e:
+        print(f"[monthly-stats][ERROR] {e}")
+        return JSONResponse(status_code=500, content={
+            "ok": False,
+            "error": "monthly_stats_failed",
+            "detail": str(e)
+        })
+# TEST }
