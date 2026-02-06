@@ -773,13 +773,29 @@ def _artist_payload(artist_id: str):
     except Exception as _e:
         print(f"[artist][events][WARN] {name}: {_e}")
 
-    # 5) Albums - parsers manuales + hasMore desde ytmusicapi
-    albums_filtered = (parse_albums(contents[1]) if len(contents) > 1 else [])[:10]
+    # 5) Albums - detectar sección por título
+    albums_sec = None
+    singles_sec = None
+
+    for sec in contents:
+        shelf = sec.get("musicCarouselShelfRenderer")
+        if not shelf:
+            continue
+        title_runs = (shelf.get("header", {}).get("musicCarouselShelfBasicHeaderRenderer", {})
+                      .get("title", {}).get("runs", []))
+        title = (title_runs[0].get("text", "") if title_runs else "").lower()
+
+        if "album" in title and "single" not in title:  # solo "Albums"
+            albums_sec = sec
+        elif "single" in title or "ep" in title:  # "Singles & EPs"
+            singles_sec = sec
+
+    albums_filtered = (parse_albums(albums_sec) if albums_sec else [])[:10]
     albums_section = artist_data.get("albums", {})
     has_more_albums = albums_section.get("browseId") is not None and len(albums_section.get("results", [])) >= 10
 
-    # 6) Singles - parsers manuales + hasMore desde ytmusicapi
-    singles_filtered = (parse_singles_eps(contents[2]) if len(contents) > 2 else [])[:10]
+    # 6) Singles
+    singles_filtered = (parse_singles_eps(singles_sec) if singles_sec else [])[:10]
     singles_section = artist_data.get("singles", {})
     has_more_singles = singles_section.get("browseId") is not None and len(singles_section.get("results", [])) >= 10
 
@@ -818,6 +834,13 @@ def _artist_payload(artist_id: str):
     except Exception as _e:
         print(f"[artist][warm][WARN] {_e}")
 
+    if not payload.get("albums"):
+        payload.pop("albums", None)
+    if not payload.get("singles_eps"):
+        payload.pop("singles_eps", None)
+    if not payload.get("topSongs"):
+        payload.pop("topSongs", None)
+            
     return payload
 
 @router.get("/artist")
