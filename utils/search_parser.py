@@ -1,6 +1,61 @@
 # utils/search_parser.py
 import re
 
+# ---------- CACHE para enriquecimiento de datos ----------
+_ALBUM_NAME_CACHE = {}
+_DURATION_CACHE = {}
+
+def _get_album_name_fast(yt_innertube, album_id: str) -> str | None:
+    """Extrae SOLO el nombre del álbum sin parsear tracks (usa InnerTube)"""
+    if album_id in _ALBUM_NAME_CACHE:
+        return _ALBUM_NAME_CACHE[album_id]
+    
+    try:
+        response = yt_innertube.browse(album_id)
+        title = _dig(response, [
+            "contents", "twoColumnBrowseResultsRenderer", "tabs", 0, 
+            "tabRenderer", "content", "sectionListRenderer", "contents", 0,
+            "musicResponsiveHeaderRenderer", "title", "runs", 0, "text"
+        ])
+        _ALBUM_NAME_CACHE[album_id] = title
+        return title
+    except:
+        return None
+
+def _get_duration_fast(yt_api, video_id: str) -> str | None:
+    """Extrae SOLO la duración de una canción por videoId (usa ytmusicapi)"""
+    if video_id in _DURATION_CACHE:
+        return _DURATION_CACHE[video_id]
+    
+    try:
+        song_info = yt_api.get_song(video_id)
+        duration_seconds = song_info.get("videoDetails", {}).get("lengthSeconds")
+        
+        if duration_seconds:
+            duration_seconds = int(duration_seconds)
+            minutes = duration_seconds // 60
+            seconds = duration_seconds % 60
+            duration_str = f"{minutes}:{seconds:02d}"
+            _DURATION_CACHE[video_id] = duration_str
+            return duration_str
+    except:
+        pass
+    
+    return None
+
+def _enrich_songs_with_metadata(yt_innertube, yt_api, songs: list[dict]):
+    """Enriquece canciones con albumName y duration si no las tienen"""
+    for song in songs:
+        # Album name (usa InnerTube)
+        album_id = song.get("goTo", {}).get("albumId")
+        if album_id and not song.get("albumName"):
+            song["albumName"] = _get_album_name_fast(yt_innertube, album_id)
+        
+        # Duration (usa ytmusicapi)
+        video_id = song.get("videoId")
+        if video_id and not song.get("duration"):
+            song["duration"] = _get_duration_fast(yt_api, video_id)
+
 # ---------- helpers básicos ----------
 def _dig(cur, path, default=None):
     for k in path:
@@ -205,7 +260,7 @@ def parse_artist_card_info(resp: dict) -> dict | None:
     }
 
 # ---------- ARTIST CARD → SONGS (sin duración) ----------
-def parse_artist_card_songs(resp: dict, strict_atv: bool = True, limit: int | None = None) -> list[dict]:
+def parse_artist_card_songs(resp: dict, strict_atv: bool = True, limit: int | None = None, yt_innertube=None, yt_api=None, enrich_metadata: bool = False) -> list[dict]:
     out = []
     tab = _get_selected_tab(resp)
     if not tab: return out
@@ -238,11 +293,57 @@ def parse_artist_card_songs(resp: dict, strict_atv: bool = True, limit: int | No
             "artists": s.get("artists", []),
             "thumbnails": s.get("thumbnails", []),
             "musicVideoType": s.get("musicVideoType"),
-            # sin duration en artist card
             "goTo": {"albumId": links["albumId"], "artistId": links["artistId"]},
         })
         if limit is not None and len(out) >= limit: break
+    
+    if enrich_metadata and yt_innertube and yt_api:
+        _enrich_songs_with_metadata(yt_innertube, yt_api, out)
+    
     return out
+
+def parse_search_albums_and_songs(resp: dict, song_limit: int | None = None, album_limit: int | None = None, yt_innertube=None, yt_api=None, enrich_metadata: bool = False) -> dict:
+    songs, albums = [], []
+    tab = _get_selected_tab(resp)
+    if not tab: return {"songs": songs, "albums": albums}
+    sections = _dig(tab, ["content","sectionListRenderer","contents"], []) or []
+    for sec in sections:
+        shelf = sec.get("musicShelfRenderer")
+        if not shelf: continue
+        for it in shelf.get("contents", []) or []:
+            mrlir = it.get("musicResponsiveListItemRenderer")
+            if not mrlir: continue
+
+            if _is_album_row(mrlir):
+                album = _extract_album_item_from_search(mrlir)
+                if album.get("albumId") or album.get("playlistId"):
+                    albums.append(album)
+                continue
+
+            if _is_atv_song_row(mrlir):
+                links = _extract_menu_navs(mrlir)
+                s = _extract_song_item(mrlir)
+                if s.get("videoId"):
+                    songs.append({
+                        "title": s.get("title"),
+                        "videoId": s.get("videoId"),
+                        "artists": s.get("artists", []),
+                        "thumbnails": s.get("thumbnails", []),
+                        "musicVideoType": s.get("musicVideoType"),
+                        "type": "song",
+                        "goTo": {"albumId": links["albumId"], "artistId": links["artistId"]},
+                        "duration": s.get("duration"),
+                    })
+
+        if (album_limit is not None and len(albums) >= album_limit) and (song_limit is not None and len(songs) >= song_limit):
+            break
+
+    if enrich_metadata and yt_innertube and yt_api:
+        _enrich_songs_with_metadata(yt_innertube, yt_api, songs)
+    
+    if song_limit is not None: songs = songs[:song_limit]
+    if album_limit is not None: albums = albums[:album_limit]
+    return {"songs": songs, "albums": albums}
 
 # ---------- ARTIST CARD → ALBUMS ----------
 def _extract_album_item(mrlir: dict) -> dict:
@@ -305,49 +406,6 @@ def parse_artist_card_albums(resp: dict, limit: int | None = None) -> list[dict]
 def _extract_album_item_from_search(mrlir: dict) -> dict:
     # reusa la misma lógica de álbum
     return _extract_album_item(mrlir)
-
-def parse_search_albums_and_songs(resp: dict, song_limit: int | None = None, album_limit: int | None = None) -> dict:
-    songs, albums = [], []
-    tab = _get_selected_tab(resp)
-    if not tab: return {"songs": songs, "albums": albums}
-    sections = _dig(tab, ["content","sectionListRenderer","contents"], []) or []
-    for sec in sections:
-        shelf = sec.get("musicShelfRenderer")
-        if not shelf: continue
-        for it in shelf.get("contents", []) or []:
-            mrlir = it.get("musicResponsiveListItemRenderer")
-            if not mrlir: continue
-
-            if _is_album_row(mrlir):
-                album = _extract_album_item_from_search(mrlir)
-                if album.get("albumId") or album.get("playlistId"):
-                    albums.append(album)
-                continue
-
-            if _is_atv_song_row(mrlir):
-                links = _extract_menu_navs(mrlir)
-                s = _extract_song_item(mrlir)
-                if s.get("videoId"):
-                    songs.append({
-                        "title": s.get("title"),
-                        "videoId": s.get("videoId"),
-                        "artists": s.get("artists", []),
-                        "thumbnails": s.get("thumbnails", []),
-                        "musicVideoType": s.get("musicVideoType"),
-                        "type": "song",
-                        "goTo": {"albumId": links["albumId"], "artistId": links["artistId"]},
-                        # si querés exponer duración acá, ya viene en s["duration"]
-                        "duration": s.get("duration"),
-                    })
-
-        if (album_limit is not None and len(albums) >= album_limit) and (song_limit is not None and len(songs) >= song_limit):
-            break
-
-    if song_limit is not None: songs = songs[:song_limit]
-    if album_limit is not None: albums = albums[:album_limit]
-    return {"songs": songs, "albums": albums}
-
-
 
 # ---------- TOP RESULT (musicCardShelfRenderer) ----------
 def parse_search_top_result(resp: dict) -> dict | None:

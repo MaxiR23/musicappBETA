@@ -19,6 +19,9 @@ from functools import lru_cache
 import concurrent.futures as cf
 
 from services.cache_service import get_cached, set_cached, invalidate, get_cached_legacy, set_cached_legacy
+
+from services.activity_service import log_play_from_request, upsert_recent_from_request, get_recents_from_request
+
 from services.cache_config import CacheType
 
 from utils.search_parser import (
@@ -46,7 +49,7 @@ from utils.album_parser import (
     parse_album_releases_for_you,
     build_more_from_artist
 )
-from services.activity_service import try_log_activity_from_request
+
 from services.supabase_service import db_as_user  
 
 from services.feed_repo import list_new_releases_for_artist
@@ -79,7 +82,7 @@ _cache: dict[str, dict] = {}  # videoId -> {info, direct_url, ttl, ts, served}
 _FORCE_CACHE: dict[str, dict] = {}  # OMV->ATV resolver: video_id -> {"atv": str, "ts": float}
 _FORCE_TTL = 24 * 60 * 60
 _ARTIST_CACHE: dict[str, dict] = {}
-_RECENT_VER: dict[str, int] = {}
+
 _WARM_INFLIGHT: dict[str, float] = {}
 _WARM_BURST = 20
 _WARM_DEDUP_TTL = 45
@@ -675,7 +678,6 @@ def search_music(request: Request, q: str = Query(..., description="Texto a busc
 
     cached = get_cached(CacheType.SEARCH, suffix=q.lower()[:100])
     if cached:
-        try_log_activity_from_request(request, event_type="search", entity_type="query", metadata={"query": q})
         try:
             artist_ids = [s.get("videoId") for s in (cached.get("artistSongs") or []) if s.get("videoId")]
             general_ids = [] if cached.get("artist") else [s.get("videoId") for s in (cached.get("search", {}).get("songs") or []) if s.get("videoId")]
@@ -684,17 +686,18 @@ def search_music(request: Request, q: str = Query(..., description="Texto a busc
             print(f"[search][cached][warm][WARN] {_e}")
         return cached
 
-    yt = _ytm()  
+    yt = _ytm()
+    yt_api = _ytmusic_client()
     response = yt.search(q)
 
     artist        = parse_artist_card_info(response)
-    artist_songs  = parse_artist_card_songs(response, strict_atv=True)
+    artist_songs  = parse_artist_card_songs(response, strict_atv=True, yt_innertube=yt, yt_api=yt_api, enrich_metadata=True)
     artist_albums = parse_artist_card_albums(response)
 
     if artist:
-        general = parse_search_albums_and_songs(response, song_limit=0,  album_limit=10)
+        general = parse_search_albums_and_songs(response, song_limit=0, album_limit=10)
     else:
-        general = parse_search_albums_and_songs(response, song_limit=10, album_limit=10)
+        general = parse_search_albums_and_songs(response, song_limit=10, album_limit=10, yt_innertube=yt, yt_api=yt_api, enrich_metadata=True)
 
     result = {
         "query": q,
@@ -704,8 +707,6 @@ def search_music(request: Request, q: str = Query(..., description="Texto a busc
         "search": general,
     }
     set_cached(CacheType.SEARCH, result, suffix=q.lower()[:100])
-
-    try_log_activity_from_request(request, event_type="search", entity_type="query", metadata={"query": q})
 
     try:
         artist_ids = [s.get("videoId") for s in (artist_songs or []) if s.get("videoId")]
@@ -1151,201 +1152,90 @@ def warm_ids(payload: dict = Body(...)):
     _schedule_warm(ids[:limit])
     return {"ok": True, "scheduled": min(len(ids), limit)}
 
-# ---------- Plays / Likes / Recent ----------
-def _user_cache_key_from_request(request: Request) -> str:
-    u = getattr(request.state, "user", None) or {}
-    uid = u.get("id") if isinstance(u, dict) else None
-    if uid: return f"user:{uid}"
-    jwt = (request.headers.get("Authorization") or "").replace("Bearer ", "").strip()
-    return f"jwt:{hash(jwt) if jwt else 'anon'}"
 
-def _bump_recent_version(user_key: str):
-    _RECENT_VER[user_key] = (_RECENT_VER.get(user_key, 0) + 1) % 1_000_000
+
+
+
+
+# ---------- Plays / Likes / Recent ---------- {{{{
+
+@router.post("/plays/tracks/{track_id}")
+def log_play_track(request: Request, track_id: str = Path(...), body: dict | None = Body(None)):
+    """Play real (30+ seg) → INSERT en play_events."""
+    b = body or {}
+    metadata = {}
+    if b.get("album_id"): metadata["album_id"] = b["album_id"]
+    if b.get("album_name"): metadata["album_name"] = b["album_name"]
+    if b.get("artist_id"): metadata["artist_id"] = b["artist_id"]
+    if b.get("track_name"): metadata["track_name"] = b["track_name"]
+    if b.get("artist_name"): metadata["artist_name"] = b["artist_name"]
+    if b.get("thumbnail_url"): metadata["thumbnail_url"] = b["thumbnail_url"]
+    
+    result = log_play_from_request(request, track_id=track_id, metadata=metadata)
+    return {"ok": result.get("ok", False)}
 
 @router.post("/plays/albums/{album_id}")
 def log_play_album(request: Request, album_id: str = Path(...), body: dict | None = Body(None)):
+    """Usuario reproduce desde un album → UPSERT en recent_activity."""
     b = body or {}
     meta = {}
-    if b.get("source"): meta["source"] = b["source"]
     dn = b.get("display_name") or b.get("name") or b.get("title")
     th = b.get("thumbnail_url") or b.get("thumbnail")
     if dn: meta["display_name"] = dn
     if th: meta["thumbnail_url"] = th
-
-    try_log_activity_from_request(request, event_type="play", entity_type="album", entity_id=album_id,
-                                  context_type="album", context_id=album_id, metadata=meta or None)
-    try: _bump_recent_version(_user_cache_key_from_request(request))
-    except Exception: pass
+    upsert_recent_from_request(request, entity_type="album", entity_id=album_id, metadata=meta)
     return {"ok": True}
 
 @router.post("/plays/artists/{artist_id}")
 def log_play_artist(request: Request, artist_id: str = Path(...), body: dict | None = Body(None)):
+    """Usuario reproduce desde un artista → UPSERT en recent_activity."""
     b = body or {}
     meta = {}
-    if b.get("source"): meta["source"] = b["source"]
     dn = b.get("display_name") or b.get("name") or b.get("title")
     th = b.get("thumbnail_url") or b.get("thumbnail")
     if dn: meta["display_name"] = dn
     if th: meta["thumbnail_url"] = th
-
-    try_log_activity_from_request(request, event_type="play", entity_type="artist", entity_id=artist_id,
-                                  context_type="artist", context_id=artist_id, metadata=meta or None)
-    try: _bump_recent_version(_user_cache_key_from_request(request))
-    except Exception: pass
+    upsert_recent_from_request(request, entity_type="artist", entity_id=artist_id, metadata=meta)
     return {"ok": True}
 
-@router.post("/plays/tracks/{track_id}")
-def log_play_track(request: Request, track_id: str = Path(...), body: dict | None = Body(None)):
+@router.post("/plays/playlists/{playlist_id}")
+def log_play_playlist(request: Request, playlist_id: str = Path(...), body: dict | None = Body(None)):
+    """Usuario reproduce desde una playlist → UPSERT en recent_activity."""
     b = body or {}
     meta = {}
-    if b.get("source"): meta["source"] = b["source"]
     dn = b.get("display_name") or b.get("name") or b.get("title")
     th = b.get("thumbnail_url") or b.get("thumbnail")
     if dn: meta["display_name"] = dn
     if th: meta["thumbnail_url"] = th
-
-    try_log_activity_from_request(request, event_type="play", entity_type="track", entity_id=track_id,
-                                  context_type="track", context_id=track_id, metadata=meta or None)
-    try: _bump_recent_version(_user_cache_key_from_request(request))
-    except Exception: pass
+    upsert_recent_from_request(request, entity_type="playlist", entity_id=playlist_id, metadata=meta)
     return {"ok": True}
 
-@router.post("/likes/tracks/{track_id}")
-def like_track(request: Request, track_id: str = Path(...), body: dict | None = Body(None)):
-    source = (body or {}).get("source")
-    try_log_activity_from_request(request, event_type="like", entity_type="track", entity_id=track_id,
-                                  context_type="track", context_id=track_id,
-                                  metadata={"source": source} if source else None)
-    return {"ok": True}
-
-@router.post("/unlikes/tracks/{track_id}")
-def unlike_track(request: Request, track_id: str = Path(...), body: dict | None = Body(None)):
-    source = (body or {}).get("source")
-    try_log_activity_from_request(request, event_type="unlike", entity_type="track", entity_id=track_id,
-                                  context_type="track", context_id=track_id,
-                                  metadata={"source": source} if source else None)
-    return {"ok": True}
-
-@router.post("/likes/albums/{album_id}")
-def like_album(request: Request, album_id: str = Path(...), body: dict | None = Body(None)):
-    source = (body or {}).get("source")
-    try_log_activity_from_request(request, event_type="like", entity_type="album", entity_id=album_id,
-                                  context_type="album", context_id=album_id,
-                                  metadata={"source": source} if source else None)
-    return {"ok": True}
-
-@router.post("/unlikes/albums/{album_id}")
-def unlike_album(request: Request, album_id: str = Path(...), body: dict | None = Body(None)):
-    source = (body or {}).get("source")
-    try_log_activity_from_request(request, event_type="unlike", entity_type="album", entity_id=album_id,
-                                  context_type="album", context_id=album_id,
-                                  metadata={"source": source} if source else None)
-    return {"ok": True}
-
-@router.post("/likes/artists/{artist_id}")
-def like_artist(request: Request, artist_id: str = Path(...), body: dict | None = Body(None)):
-    source = (body or {}).get("source")
-    try_log_activity_from_request(request, event_type="like", entity_type="artist", entity_id=artist_id,
-                                  context_type="artist", context_id=artist_id,
-                                  metadata={"source": source} if source else None)
-    return {"ok": True}
-
-@router.post("/unlikes/artists/{artist_id}")
-def unlike_artist(request: Request, artist_id: str = Path(...), body: dict | None = Body(None)):
-    source = (body or {}).get("source")
-    try_log_activity_from_request(request, event_type="unlike", entity_type="artist", entity_id=artist_id,
-                                  context_type="artist", context_id=artist_id,
-                                  metadata={"source": source} if source else None)
-    return {"ok": True}
-
-@router.post("/likes/playlists/{playlist_id}")
-def like_playlist(request: Request, playlist_id: str = Path(...), body: dict | None = Body(None)):
-    source = (body or {}).get("source")
-    try_log_activity_from_request(request, event_type="like", entity_type="playlist", entity_id=playlist_id,
-                                  context_type="playlist", context_id=playlist_id,
-                                  metadata={"source": source} if source else None)
-    return {"ok": True}
-
-@router.post("/unlikes/playlists/{playlist_id}")
-def unlike_playlist(request: Request, playlist_id: str = Path(...), body: dict | None = Body(None)):
-    source = (body or {}).get("source")
-    try_log_activity_from_request(request, event_type="unlike", entity_type="playlist", entity_id=playlist_id,
-                                  context_type="playlist", context_id=playlist_id,
-                                  metadata={"source": source} if source else None)
-    return {"ok": True}
-
-# --- utils ---
-def _first(*vals):
-    for v in vals:
-        if v not in (None, "", [], {}):
-            return v
-    return None
-
-# --- ME / RECENT ---
 @router.get("/me/recent")
-def get_recent_plays(request: Request, limit: int = 20):
-    try:
-        jwt = (request.headers.get("Authorization") or "").replace("Bearer ", "").strip()
-        if not jwt:
-            return JSONResponse(status_code=401, content={"ok": False, "error": "unauthorized"})
-
-        db = db_as_user(jwt)
-
-        # Sin caché - siempre datos frescos
-        hard_limit  = max(1, min(100, int(limit)))
-        fetch_limit = min(3 * hard_limit, 150)
-        
-        resp = (db.table("user_activity")
-                  .select("entity_type, entity_id, occurred_at, metadata")
-                  .eq("event_type", "play")
-                  .in_("entity_type", ["album", "artist"])
-                  .order("occurred_at", desc=True)
-                  .limit(fetch_limit)
-                  .execute())
-        rows = resp.data or []
-
-        seen = set()
-        items = []
-        for row in rows:
-            t = row.get("entity_type")
-            i = row.get("entity_id")
-            if not t or not i:
-                continue
-            
-            key = (t, i)
-            if key in seen:
-                continue
-            seen.add(key)
-
-            md = row.get("metadata") or {}
-            src = md.get("source") or {}
-
-            name = _first(
-                md.get("display_name"), md.get("name"), md.get("title"),
-                src.get("display_name"), src.get("name"), src.get("title")
-            )
-            thumb = _first(
-                md.get("thumbnail_url"), md.get("thumbnail"),
-                src.get("thumbnail_url"), src.get("thumb"), src.get("thumbnail")
-            )
-
-            items.append({
-                "type": t,
-                "id": i,
-                "occurred_at": row.get("occurred_at"),
-                "name": name,
-                "thumbnail_url": thumb
-            })
-            
-            if len(items) >= hard_limit:
-                break
-
-        return {"items": items}
-
-    except Exception as e:
-        print(f"[recent][ERROR] {e}")
-        return JSONResponse(status_code=500, content={"ok": False, "error": "recent_failed"})
+def get_recent(request: Request, limit: int = 25):
+    """Recently Played → lee de recent_activity."""
+    jwt = (request.headers.get("Authorization") or "").replace("Bearer ", "").strip()
+    if not jwt:
+        return JSONResponse(status_code=401, content={"ok": False, "error": "unauthorized"})
     
+    items = get_recents_from_request(request, limit=limit)
+    return {"items": [
+        {
+            "type": r.get("entity_type"),
+            "id": r.get("entity_id"),
+            "played_at": r.get("played_at"),
+            "name": (r.get("metadata") or {}).get("display_name"),
+            "thumbnail_url": (r.get("metadata") or {}).get("thumbnail_url"),
+        }
+        for r in items
+    ]}
+
+# end plays / likes / recent }}}
+
+
+
+
+
+
 @router.post("/playlists/{playlist_id}/move-track")
 def move_playlist_track(
     request: Request,
@@ -1589,6 +1479,47 @@ _EXCLUDED_RELATED_SECTIONS = {
     "Recommended playlists",
     "Other performances",
 }
+@router.get("/tracks/{track_id}/related-raw")
+def get_track_related_raw(track_id: str = Path(...)):
+    """
+    Devuelve TODO el related crudo (sin filtros) para un videoId.
+    Solo para debug.
+    """
+    yt = _ytmusic_client()
+
+    try:
+        watch = yt.get_watch_playlist(videoId=track_id)
+        if not watch:
+            return JSONResponse(status_code=404, content={"ok": False, "reason": "no_watch_playlist", "watch": watch})
+
+        rb = watch.get("related")
+        browse_id = rb.get("browseId") if isinstance(rb, dict) else rb
+
+        if not browse_id:
+            return JSONResponse(status_code=404, content={
+                "ok": False,
+                "reason": "no_browse_id",
+                "watch_related_field": rb,
+                "watch_keys": list(watch.keys()) if isinstance(watch, dict) else None
+            })
+
+        related_data = yt.get_song_related(browse_id)
+
+        # Respuesta RAW tal cual
+        return {
+            "ok": True,
+            "trackId": track_id,
+            "browseId": browse_id,
+            "watch_related_field": rb,
+            "related_raw": related_data,
+        }
+
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": "related_raw_failed", "detail": f"{type(e).__name__}: {e}"}
+        )
+
 
 def _get_track_related_backend(video_id: str) -> dict:
     ck = f"related:{video_id}"
@@ -1653,14 +1584,131 @@ def get_track_related(track_id: str = Path(...)):
             content={"ok": False, "error": "related_failed", "detail": f"{type(e).__name__}: {e}"}
         )
     
-def _normalize_thumbnail(track: dict) -> dict:
-    """Extrae la mejor thumbnail y la pone como string"""
-    thumbs = track.get("thumbnail") or track.get("thumbnails") or []
-    best_url = thumbs[-1].get("url") if thumbs else None
-    return {**track, "thumbnail": best_url}
-
 # ---------- UP NEXT / QUEUE (YouTube Music) ----------
 _UPNEXT_TTL = 6 * 60 * 60  # 6h (más corto porque es dinámico)
+
+def _duration_to_seconds(d: str | None) -> int | None:
+    if not d or not isinstance(d, str):
+        return None
+    s = d.strip()
+    if not s:
+        return None
+    try:
+        parts = [int(p) for p in s.split(":")]
+    except Exception:
+        return None
+
+    if len(parts) == 1:
+        return parts[0]
+    if len(parts) == 2:
+        mm, ss = parts
+        return mm * 60 + ss
+    if len(parts) == 3:
+        hh, mm, ss = parts
+        return hh * 3600 + mm * 60 + ss
+    return None
+
+
+def _best_thumb_url(track: dict) -> str | None:
+    thumbs = track.get("thumbnail") or track.get("thumbnails") or []
+    # Caso: thumbnail ya es string
+    if isinstance(thumbs, str):
+        return thumbs.strip() or None
+
+    # Caso: thumbnail dict
+    if isinstance(thumbs, dict):
+        u = thumbs.get("url")
+        return (u.strip() if isinstance(u, str) and u.strip() else None)
+
+    # Caso: lista de thumbs (dicts o strings)
+    if isinstance(thumbs, list):
+        for th in reversed(thumbs):
+            if isinstance(th, dict) and th.get("url"):
+                u = th["url"]
+                return u.strip() if isinstance(u, str) and u.strip() else None
+            if isinstance(th, str) and th.strip():
+                return th.strip()
+
+    return None
+
+
+def _normalize_track_item(track: dict) -> dict:
+    if not isinstance(track, dict):
+        track = {}
+
+    video_id = track.get("videoId") or track.get("id")
+
+    title = track.get("title")
+
+    # artists
+    artists_list = track.get("artists") or []
+    if not isinstance(artists_list, list):
+        artists_list = []
+
+    artist_ids = []
+    seen = set()
+    artist_names = []
+
+    for a in artists_list:
+        if not isinstance(a, dict):
+            continue
+        n = a.get("name")
+        i = a.get("id")
+        if isinstance(n, str) and n.strip():
+            artist_names.append(n.strip())
+        if isinstance(i, str) and i.strip() and i not in seen:
+            seen.add(i)
+            artist_ids.append(i)
+
+    artist_name = track.get("artistName")
+    if not artist_name:
+        if artist_names:
+            artist_name = ", ".join(artist_names)
+        else:
+            author = track.get("author")
+            artist_name = author.strip() if isinstance(author, str) and author.strip() else None
+
+    artist_id = track.get("artistId")
+    if not artist_id:
+        artist_id = artist_ids[0] if artist_ids else None
+
+    # album
+    album = track.get("album") or {}
+    if not isinstance(album, dict):
+        album = {}
+
+    album_id = track.get("albumId") or album.get("id")
+    album_name = track.get("albumName") or album.get("name")
+
+    # duration
+    duration = track.get("duration") or track.get("length")
+    length_seconds = track.get("lengthSeconds") or track.get("durationSeconds") or track.get("duration_seconds")
+
+    duration_seconds = None
+    if isinstance(length_seconds, int):
+        duration_seconds = length_seconds
+    elif isinstance(length_seconds, str) and length_seconds.strip().isdigit():
+        duration_seconds = int(length_seconds.strip())
+    else:
+        duration_seconds = _duration_to_seconds(duration)
+
+    return {
+        "id": video_id,
+        "title": title,
+
+        "artistName": artist_name,
+        "artistId": artist_id,
+        "artistIds": artist_ids,
+        "artists": artists_list,
+
+        "albumId": album_id,
+        "albumName": album_name,
+
+        "thumbnail": _best_thumb_url(track),
+        "duration": duration,
+        "durationSeconds": duration_seconds,
+    }
+
 
 def _get_track_upnext_backend(video_id: str) -> dict:
     ck = f"upnext:{video_id}"
@@ -1669,40 +1717,46 @@ def _get_track_upnext_backend(video_id: str) -> dict:
         return cached
 
     yt = _ytmusic_client()
-    
+
     try:
-        # 1) Detalles de la canción actual
         song_raw = yt.get_song(video_id) or {}
         video_details = song_raw.get("videoDetails") or {}
-        
-        # 2) Play Next (watch playlist)
+
         watch = yt.get_watch_playlist(videoId=video_id) or {}
         tracks = watch.get("tracks") or []
-        
+
         if not tracks:
             out = {"ok": False, "reason": "no_tracks"}
             set_cached_legacy(ck, out, 5 * 60)
             return out
-        
+
+        # current normalizado con el mismo shape
+        current_raw = {
+            "videoId": video_details.get("videoId") or video_id,
+            "title": video_details.get("title"),
+            "author": video_details.get("author"),
+            "lengthSeconds": video_details.get("lengthSeconds"),
+        }
+        current = _normalize_track_item(current_raw)
+
+        upnext = []
+        for t in tracks:
+            if isinstance(t, dict):
+                upnext.append(_normalize_track_item(t))
+
         out = {
             "ok": True,
-            "current": {
-                "videoId": video_details.get("videoId"),
-                "title": video_details.get("title"),
-                "author": video_details.get("author"),
-                "lengthSeconds": video_details.get("lengthSeconds"),
-            },
-            "upNext": [_normalize_thumbnail(t) for t in tracks],  # Ya viene formateado por ytmusicapi
-            "autoplay": watch.get("autoplay")  # Por si querés saber si tiene autoplay
+            "current": current,
+            "upNext": upnext,
+            "autoplay": watch.get("autoplay"),
         }
         set_cached_legacy(ck, out, _UPNEXT_TTL)
         return out
-        
+
     except Exception as e:
         out = {"ok": False, "reason": "error", "detail": str(e)}
         set_cached_legacy(ck, out, 1 * 60)
         return out
-
 
 @router.get("/tracks/{track_id}/upnext")
 def get_track_upnext(track_id: str = Path(...)):

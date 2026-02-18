@@ -1830,3 +1830,136 @@ def debug_artist_single_raw(id: str = Query(...)):
             "error": str(e),
             "traceback": traceback.format_exc()
         })
+    
+""" TESTING SEARCH YTMUSICAPI { """    
+
+@router.get("/search_ytmusicapi_debug")
+def search_ytmusicapi_debug(q: str = Query(..., description="Texto a buscar")):
+    """
+    Debug: search usando ytmusicapi en vez de InnerTube.
+    Devuelve TODO crudo sin filtrar para ver qué campos vienen.
+    """
+    try:
+        yt = _ytmusic_client()
+        results = yt.search(q)
+        
+        return {
+            "query": q,
+            "total_results": len(results),
+            "results": results
+        }
+    except Exception as e:
+        import traceback
+        return JSONResponse(status_code=500, content={
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        })
+    
+""" TESTING SEARCH YTMUSICAPI } """    
+
+""" TESTING GETTING ALBUM NAME { """
+
+@router.get("/album_name_only")
+def album_name_only(album_id: str = Query(..., description="Album browseId")):
+    """
+    Extrae SOLO el nombre del álbum, sin parsear tracks.
+    Rápido y liviano.
+    """
+    try:
+        yt = _get_yt()
+        response = yt.browse(album_id)
+        
+        # Path correcto basado en la imagen
+        title = _dig(response, [
+            "contents", "twoColumnBrowseResultsRenderer", "tabs", 0, 
+            "tabRenderer", "content", "sectionListRenderer", "contents", 0,
+            "musicResponsiveHeaderRenderer", "title", "runs", 0, "text"
+        ])
+        
+        return {
+            "albumId": album_id,
+            "albumName": title,
+            "success": title is not None
+        }
+    except Exception as e:
+        import traceback
+        return {
+            "albumId": album_id,
+            "albumName": None,
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+""" TESTING GETTING ALBUM NAME } """
+
+""" TESTING GETTING SONG DURATION { """
+
+@router.get("/song_duration_debug")
+def song_duration_debug(video_id: str = Query(..., description="videoId de la canción")):
+    """
+    Debug: obtener SOLO la duración de una canción por videoId.
+    Ver qué trae ytmusicapi.get_song()
+    """
+    try:
+        yt = _ytmusic_client()
+        song_info = yt.get_song(video_id)
+        
+        return {
+            "videoId": video_id,
+            "full_response": song_info,
+            "success": True
+        }
+    except Exception as e:
+        import traceback
+        return {
+            "videoId": video_id,
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
+@router.get("/song_duration_only")
+def song_duration_only(video_id: str = Query(..., description="videoId de la canción")):
+    """
+    Debug: Extrae SOLO la duración de una canción.
+    Rápido y liviano, sin traer toda la data.
+    """
+    try:
+        yt = _ytmusic_client()
+        song_info = yt.get_song(video_id)
+        
+        # Extraer SOLO lengthSeconds
+        duration_seconds = song_info.get("videoDetails", {}).get("lengthSeconds")
+        
+        if duration_seconds:
+            duration_seconds = int(duration_seconds)
+            minutes = duration_seconds // 60
+            seconds = duration_seconds % 60
+            duration_str = f"{minutes}:{seconds:02d}"
+            
+            return {
+                "videoId": video_id,
+                "duration": duration_str,
+                "durationSeconds": duration_seconds,
+                "success": True
+            }
+        else:
+            return {
+                "videoId": video_id,
+                "duration": None,
+                "success": False,
+                "error": "No lengthSeconds found"
+            }
+    except Exception as e:
+        import traceback
+        return {
+            "videoId": video_id,
+            "duration": None,
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+""" TESTING GETTING SONG DURATION } """

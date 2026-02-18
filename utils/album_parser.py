@@ -335,6 +335,20 @@ def _first_text(runlist: list) -> str | None:
     t = runlist[0].get("text")
     return t if isinstance(t, str) else None
 
+def _duration_to_seconds(d: str | None) -> int | None:
+    if not d or not isinstance(d, str):
+        return None
+    parts = d.strip().split(":")
+    if not all(p.isdigit() for p in parts):
+        return None
+    nums = [int(p) for p in parts]
+    if len(nums) == 2:  # mm:ss
+        m, s = nums
+        return m * 60 + s
+    if len(nums) == 3:  # hh:mm:ss
+        h, m, s = nums
+        return h * 3600 + m * 60 + s
+    return None
 
 def parse_album_tracks(album_response: dict):
     """
@@ -425,6 +439,9 @@ def parse_album_tracks(album_response: dict):
                 )
                 duration = _first_text(runs)
 
+            # Duration seconds
+            duration_seconds = _duration_to_seconds(duration)    
+
             # Index impreso
             index_print = None
             if "index" in renderer:
@@ -440,8 +457,9 @@ def parse_album_tracks(album_response: dict):
                 "artists": artists,
                 "plays": plays,
                 "duration": duration,
+                "durationSeconds": duration_seconds,
                 "index": index_print,
-                "musicVideoType": mvt,   # ← auxiliar para el caller (resolver OMV→ATV)
+                "musicVideoType": mvt,
             })
 
     return tracks
@@ -480,6 +498,8 @@ def parse_tracks_from_audio_playlist(audio_playlist_id: str) -> list[dict]:
         # duración: ytmusicapi usa 'duration' (a veces 'duration_seconds' también)
         duration = t.get("duration") or t.get("length")
 
+        duration_seconds = t.get("duration_seconds") or _duration_to_seconds(duration)
+
         # índice impreso (string, como en parse_album_tracks)
         index_print = str(idx)
 
@@ -491,6 +511,7 @@ def parse_tracks_from_audio_playlist(audio_playlist_id: str) -> list[dict]:
             "videoId": video_id,
             "artists": artists,
             "duration": duration,
+            "durationSeconds": duration_seconds,
             "index": index_print,
             "musicVideoType": mvt,
         })

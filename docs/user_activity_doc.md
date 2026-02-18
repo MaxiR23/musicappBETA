@@ -7,58 +7,81 @@ Sistema completo de tracking, agregación y análisis de actividad de usuarios e
 ## Arquitectura del Sistema
 
 ### Capa 1: Datos RAW
-- **Tabla**: `user_activity`
-- **Propósito**: Almacena cada reproducción individual con contador de plays
+- **Tabla**: `play_events`
+- **Propósito**: Almacena cada reproducción individual (1 fila = 1 play)
 - **Retención**: 60 días
-- **Actualización**: Tiempo real (UPSERT al reproducir)
+- **Actualización**: Tiempo real (INSERT al reproducir)
 
 ### Capa 2: Estadísticas Semanales
 - **Tabla**: `user_weekly_stats`
-- **Propósito**: Top 5-10 items por tipo (artist/album/track) de cada semana
+- **Propósito**: Top 10 items por tipo (artist/album/track) de cada semana
 - **Retención**: 90 días
-- **Actualización**: Cada domingo a las 23:59 (agregación automática)
+- **Actualización**: Cada domingo a las 23:59 (agregación desde `play_events`)
 
 ### Capa 3: Estadísticas Mensuales
 - **Tabla**: `user_monthly_stats`
-- **Propósito**: Top 5-10 items por tipo del mes completo
+- **Propósito**: Top 10 items por tipo del mes completo
 - **Retención**: Permanente (base para Replay anual)
-- **Actualización**: Día 1 de cada mes a las 3:00 AM (agregación automática)
+- **Actualización**: Día 1 de cada mes a las 3:00 AM (consolidación desde `user_weekly_stats`)
 
 ## Esquema de Base de Datos
 
-### Tabla: user_activity
+### Tabla: play_events
 
 ```sql
-CREATE TABLE public.user_activity (
+CREATE TABLE public.play_events (
   id UUID NOT NULL DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL,
-  event_type public.app_event_type NOT NULL,
-  entity_type public.app_entity_type NOT NULL,
-  entity_id TEXT NULL,
-  context_type public.app_entity_type NULL,
-  context_id TEXT NULL,
+  track_id TEXT NOT NULL,
+  played_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  play_count INTEGER NOT NULL DEFAULT 1,
   
-  CONSTRAINT user_activity_pkey PRIMARY KEY (id),
-  CONSTRAINT user_activity_user_id_fkey FOREIGN KEY (user_id) 
+  CONSTRAINT play_events_pkey PRIMARY KEY (id),
+  CONSTRAINT play_events_user_id_fkey FOREIGN KEY (user_id) 
     REFERENCES auth.users (id) ON DELETE CASCADE
 );
 
-CREATE INDEX ua_user_time_idx ON public.user_activity 
-  USING btree (user_id, occurred_at DESC);
+CREATE INDEX pe_user_time_idx ON public.play_events 
+  USING btree (user_id, played_at DESC);
   
-CREATE INDEX ua_user_entity_idx ON public.user_activity 
-  USING btree (user_id, entity_type, occurred_at DESC);
-  
-CREATE INDEX ua_user_event_idx ON public.user_activity 
-  USING btree (user_id, event_type, occurred_at DESC);
+CREATE INDEX pe_user_track_idx ON public.play_events 
+  USING btree (user_id, track_id);
 ```
 
-**Campos clave:**
-- `play_count`: Contador de reproducciones (se incrementa con UPSERT)
-- `metadata`: Almacena `display_name` y `thumbnail_url` para caché
+**Estructura de metadata:**
+```json
+{
+  "track_name": "Viuda Negra",
+  "artist_id": "UCxwa4Iq-qOHIifC6FOpvL2w",
+  "artist_name": "WOS",
+  "album_id": "MPREb_g3PVGetl3BE",
+  "album_name": "SAETA",
+  "thumbnail_url": "https://lh3.googleusercontent.com/..."
+}
+```
+
+### Tabla: recent_activity
+
+```sql
+CREATE TABLE public.recent_activity (
+  id UUID NOT NULL DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL,
+  entity_type public.app_entity_type NOT NULL,
+  entity_id TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  
+  CONSTRAINT recent_activity_pkey PRIMARY KEY (id),
+  CONSTRAINT recent_activity_unique UNIQUE (user_id, entity_type, entity_id),
+  CONSTRAINT recent_activity_user_id_fkey FOREIGN KEY (user_id) 
+    REFERENCES auth.users (id) ON DELETE CASCADE
+);
+
+CREATE INDEX ra_user_type_idx ON public.recent_activity 
+  USING btree (user_id, entity_type, updated_at DESC);
+```
+
+**Propósito**: Tracking de items recientes para UI (últimos álbumes/artistas escuchados).
 
 ### Tabla: user_weekly_stats
 
@@ -84,14 +107,46 @@ CREATE INDEX uws_user_type_idx ON public.user_weekly_stats
   USING btree (user_id, entity_type, week_start DESC);
 ```
 
-**Estructura de JSONB stats:**
+**Estructura de JSONB stats por entity_type:**
+
+**track:**
 ```json
 [
   {
-    "entity_id": "BACnvj5jAh0",
-    "play_count": 45,
-    "display_name": "It Makes You Forget",
-    "thumbnail_url": "https://..."
+    "entity_id": "h984FVmists",
+    "display_name": "Viuda Negra",
+    "thumbnail_url": "https://...",
+    "play_count": 5,
+    "artist_id": "UCxwa4Iq...",
+    "artist_name": "WOS",
+    "album_id": "MPREb_g3PVGetl3BE",
+    "album_name": "SAETA"
+  }
+]
+```
+
+**album:**
+```json
+[
+  {
+    "entity_id": "MPREb_g3PVGetl3BE",
+    "display_name": "SAETA",
+    "thumbnail_url": "https://...",
+    "play_count": 8,
+    "artist_id": "UCxwa4Iq...",
+    "artist_name": "WOS"
+  }
+]
+```
+
+**artist:**
+```json
+[
+  {
+    "entity_id": "UCxwa4Iq...",
+    "display_name": "WOS",
+    "thumbnail_url": "https://...",
+    "play_count": 15
   }
 ]
 ```
@@ -120,20 +175,21 @@ CREATE INDEX ums_user_type_idx ON public.user_monthly_stats
   USING btree (user_id, entity_type, month DESC);
 ```
 
+**Estructura de stats**: Igual que `user_weekly_stats`.
+
 ## Sistema de Logging
 
-### Backend: Lógica de UPSERT
+### Backend: Lógica de INSERT
 
 **Archivo**: `services/activity_service.py`
 
 **Comportamiento:**
-1. Primera reproducción: INSERT con `play_count = 1`
-2. Reproducciones subsiguientes: UPDATE incrementando `play_count` y actualizando `occurred_at`
-3. Se aplica a: artistas, álbumes y canciones
+1. Cada reproducción = 1 INSERT en `play_events`
+2. El metadata incluye toda la info del track (artist, album, etc.)
+3. Se actualiza `recent_activity` para UI de recientes
 
 **Funciones clave:**
-- `_upsert_album_artist_play()`: Maneja UPSERT para álbumes y artistas
-- `log_activity()`: Router principal que decide qué tipo de UPSERT usar
+- `log_play()`: Inserta en `play_events` y actualiza `recent_activity`
 
 ### Frontend: Tracking de 30 Segundos
 
@@ -145,21 +201,6 @@ CREATE INDEX ums_user_type_idx ON public.user_monthly_stats
 - Maneja pausas correctamente (no cuenta tiempo pausado)
 - Elimina logging de clicks accidentales
 
-**Implementación:**
-```typescript
-const subProgress = TrackPlayer.addEventListener(
-  Event.PlaybackProgressUpdated, 
-  async (progress) => {
-    const currentPosition = progress.position;
-    
-    if (currentPosition >= 30) {
-      // Loggear track
-      logPlayTrack(trackId, trackMeta);
-    }
-  }
-);
-```
-
 ## Scripts de Agregación
 
 ### Script Semanal
@@ -170,13 +211,12 @@ const subProgress = TrackPlayer.addEventListener(
 
 **Proceso:**
 1. Calcula el lunes de la semana pasada
-2. Obtiene todos los usuarios con actividad en esa semana
+2. Lee `play_events` de esa semana
 3. Para cada usuario:
-   - Lee `user_activity` de la semana
-   - Agrupa por `entity_type` y `entity_id`
-   - Suma `play_count` de cada entidad
-   - Ordena por `play_count` descendente
-   - Guarda top 5-10 en `user_weekly_stats`
+   - Agrupa plays por track_id, artist_id, album_id
+   - Extrae metadata de cada play
+   - Cuenta plays por entidad
+   - Guarda top 10 en `user_weekly_stats`
 4. Crea 3 registros por usuario (artist, album, track)
 
 **Comando manual:**
@@ -192,30 +232,27 @@ python scripts/aggregate_weekly_stats.py
 
 **Proceso:**
 1. Calcula el primer día del mes pasado
-2. Obtiene todos los usuarios con actividad en ese mes
-3. Para cada usuario:
-   - Lee `user_activity` del mes completo
-   - Agrupa por `entity_type` y `entity_id`
-   - Suma `play_count` de cada entidad
-   - Ordena por `play_count` descendente
-   - Guarda top 5-10 en `user_monthly_stats`
-4. Crea 3 registros por usuario (artist, album, track)
+2. Identifica las semanas (lunes) que caen en ese mes
+3. Lee `user_weekly_stats` de esas semanas
+4. Para cada usuario:
+   - Consolida stats de las 4-5 semanas
+   - Suma play_counts por entidad
+   - Guarda top 10 en `user_monthly_stats`
+5. Crea 3 registros por usuario (permanentes)
 
 **Comando manual:**
 ```bash
 python scripts/aggregate_monthly_stats.py
 ```
 
-**Nota**: Lee directamente de `user_activity` para máxima precisión. Optimización futura: consolidar desde `user_weekly_stats`.
-
 ### Script de Purga
 
 **Archivo**: `scripts/purge_old_data.py`
 
-**Ejecución**: Cada domingo a las 4:00 AM
+**Ejecución**: Cada semana
 
 **Proceso:**
-1. Borra registros de `user_activity` más antiguos que 60 días
+1. Borra registros de `play_events` más antiguos que 60 días
 2. Borra registros de `user_weekly_stats` más antiguos que 90 días
 3. Nunca borra `user_monthly_stats` (permanente)
 
@@ -223,43 +260,6 @@ python scripts/aggregate_monthly_stats.py
 ```bash
 python scripts/purge_old_data.py
 ```
-
-## GitHub Actions Workflows
-
-### Workflow: Agregación Semanal
-
-**Archivo**: `.github/workflows/aggregate-weekly-stats.yml`
-
-**Schedule**: `59 2 * * 1` (Lunes 2:59 UTC = Domingo 23:59 Argentina)
-
-**Variables de entorno requeridas:**
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-
-### Workflow: Agregación Mensual
-
-**Archivo**: `.github/workflows/aggregate-monthly-stats.yml`
-
-**Schedule**: `0 6 1 * *` (Día 1 de cada mes, 6:00 UTC = 3:00 AM Argentina)
-
-**Variables de entorno requeridas:**
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-
-### Workflow: Purga Automática
-
-**Archivo**: `.github/workflows/purge-old-data.yml`
-
-**Schedule**: `0 7 * * 1` (Lunes 7:00 UTC = Domingo 4:00 AM Argentina)
-
-**Variables de entorno requeridas:**
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-
-**Nota**: Todos los workflows incluyen `workflow_dispatch` para ejecución manual desde GitHub Actions.
 
 ## Flujo de Datos Completo
 
@@ -271,22 +271,22 @@ Frontend: Espera 30 segundos
     ↓
 API: POST /plays/tracks/{track_id}
     ↓
-Backend: UPSERT en user_activity
+Backend: INSERT en play_events
     ↓
-Primera vez: INSERT play_count=1
-    ↓
-Subsiguiente: UPDATE play_count+1
+Backend: UPSERT en recent_activity
 ```
 
 ### Agregación Semanal (Cada domingo 23:59)
 ```
 GitHub Action se dispara
     ↓
-Script lee user_activity de la semana pasada
+Script lee play_events de la semana pasada
     ↓
-Agrupa y suma play_counts por entidad
+Agrupa y cuenta plays por entidad
     ↓
-Guarda top 5-10 en user_weekly_stats
+Extrae metadata (artist_id, album_id, etc.)
+    ↓
+Guarda top 10 en user_weekly_stats
     ↓
 3 registros por usuario (artist/album/track)
 ```
@@ -295,64 +295,69 @@ Guarda top 5-10 en user_weekly_stats
 ```
 GitHub Action se dispara
     ↓
-Script lee user_activity del mes pasado
+Script lee user_weekly_stats de las semanas del mes
     ↓
-Agrupa y suma play_counts por entidad
+Consolida play_counts de 4-5 semanas
     ↓
-Guarda top 5-10 en user_monthly_stats
+Guarda top 10 en user_monthly_stats
     ↓
 3 registros por usuario (permanentes)
 ```
 
-### Purga Automática (Cada domingo 4:00 AM)
+### Purga Automática (Cada semana)
 ```
 GitHub Action se dispara
     ↓
-Borra user_activity > 60 días
+Borra play_events > 60 días
     ↓
 Borra user_weekly_stats > 90 días
     ↓
 Mantiene user_monthly_stats intacto
 ```
 
-## Configuración Requerida
+## Sistema de Recomendaciones
 
-### Secrets de GitHub
+### Seeds desde Actividad
 
-Configurar en: `Settings > Secrets and variables > Actions`
+**Archivo**: `services/activity_repo.py`
 
-```
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=eyJhbGc...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
-```
+**Función**: `recent_seeds_from_activity()`
 
-### Variables de Entorno Local
+**Comportamiento:**
+1. Lee `user_weekly_stats` de la semana más reciente
+2. Retorna top N artists y albums como seeds
+3. Incluye metadata completa para cada seed
 
-**Archivo**: `.env` (backend)
+**Uso**: El script `store_user_recommendations.py` usa estos seeds para generar recomendaciones personalizadas cada lunes.
 
-```env
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=eyJhbGc...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
-```
+## Métricas y Rendimiento
 
-### Dependencias Python
+### Estimación de Volumen (1000 usuarios activos)
 
-**Archivo**: `requirements.txt`
+**play_events** (60 días de retención):
+- Promedio: 50 canciones/día/usuario
+- Total: 50 × 1000 × 60 = 3,000,000 registros
 
-Librerías críticas:
-- `supabase==2.4.0`
-- `python-dotenv==1.1.0`
-- `python-dateutil==2.9.0.post0`
+**user_weekly_stats** (90 días de retención):
+- 3 registros/usuario/semana × 13 semanas = 39,000 registros
+
+**user_monthly_stats** (permanente):
+- 3 registros/usuario/mes × 12 meses/año = 36,000 registros/año
+
+### Optimizaciones Implementadas
+
+1. **Metadata en play_events**: Un INSERT registra toda la info necesaria
+2. **Logging después de 30 segundos**: Elimina clicks accidentales
+3. **Índices compuestos**: Queries < 50ms en promedio
+4. **Consolidación semanal→mensual**: Mensual lee ~4 filas en vez de miles
+5. **Purga automática**: Mantiene DB limpia sin intervención manual
+6. **Seeds desde weekly_stats**: Recomendaciones leen 2 filas, no 400
 
 ## Casos de Uso
 
 ### Generar Replay Mensual
 
 ```python
-# Endpoint: GET /api/stats/monthly/{user_id}/{month}
-
 def get_monthly_stats(user_id: str, month: str):
     result = sb.table('user_monthly_stats') \
         .select('entity_type, stats') \
@@ -360,38 +365,32 @@ def get_monthly_stats(user_id: str, month: str):
         .eq('month', month) \
         .execute()
     
+    stats = {row['entity_type']: row['stats'] for row in result.data}
     return {
-        'artists': result[0]['stats'] if result[0]['entity_type'] == 'artist' else [],
-        'albums': result[1]['stats'] if result[1]['entity_type'] == 'album' else [],
-        'tracks': result[2]['stats'] if result[2]['entity_type'] == 'track' else []
+        'artists': stats.get('artist', []),
+        'albums': stats.get('album', []),
+        'tracks': stats.get('track', [])
     }
 ```
 
 ### Obtener Top Semanal
 
 ```python
-# Endpoint: GET /api/stats/weekly/{user_id}
-
-def get_current_week_stats(user_id: str):
-    today = datetime.now()
-    week_start = (today - timedelta(days=today.weekday())).strftime('%Y-%m-%d')
-    
+def get_weekly_stats(user_id: str, week_start: str):
     result = sb.table('user_weekly_stats') \
         .select('entity_type, stats') \
         .eq('user_id', user_id) \
         .eq('week_start', week_start) \
         .execute()
     
-    return format_stats(result.data)
+    stats = {row['entity_type']: row['stats'] for row in result.data}
+    return stats
 ```
 
 ### Generar Replay Anual
 
 ```python
-# Endpoint: GET /api/stats/yearly/{user_id}/{year}
-
 def get_yearly_stats(user_id: str, year: int):
-    # Lee todos los meses del año desde user_monthly_stats
     result = sb.table('user_monthly_stats') \
         .select('month, entity_type, stats') \
         .eq('user_id', user_id) \
@@ -403,31 +402,6 @@ def get_yearly_stats(user_id: str, year: int):
     return consolidate_yearly(result.data)
 ```
 
-## Métricas y Rendimiento
-
-### Estimación de Volumen (1000 usuarios activos)
-
-**user_activity** (60 días de retención):
-- Promedio: 50 canciones/día/usuario
-- Total: 50 × 1000 × 60 = 3,000,000 registros
-- Con UPSERT: ~50,000 registros únicos (reducción 98%)
-
-**user_weekly_stats** (90 días de retención):
-- 3 registros/usuario/semana × 13 semanas = 39,000 registros
-
-**user_monthly_stats** (permanente):
-- 3 registros/usuario/mes × 12 meses/año = 36,000 registros/año
-
-**Total estimado**: ~125,000 registros activos
-
-### Optimizaciones Implementadas
-
-1. **UPSERT en lugar de INSERT**: Reduce 98% el volumen de datos
-2. **Logging después de 30 segundos**: Elimina clicks accidentales
-3. **Índices compuestos**: Queries < 50ms en promedio
-4. **JSONB para arrays**: Flexibilidad sin tablas relacionales complejas
-5. **Purga automática**: Mantiene DB limpia sin intervención manual
-
 ## Troubleshooting
 
 ### Los scripts no encuentran datos
@@ -436,12 +410,9 @@ def get_yearly_stats(user_id: str, year: int):
 
 **Solución temporal para testing**:
 ```python
-# En aggregate_weekly_stats.py
+# En aggregate_weekly_stats.py - cambiar get_monday_of_last_week()
 today = datetime.now()
 week_start = (today - timedelta(days=today.weekday())).strftime('%Y-%m-%d')
-
-# En aggregate_monthly_stats.py
-month = datetime.now().replace(day=1).strftime('%Y-%m-%d')
 ```
 
 ### GitHub Actions no se ejecutan
@@ -452,25 +423,12 @@ month = datetime.now().replace(day=1).strftime('%Y-%m-%d')
 3. Revisar logs en Actions tab
 4. Probar ejecución manual con `workflow_dispatch`
 
-### Purga borra demasiado/poco
-
-**Ajustar retención**:
-```python
-# En purge_old_data.py
-purge_user_activity(days=60)  # Cambiar número de días
-purge_weekly_stats(days=90)
-```
-
 ## Roadmap Futuro
-
-### Optimizaciones Pendientes
-- Consolidar stats mensuales desde `user_weekly_stats` en lugar de `user_activity`
-- Implementar caché de queries frecuentes (Redis)
-- Agregar webhook de notificación al completar agregaciones
 
 ### Features Adicionales
 - Comparación usuario vs comunidad (percentiles)
 - Playlist automática "On Repeat" basada en play_count
+- Wrapped anual con visualizaciones
 
 ## Licencia y Créditos
 
