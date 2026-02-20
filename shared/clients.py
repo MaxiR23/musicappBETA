@@ -9,7 +9,6 @@ from functools import lru_cache
 from innertube import InnerTube
 import yt_dlp
 
-
 # --- InnerTube global (WEB_REMIX) ---
 _YTM_GLOBAL: InnerTube | None = None
 _YTM_LOCK = threading.RLock()
@@ -20,7 +19,6 @@ def _ytm() -> InnerTube:
         if _YTM_GLOBAL is None:
             _YTM_GLOBAL = InnerTube("WEB_REMIX")
         return _YTM_GLOBAL
-
 
 # --- ytmusicapi global ---
 _YTMUSIC_GLOBAL = None
@@ -34,7 +32,6 @@ def _ytmusic_client():
                 from ytmusicapi import YTMusic
                 _YTMUSIC_GLOBAL = YTMusic()
     return _YTMUSIC_GLOBAL
-
 
 # --- yt-dlp global ---
 _YDL_GLOBAL: yt_dlp.YoutubeDL | None = None
@@ -91,7 +88,6 @@ def _ydl_for(client: str) -> yt_dlp.YoutubeDL:
         "concurrent_fragment_downloads": 1,
     }
     return yt_dlp.YoutubeDL(opts)
-
 
 def _ydl_global() -> yt_dlp.YoutubeDL:
     global _YDL_GLOBAL
