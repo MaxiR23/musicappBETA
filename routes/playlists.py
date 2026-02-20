@@ -1,5 +1,6 @@
 # routes/playlists.py
-from fastapi import APIRouter, Request, Body
+from fastapi import APIRouter, Request, Body, Path
+from fastapi.responses import JSONResponse
 from services.supabase_service import db_as_user, supabase_service
 from services.cache_service import get_cached, set_cached, invalidate
 from services.cache_config import CacheType
@@ -196,3 +197,108 @@ async def delete_playlist(request: Request, playlist_id: str):
         return {"ok": True, "deleted": resp.data or []}
     except Exception as e:
         return {"error": "db_error", "detail": str(e)}
+    
+""" TODO: fix reorder or improve with new endpoint and optimistic UI in frontend """    
+@router.post("/{playlist_id}/move-track")
+def move_playlist_track(
+    request: Request,
+    playlist_id: str = Path(...),
+    body: dict = Body(...),
+):
+    import time
+    import random
+    
+    auth = (request.headers.get("Authorization") or "").strip()
+    jwt  = auth.replace("Bearer ", "").strip()
+    if not jwt:
+        return JSONResponse(status_code=401, content={"ok": False, "error": "unauthorized"})
+
+    old_position = body.get("old_position")
+    new_position = body.get("new_position")
+    if not isinstance(old_position, int) or not isinstance(new_position, int) \
+       or old_position < 1 or new_position < 1:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "invalid_params"})
+
+    try:
+        db = db_as_user(jwt)
+
+        pre = (
+            db.table("playlist_tracks")
+              .select("id,position")
+              .eq("playlist_id", playlist_id)
+              .order("position", desc=False)
+              .execute()
+        ).data or []
+
+        row = (
+            db.table("playlist_tracks")
+              .select("id,position")
+              .eq("playlist_id", playlist_id)
+              .eq("position", old_position)
+              .limit(1)
+              .execute()
+        )
+
+        if not row.data:
+            if 1 <= old_position <= len(pre):
+                track_row_id = pre[old_position - 1]["id"]
+            else:
+                return JSONResponse(status_code=404, content={"ok": False, "error": "track_not_found"})
+        else:
+            track_row_id = row.data[0]["id"]
+
+        total = len(pre)
+        if new_position > total: new_position = total
+        if new_position < 1:     new_position = 1
+        if new_position == old_position:
+            ordered_now = (
+                db.table("playlist_tracks")
+                  .select("id,track_id,position")
+                  .eq("playlist_id", playlist_id)
+                  .order("position", desc=False)
+                  .execute()
+            ).data or []
+            return {"ok": True, "noop": True, "order": [
+                {"internalId": r["id"], "trackId": r["track_id"], "position": r["position"]}
+                for r in ordered_now
+            ]}
+
+        base = int(time.time()) ^ random.randint(1, 1_000_000)
+        candidate = - (1 + (abs(base) % 999_999))
+        parked = False
+        for attempt in range(6):
+            try:
+                db.table("playlist_tracks").update({"position": candidate}).eq("id", track_row_id).execute()
+                parked = True
+                break
+            except Exception:
+                candidate -= 1
+                if candidate < -2_000_000:
+                    candidate = -1
+        if not parked:
+            return JSONResponse(status_code=500, content={"ok": False, "error": "sentinel_failed"})
+
+        if new_position < old_position:
+            for pos in range(old_position - 1, new_position - 1, -1):
+                db.table("playlist_tracks").update({"position": pos + 1}).eq("playlist_id", playlist_id).eq("position", pos).execute()
+        else:
+            for pos in range(old_position + 1, new_position + 1):
+                db.table("playlist_tracks").update({"position": pos - 1}).eq("playlist_id", playlist_id).eq("position", pos).execute()
+
+        db.table("playlist_tracks").update({"position": new_position}).eq("id", track_row_id).execute()
+
+        ordered = (
+            db.table("playlist_tracks")
+              .select("id,track_id,position")
+              .eq("playlist_id", playlist_id)
+              .order("position", desc=False)
+              .execute()
+        ).data or []
+
+        return {
+            "ok": True,
+            "order": [{"internalId": r["id"], "trackId": r["track_id"], "position": r["position"]} for r in ordered],
+        }
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": "move_failed", "detail": str(e)})

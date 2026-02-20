@@ -198,10 +198,8 @@ def parse_album_info(response: dict):
         "thumbnails": thumbnails,
 
         ## TODO: { debería tener esto teniendo included_artists? 
-
         "artistName": artist_name, 
         "artistId": artist_id, 
-
         ## TODO }
 
         "includedArtists": included_artists,      # [{id,name}, ...]
