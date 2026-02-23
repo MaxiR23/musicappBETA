@@ -128,7 +128,12 @@ def _extract_best_url(video_id: str):
     # 1) Intentar con pytubefix
     try:
         yt = PytubeYouTube(f"https://www.youtube.com/watch?v={video_id}")
-        stream = yt.streams.get_audio_only()
+        #stream = yt.streams.get_audio_only() test
+        stream = yt.streams.filter(only_audio=True).order_by('abr').desc().first()
+
+        if stream:
+            print(f"[pytubefix] video_id={video_id} itag={stream.itag} abr={stream.abr} mime={stream.mime_type} codec={stream.audio_codec}")
+
         if stream and stream.url:
             return {"title": yt.title}, stream.url, "pytubefix"
     except Exception as e:

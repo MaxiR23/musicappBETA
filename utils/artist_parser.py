@@ -241,7 +241,7 @@ def parse_featured_on(section):
         # Título de la playlist
         title = r.get("title", {}).get("runs", [{}])[0].get("text")
 
-        # Subtitle → normalmente "Playlist • YouTube Music"
+        # Subtitle
         subtitle_runs = r.get("subtitle", {}).get("runs", [])
         subtitle = "".join(run.get("text", "") for run in subtitle_runs)
 
@@ -337,10 +337,6 @@ def parse_related_artists(section: dict):
             .get("text")
         )
 
-        # Subtitle → "X monthly audience"
-        subtitle_runs = r.get("subtitle", {}).get("runs", [])
-        subtitle = "".join(run.get("text", "") for run in subtitle_runs)
-
         # Thumbnails
         thumbs = (
             r.get("thumbnailRenderer", {})
@@ -353,7 +349,6 @@ def parse_related_artists(section: dict):
             related.append({
                 "id": artist_id,
                 "name": name,
-                "subtitle": subtitle,
                 "thumbnails": thumbs
             })
 

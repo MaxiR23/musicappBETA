@@ -81,7 +81,6 @@ def _artist_payload(artist_id: str):
         .get("thumbnail", {})
         .get("thumbnails", [])
     )
-    listeners = header.get("monthlyListenerCount", {}).get("runs", [{}])[0].get("text")
 
     contents = (
         response.get("contents", {})
@@ -148,7 +147,6 @@ def _artist_payload(artist_id: str):
             "name": name,
             "description": desc,
             "thumbnails": thumbs,
-            "monthlyListeners": listeners,
         },
         "topSongs": parse_top_songs_v2(artist_data, _ytmusic_client()),
         "albums": albums_filtered,
