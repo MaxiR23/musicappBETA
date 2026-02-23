@@ -177,6 +177,122 @@ CREATE INDEX ums_user_type_idx ON public.user_monthly_stats
 
 **Estructura de stats**: Igual que `user_weekly_stats`.
 
+## RPCs de Agregación
+
+### aggregate_user_weekly_stats
+
+Agrega estadísticas semanales para un usuario. Hace GROUP BY en Postgres y retorna solo top 10 por tipo.
+
+**Uso desde Python:**
+```python
+sb.rpc('aggregate_user_weekly_stats', {
+    'p_user_id': user_id,
+    'p_week_start': '2026-02-17',
+    'p_week_end': '2026-02-24'
+}).execute()
+```
+
+**Retorna:**
+```json
+{
+  "track": [...top 10...],
+  "artist": [...top 10...],
+  "album": [...top 10...]
+}
+```
+
+**SQL:**
+```sql
+CREATE OR REPLACE FUNCTION aggregate_user_weekly_stats(
+  p_user_id uuid,
+  p_week_start date,
+  p_week_end date
+) RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_tracks jsonb;
+  v_artists jsonb;
+  v_albums jsonb;
+BEGIN
+  -- Top 10 tracks (artist_name completo con feats)
+  SELECT COALESCE(jsonb_agg(t ORDER BY t.play_count DESC), '[]'::jsonb)
+  INTO v_tracks
+  FROM (
+    SELECT 
+      track_id as entity_id,
+      (array_agg(metadata->>'track_name') FILTER (WHERE metadata->>'track_name' IS NOT NULL))[1] as display_name,
+      (array_agg(metadata->>'thumbnail_url') FILTER (WHERE metadata->>'thumbnail_url' IS NOT NULL))[1] as thumbnail_url,
+      (array_agg(metadata->>'artist_id') FILTER (WHERE metadata->>'artist_id' IS NOT NULL))[1] as artist_id,
+      (array_agg(metadata->>'artist_name') FILTER (WHERE metadata->>'artist_name' IS NOT NULL))[1] as artist_name,
+      (array_agg(metadata->>'album_id') FILTER (WHERE metadata->>'album_id' IS NOT NULL))[1] as album_id,
+      (array_agg(metadata->>'album_name') FILTER (WHERE metadata->>'album_name' IS NOT NULL))[1] as album_name,
+      COUNT(*)::int as play_count
+    FROM play_events
+    WHERE user_id = p_user_id 
+      AND played_at >= p_week_start 
+      AND played_at < p_week_end
+    GROUP BY track_id
+    ORDER BY play_count DESC
+    LIMIT 10
+  ) t;
+
+  -- Top 10 artists (primer nombre, sin feats)
+  SELECT COALESCE(jsonb_agg(a ORDER BY a.play_count DESC), '[]'::jsonb)
+  INTO v_artists
+  FROM (
+    SELECT 
+      metadata->>'artist_id' as entity_id,
+      SPLIT_PART((array_agg(metadata->>'artist_name') FILTER (WHERE metadata->>'artist_name' IS NOT NULL))[1], ', ', 1) as display_name,
+      (array_agg(metadata->>'thumbnail_url') FILTER (WHERE metadata->>'thumbnail_url' IS NOT NULL))[1] as thumbnail_url,
+      COUNT(*)::int as play_count
+    FROM play_events
+    WHERE user_id = p_user_id 
+      AND played_at >= p_week_start 
+      AND played_at < p_week_end
+      AND metadata->>'artist_id' IS NOT NULL
+    GROUP BY metadata->>'artist_id'
+    ORDER BY play_count DESC
+    LIMIT 10
+  ) a;
+
+  -- Top 10 albums (primer nombre, sin feats)
+  SELECT COALESCE(jsonb_agg(al ORDER BY al.play_count DESC), '[]'::jsonb)
+  INTO v_albums
+  FROM (
+    SELECT 
+      metadata->>'album_id' as entity_id,
+      (array_agg(metadata->>'album_name') FILTER (WHERE metadata->>'album_name' IS NOT NULL))[1] as display_name,
+      (array_agg(metadata->>'thumbnail_url') FILTER (WHERE metadata->>'thumbnail_url' IS NOT NULL))[1] as thumbnail_url,
+      (array_agg(metadata->>'artist_id') FILTER (WHERE metadata->>'artist_id' IS NOT NULL))[1] as artist_id,
+      SPLIT_PART((array_agg(metadata->>'artist_name') FILTER (WHERE metadata->>'artist_name' IS NOT NULL))[1], ', ', 1) as artist_name,
+      COUNT(*)::int as play_count
+    FROM play_events
+    WHERE user_id = p_user_id 
+      AND played_at >= p_week_start 
+      AND played_at < p_week_end
+      AND metadata->>'album_id' IS NOT NULL
+    GROUP BY metadata->>'album_id'
+    ORDER BY play_count DESC
+    LIMIT 10
+  ) al;
+
+  RETURN jsonb_build_object(
+    'track', v_tracks,
+    'artist', v_artists,
+    'album', v_albums
+  );
+END;
+$$;
+```
+
+**Notas:**
+- `FILTER (WHERE ... IS NOT NULL)` evita que un registro con null arruine el resultado
+- `SPLIT_PART(..., ', ', 1)` extrae solo el primer artista (dueño del álbum, sin feats)
+- Tracks mantienen el `artist_name` completo con feats
+- Albums y Artists usan solo el primer nombre
+
 ## Sistema de Logging
 
 ### Backend: Lógica de INSERT
