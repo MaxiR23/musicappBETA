@@ -294,7 +294,6 @@ def _probe_url(url: str) -> bool:
     except Exception:
         return False
 
-
 def _guess_audio_media_type(url: str, hdr_ct: str | None) -> str:
     if hdr_ct and hdr_ct != "application/octet-stream":
         return hdr_ct
@@ -310,16 +309,20 @@ def _guess_audio_media_type(url: str, hdr_ct: str | None) -> str:
             return mime
     return "audio/*"
 
+def _ct_base(ct: str | None) -> str | None:
+    if not ct:
+        return None
+    return ct.split(";", 1)[0].strip()
+
 def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
-    """Proxy de audio con reintento único."""
     ORIGIN_CHUNK = 256 * 1024
 
     def open_req(extra_range: str | None):
         hdrs = {"Accept-Encoding": "identity"}
-        if range_header:
-            hdrs["Range"] = range_header
         if extra_range:
             hdrs["Range"] = extra_range
+        elif range_header:
+            hdrs["Range"] = range_header
 
         r = _SESSION_STREAM.get(
             url,
@@ -333,29 +336,34 @@ def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
 
     r = open_req(None)
 
-    resp_headers = {"Accept-Ranges": "bytes", "Connection": "keep-alive"}
-    ct = r.headers.get("Content-Type")
+    # --- headers esperan los players ---
+    resp_headers = {
+        "Accept-Ranges": "bytes",
+        "Connection": "keep-alive",
+    }
+
+    ct = _ct_base(r.headers.get("Content-Type"))
     cr = r.headers.get("Content-Range")
+    cl = r.headers.get("Content-Length")
+
     if cr:
         resp_headers["Content-Range"] = cr
+    if cl:
+        resp_headers["Content-Length"] = cl
 
     media_type = ct if ct else _guess_audio_media_type(url, None)
+    media_type = _ct_base(media_type) or "audio/*"
 
-    total_len = None
-    if cr and "/" in cr:
-        try:
-            total_len = int(cr.split("/", 1)[1])
-        except Exception:
-            total_len = None
-    if total_len is None:
-        try:
-            total_len = int(r.headers.get("Content-Length") or 0) or None
-        except Exception:
-            total_len = None
+    # Si el cliente pidió Range, forzá 206 cuando haya Content-Range
+    status = r.status_code
+    if range_header and range_header.lower().startswith("bytes="):
+        if cr:
+            status = 206
+        # si el origen ignoró Range y devolvió 200, mejor igual responder 200,
+        # pero al menos ya devolvés Content-Length consistente.
 
     def streamer():
         nonlocal r
-
         sent = 0
         tried_resume = False
 
@@ -372,7 +380,7 @@ def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
                 except (requests.exceptions.ChunkedEncodingError,
                         requests.exceptions.ConnectionError,
                         requests.exceptions.ReadTimeout,
-                        TimeoutError) as _e:
+                        TimeoutError):
                     if tried_resume:
                         break
                     tried_resume = True
@@ -384,14 +392,22 @@ def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
                             new_start = base_offset + sent
                         else:
                             new_start = sent
+
                         try:
                             r.close()
                         except Exception:
                             pass
+
                         r = open_req(f"bytes={new_start}-")
+
+                        # actualizar headers si el origen ahora sí manda CR/CL
                         cr2 = r.headers.get("Content-Range")
+                        cl2 = r.headers.get("Content-Length")
                         if cr2:
                             resp_headers["Content-Range"] = cr2
+                        if cl2:
+                            resp_headers["Content-Length"] = cl2
+
                         continue
                     except Exception:
                         break
@@ -404,9 +420,7 @@ def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
             except Exception:
                 pass
 
-    return StreamingResponse(streamer(), media_type=media_type,
-                             headers=resp_headers, status_code=r.status_code)
-
+    return StreamingResponse(streamer(), media_type=media_type, headers=resp_headers, status_code=status)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # WARMING
