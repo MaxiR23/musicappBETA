@@ -131,9 +131,6 @@ def _extract_best_url(video_id: str):
         #stream = yt.streams.get_audio_only() test
         stream = yt.streams.filter(only_audio=True).order_by('abr').desc().first()
 
-        if stream:
-            print(f"[pytubefix] video_id={video_id} itag={stream.itag} abr={stream.abr} mime={stream.mime_type} codec={stream.audio_codec}")
-
         if stream and stream.url:
             return {"title": yt.title}, stream.url, "pytubefix"
     except Exception as e:
@@ -149,7 +146,6 @@ def _extract_best_url(video_id: str):
         return info, url, "yt-dlp"
     except Exception as e:
         raise RuntimeError(f"extract_failed: {type(e).__name__}")
-
 
 def _get_or_extract(video_id: str, _force: bool = False):
     """Extrae URL directa de audio. Con cache ultra-corta (60s)."""

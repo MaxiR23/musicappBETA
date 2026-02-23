@@ -88,7 +88,7 @@ def main():
         for entity_type, items in stats.items():
             save_weekly_stats(user_id, week_start, entity_type, items)
     
-    print("✅ Agregación semanal completada")
+    print("Agregación semanal completada")
 
 
 if __name__ == '__main__':

@@ -182,7 +182,7 @@ def main():
         for entity_type, items in stats.items():
             save_monthly_stats(user_id, month, entity_type, items)
     
-    print("✅ Agregación mensual completada")
+    print("Agregación mensual completada")
 
 
 if __name__ == '__main__':
