@@ -296,15 +296,19 @@ def _probe_url(url: str) -> bool:
 
 
 def _guess_audio_media_type(url: str, hdr_ct: str | None) -> str:
-    if hdr_ct:
+    if hdr_ct and hdr_ct != "application/octet-stream":
         return hdr_ct
     u = url.lower()
     if ".m4a" in u or ".mp4" in u:
         return "audio/mp4"
     if ".webm" in u or ".weba" in u:
         return "audio/webm"
+    if "mime=" in u:
+        qs = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
+        mime = qs.get("mime", [None])[0]
+        if mime:
+            return mime
     return "audio/*"
-
 
 def _stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
     """Proxy de audio con reintento único."""
