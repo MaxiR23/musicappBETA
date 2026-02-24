@@ -244,7 +244,7 @@ def invalidate(cache_type: CacheType, suffix: str = ""):
     """
     key = _make_key(cache_type, suffix)
     _delete(key)
-    print(f"[CACHE INVALIDATED] {key}")
+    #DBG print(f"[CACHE INVALIDATED] {key}")
 
 
 def invalidate_all(cache_type: CacheType):

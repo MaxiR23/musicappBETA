@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
         _ytm() # inicializa InnerTube("WEB_REMIX") global
         _ydl_global() # inicializa yt_dlp global
         _ytmusic_client() # inicializa ytmusicapi global 
-        print("[lifespan] warmed: InnerTube + yt_dlp + ytmusicapi")
+        #DBG print("[lifespan] warmed: InnerTube + yt_dlp + ytmusicapi")
     except Exception as e:
         print(f"[lifespan][warm][WARN] {e}")
     yield

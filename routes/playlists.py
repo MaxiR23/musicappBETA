@@ -205,100 +205,39 @@ def move_playlist_track(
     playlist_id: str = Path(...),
     body: dict = Body(...),
 ):
-    import time
-    import random
-    
     auth = (request.headers.get("Authorization") or "").strip()
-    jwt  = auth.replace("Bearer ", "").strip()
+    jwt = auth.replace("Bearer ", "").strip()
     if not jwt:
         return JSONResponse(status_code=401, content={"ok": False, "error": "unauthorized"})
 
-    old_position = body.get("old_position")
-    new_position = body.get("new_position")
-    if not isinstance(old_position, int) or not isinstance(new_position, int) \
-       or old_position < 1 or new_position < 1:
+    old_index = body.get("old_position")
+    new_index = body.get("new_position")
+    
+    if not isinstance(old_index, int) or not isinstance(new_index, int) \
+       or old_index < 1 or new_index < 1:
         return JSONResponse(status_code=400, content={"ok": False, "error": "invalid_params"})
 
     try:
         db = db_as_user(jwt)
 
-        pre = (
-            db.table("playlist_tracks")
-              .select("id,position")
-              .eq("playlist_id", playlist_id)
-              .order("position", desc=False)
-              .execute()
-        ).data or []
+        # Llamar a la función RPC
+        result = db.rpc("move_playlist_track", {
+            "p_playlist_id": playlist_id,
+            "p_old_index": old_index,
+            "p_new_index": new_index,
+        }).execute()
 
-        row = (
-            db.table("playlist_tracks")
-              .select("id,position")
-              .eq("playlist_id", playlist_id)
-              .eq("position", old_position)
-              .limit(1)
-              .execute()
-        )
+        data = result.data
+        if not data or not data.get("ok"):
+            return JSONResponse(status_code=400, content=data or {"ok": False, "error": "rpc_failed"})
 
-        if not row.data:
-            if 1 <= old_position <= len(pre):
-                track_row_id = pre[old_position - 1]["id"]
-            else:
-                return JSONResponse(status_code=404, content={"ok": False, "error": "track_not_found"})
-        else:
-            track_row_id = row.data[0]["id"]
+        # Invalidar cache
+        owner_id = _get_user_id(request)
+        if owner_id:
+            invalidate(CacheType.USER_PLAYLISTS, suffix=owner_id)
+            invalidate(CacheType.USER_PLAYLISTS, suffix=f"{playlist_id}:{owner_id}")
 
-        total = len(pre)
-        if new_position > total: new_position = total
-        if new_position < 1:     new_position = 1
-        if new_position == old_position:
-            ordered_now = (
-                db.table("playlist_tracks")
-                  .select("id,track_id,position")
-                  .eq("playlist_id", playlist_id)
-                  .order("position", desc=False)
-                  .execute()
-            ).data or []
-            return {"ok": True, "noop": True, "order": [
-                {"internalId": r["id"], "trackId": r["track_id"], "position": r["position"]}
-                for r in ordered_now
-            ]}
-
-        base = int(time.time()) ^ random.randint(1, 1_000_000)
-        candidate = - (1 + (abs(base) % 999_999))
-        parked = False
-        for attempt in range(6):
-            try:
-                db.table("playlist_tracks").update({"position": candidate}).eq("id", track_row_id).execute()
-                parked = True
-                break
-            except Exception:
-                candidate -= 1
-                if candidate < -2_000_000:
-                    candidate = -1
-        if not parked:
-            return JSONResponse(status_code=500, content={"ok": False, "error": "sentinel_failed"})
-
-        if new_position < old_position:
-            for pos in range(old_position - 1, new_position - 1, -1):
-                db.table("playlist_tracks").update({"position": pos + 1}).eq("playlist_id", playlist_id).eq("position", pos).execute()
-        else:
-            for pos in range(old_position + 1, new_position + 1):
-                db.table("playlist_tracks").update({"position": pos - 1}).eq("playlist_id", playlist_id).eq("position", pos).execute()
-
-        db.table("playlist_tracks").update({"position": new_position}).eq("id", track_row_id).execute()
-
-        ordered = (
-            db.table("playlist_tracks")
-              .select("id,track_id,position")
-              .eq("playlist_id", playlist_id)
-              .order("position", desc=False)
-              .execute()
-        ).data or []
-
-        return {
-            "ok": True,
-            "order": [{"internalId": r["id"], "trackId": r["track_id"], "position": r["position"]} for r in ordered],
-        }
+        return data
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"ok": False, "error": "move_failed", "detail": str(e)})
