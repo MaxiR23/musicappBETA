@@ -1,7 +1,6 @@
 # routes/search.py
 """
 Endpoint de búsqueda
-Extraído de music.py según estructura oficial FastAPI
 """
 from fastapi import APIRouter, Query, Request
 

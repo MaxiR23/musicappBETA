@@ -7,7 +7,6 @@ from fastapi.responses import JSONResponse
 
 from services.cache_service import get_cached_legacy, set_cached_legacy, set_cached
 
-# Importar cliente compartido desde music.py (temporal, luego irá a shared/)
 from shared.clients import _ytmusic_client
 
 router = APIRouter()

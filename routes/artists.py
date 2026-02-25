@@ -1,7 +1,6 @@
 # routes/artists.py
 """
 Endpoints de artistas
-Extraído de music.py según estructura oficial FastAPI
 """
 import time
 import concurrent.futures as cf

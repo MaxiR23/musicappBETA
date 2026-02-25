@@ -1,7 +1,6 @@
 # routes/activity.py
 """
 Endpoints de actividad: plays y recent
-Extraído de music.py según estructura oficial FastAPI
 """
 from fastapi import APIRouter, Path, Body, Request
 from fastapi.responses import JSONResponse
