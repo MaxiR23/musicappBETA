@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from services.supabase_service import db_as_user
 from services.jwt_utils import decode_jwt
 
-MAX_RECENTS = 25
+MAX_RECENTS = 30
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()

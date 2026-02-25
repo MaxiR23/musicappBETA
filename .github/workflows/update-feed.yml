@@ -73,9 +73,9 @@ jobs:
           FEED_NEW_RELEASES_URL: ${{ secrets.FEED_NEW_RELEASES_URL }}
           FEED_MUSIC_RELEASE_PLAYLIST_ID: ${{ secrets.FEED_MUSIC_RELEASE_PLAYLIST_ID }}
           FEED_STORE: AR
-          FEED_LIMIT: 25
+          FEED_LIMIT: 26
           PYTHONPATH: .
-        run: python scripts/store_feed_data.py --only-new-releases --only-new-singles --store AR --limit 25
+        run: python scripts/store_feed_data.py --only-new-releases --only-new-singles --store AR --limit 26
       
       - name: Summary
         run: echo "New releases updated - $(date)"
@@ -104,7 +104,7 @@ jobs:
           FEED_CLIENT_SECRET: ${{ secrets.FEED_CLIENT_SECRET }}
           FEED_MUSIC_RELEASE_PLAYLIST_ID: ${{ secrets.FEED_MUSIC_RELEASE_PLAYLIST_ID }}
           PYTHONPATH: .
-        run: python scripts/store_feed_data.py --only-seed-tracks --limit 25
+        run: python scripts/store_feed_data.py --only-seed-tracks --limit 26
       
       - name: Summary
         run: echo "Seed tracks updated - $(date)"
