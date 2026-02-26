@@ -22,6 +22,7 @@ def log_play_track(request: Request, track_id: str = Path(...), body: dict | Non
     if b.get("artist_id"): metadata["artist_id"] = b["artist_id"]
     if b.get("track_name"): metadata["track_name"] = b["track_name"]
     if b.get("artist_name"): metadata["artist_name"] = b["artist_name"]
+    if b.get("durationSeconds"): metadata["durationSeconds"] = b["durationSeconds"]
     if b.get("thumbnail_url"): metadata["thumbnail_url"] = b["thumbnail_url"]
     
     result = log_play_from_request(request, track_id=track_id, metadata=metadata)

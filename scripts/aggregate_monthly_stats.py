@@ -65,7 +65,7 @@ def aggregate_for_user(user_id: str, weeks: List[str]) -> Dict[str, List[Dict[st
     
     Retorna: { 'artist': [...], 'album': [...], 'track': [...] }
     """
-    print(f"  📊 Procesando user {user_id}")
+    print(f"Procesando user {user_id}")
     
     # Leer stats de todas las semanas del mes
     response = sb.table('user_weekly_stats') \
@@ -183,7 +183,6 @@ def main():
             save_monthly_stats(user_id, month, entity_type, items)
     
     print("Agregación mensual completada")
-
 
 if __name__ == '__main__':
     main()

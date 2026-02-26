@@ -16,8 +16,8 @@ def purge_play_events(days: int = 60):
     """Borra registros de play_events más antiguos que X días"""
     cutoff_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
     
-    print(f"🗑️  Purgando play_events...")
-    print(f"📅 Fecha de corte: {cutoff_date} (hace {days} días)")
+    print(f"Purgando play_events...")
+    print(f"Fecha de corte: {cutoff_date} (hace {days} días)")
     
     try:
         # Contar cuántos se van a borrar
@@ -51,8 +51,8 @@ def purge_weekly_stats(days: int = 90):
     """Borra registros de user_weekly_stats más antiguos que X días"""
     cutoff_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
     
-    print(f"\n🗑️  Purgando user_weekly_stats...")
-    print(f"📅 Fecha de corte: {cutoff_date} (hace {days} días)")
+    print(f"\nPurgando user_weekly_stats...")
+    print(f"Fecha de corte: {cutoff_date} (hace {days} días)")
     
     try:
         # Contar cuántos se van a borrar

@@ -22,26 +22,26 @@ def _get_album_name_fast(yt_innertube, album_id: str) -> str | None:
     except:
         return None
 
-def _get_duration_fast(yt_api, video_id: str) -> str | None:
-    """Extrae SOLO la duración de una canción por videoId (usa ytmusicapi)"""
+def _get_duration_fast(yt_api, video_id: str) -> tuple[str | None, int | None]:
+    """Devuelve (duration_str, duration_seconds) usando ytmusicapi."""
     if video_id in _DURATION_CACHE:
         return _DURATION_CACHE[video_id]
-    
+
     try:
         song_info = yt_api.get_song(video_id)
-        duration_seconds = song_info.get("videoDetails", {}).get("lengthSeconds")
-        
-        if duration_seconds:
-            duration_seconds = int(duration_seconds)
-            minutes = duration_seconds // 60
-            seconds = duration_seconds % 60
-            duration_str = f"{minutes}:{seconds:02d}"
-            _DURATION_CACHE[video_id] = duration_str
-            return duration_str
+        seconds = song_info.get("videoDetails", {}).get("lengthSeconds")
+        if seconds:
+            seconds = int(seconds)
+            minutes = seconds // 60
+            sec = seconds % 60
+            duration_str = f"{minutes}:{sec:02d}"
+            _DURATION_CACHE[video_id] = (duration_str, seconds)
+            return duration_str, seconds
     except:
         pass
-    
-    return None
+
+    _DURATION_CACHE[video_id] = (None, None)
+    return None, None
 
 def _enrich_songs_with_metadata(yt_innertube, yt_api, songs: list[dict]):
     """Enriquece canciones con albumName y duration si no las tienen"""
@@ -53,8 +53,12 @@ def _enrich_songs_with_metadata(yt_innertube, yt_api, songs: list[dict]):
         
         # Duration (usa ytmusicapi)
         video_id = song.get("videoId")
-        if video_id and not song.get("duration"):
-            song["duration"] = _get_duration_fast(yt_api, video_id)
+        if video_id and not song.get("durationSeconds"):
+            dstr, dsec = _get_duration_fast(yt_api, video_id)
+            if dstr and not song.get("duration"):
+                song["duration"] = dstr
+            if dsec:
+                song["durationSeconds"] = dsec
 
 # ---------- helpers básicos ----------
 def _dig(cur, path, default=None):
