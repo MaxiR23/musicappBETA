@@ -1,4 +1,3 @@
-# routes/activity.py
 """
 Endpoints de actividad: plays y recent
 """
@@ -8,7 +7,6 @@ from fastapi.responses import JSONResponse
 from services.activity_service import log_play_from_request, upsert_recent_from_request, get_recents_from_request
 
 router = APIRouter()
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PLAYS
@@ -29,7 +27,6 @@ def log_play_track(request: Request, track_id: str = Path(...), body: dict | Non
     result = log_play_from_request(request, track_id=track_id, metadata=metadata)
     return {"ok": result.get("ok", False)}
 
-
 @router.post("/plays/albums/{album_id}")
 def log_play_album(request: Request, album_id: str = Path(...), body: dict | None = Body(None)):
     """Usuario reproduce desde un album → UPSERT en recent_activity."""
@@ -41,7 +38,6 @@ def log_play_album(request: Request, album_id: str = Path(...), body: dict | Non
     if th: meta["thumbnail_url"] = th
     upsert_recent_from_request(request, entity_type="album", entity_id=album_id, metadata=meta)
     return {"ok": True}
-
 
 @router.post("/plays/artists/{artist_id}")
 def log_play_artist(request: Request, artist_id: str = Path(...), body: dict | None = Body(None)):
@@ -55,7 +51,6 @@ def log_play_artist(request: Request, artist_id: str = Path(...), body: dict | N
     upsert_recent_from_request(request, entity_type="artist", entity_id=artist_id, metadata=meta)
     return {"ok": True}
 
-
 @router.post("/plays/playlists/{playlist_id}")
 def log_play_playlist(request: Request, playlist_id: str = Path(...), body: dict | None = Body(None)):
     """Usuario reproduce desde una playlist → UPSERT en recent_activity."""
@@ -67,7 +62,6 @@ def log_play_playlist(request: Request, playlist_id: str = Path(...), body: dict
     if th: meta["thumbnail_url"] = th
     upsert_recent_from_request(request, entity_type="playlist", entity_id=playlist_id, metadata=meta)
     return {"ok": True}
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # RECENT

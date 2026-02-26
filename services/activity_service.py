@@ -37,7 +37,7 @@ def log_play(db, *, user_id: str, track_id: str, metadata: dict = None) -> dict:
             "metadata": metadata or {},
         }).execute()
         row = (resp.data or [{}])[0]
-        print(f"[play_event] OK id={row.get('id')}")
+        #DBG: print(f"[play_event] OK id={row.get('id')}")
         return {"ok": True, "id": row.get("id")}
     except Exception as e:
         print(f"[play_event][ERROR] {e}")

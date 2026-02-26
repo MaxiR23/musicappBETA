@@ -4,17 +4,9 @@ from fastapi.responses import JSONResponse
 from services.supabase_service import db_as_user, supabase_service
 from services.cache_service import get_cached, set_cached, invalidate
 from services.cache_config import CacheType
-from services.jwt_utils import decode_jwt
+from services.auth_utils import get_user_id
 
 router = APIRouter(tags=["playlists"])
-
-def _get_user_id(request: Request) -> str | None:
-    user = getattr(request.state, "user", None)
-    if isinstance(user, dict) and user.get("id"):
-        return user["id"]
-    token = request.headers.get("Authorization", "").replace("Bearer ", "")
-    claims = decode_jwt(token) or {}
-    return claims.get("sub")
 
 @router.post("/")
 async def create_playlist(request: Request, body: dict = Body(...)):
@@ -28,7 +20,7 @@ async def create_playlist(request: Request, body: dict = Body(...)):
     if not title:
         return {"error": "title requerido"}
 
-    owner_id = _get_user_id(request)
+    owner_id = get_user_id(request)
     if not owner_id:
         return {"error": "unauthorized"}
 
@@ -50,7 +42,7 @@ async def get_playlists(request: Request):
     jwt = request.headers.get("Authorization", "").replace("Bearer ", "")
     db = db_as_user(jwt)
 
-    owner_id = _get_user_id(request)
+    owner_id = get_user_id(request)
     if not owner_id:
         return {"error": "unauthorized"}
 
@@ -82,7 +74,7 @@ async def get_playlist_by_id(request: Request, playlist_id: str):
     jwt = request.headers.get("Authorization", "").replace("Bearer ", "")
     db = db_as_user(jwt)
 
-    owner_id = _get_user_id(request)
+    owner_id = get_user_id(request)
     cache_suffix = f"{playlist_id}:{owner_id}" if owner_id else playlist_id
     
     cached = get_cached(CacheType.USER_PLAYLISTS, suffix=cache_suffix)
@@ -119,7 +111,7 @@ async def add_track_to_playlist(request: Request, playlist_id: str, body: dict =
     if not track_id:
         return {"error": "track_id requerido"}
 
-    added_by = _get_user_id(request)
+    added_by = get_user_id(request)
     if not added_by:
         return {"error": "unauthorized"}
 
@@ -169,7 +161,7 @@ async def remove_track_from_playlist(request: Request, playlist_id: str, track_i
         db.table("playlist_tracks") \
             .delete().eq("playlist_id", playlist_id).eq("track_id", track_id).execute()
 
-        owner_id = _get_user_id(request)
+        owner_id = get_user_id(request)
         if owner_id:
             invalidate(CacheType.USER_PLAYLISTS, suffix=owner_id)
             invalidate(CacheType.USER_PLAYLISTS, suffix=f"{playlist_id}:{owner_id}")
@@ -183,7 +175,7 @@ async def delete_playlist(request: Request, playlist_id: str):
     jwt = request.headers.get("Authorization", "").replace("Bearer ", "")
     db = db_as_user(jwt)
 
-    owner_id = _get_user_id(request)
+    owner_id = get_user_id(request)
     if not owner_id:
         return {"error": "unauthorized"}
 
@@ -232,7 +224,7 @@ def move_playlist_track(
             return JSONResponse(status_code=400, content=data or {"ok": False, "error": "rpc_failed"})
 
         # Invalidar cache
-        owner_id = _get_user_id(request)
+        owner_id = get_user_id(request)
         if owner_id:
             invalidate(CacheType.USER_PLAYLISTS, suffix=owner_id)
             invalidate(CacheType.USER_PLAYLISTS, suffix=f"{playlist_id}:{owner_id}")

@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, ORJSONResponse
-from routes import cache, index, tracks, playlists, feed, debug, genres, upcoming_releases, search, activity, album, artists, audio
+from routes import cache, index, tracks, playlists, feed, debug, genres, upcoming_releases, search, activity, album, artists, audio, stats
 from middlewares.supa_auth import supa_auth
 from middlewares.cors_headers import add_cors_middleware
 
@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
     yield
     # opcional y liviano: cierre prolijo de recursos
     try:
-         from routes.audio import _WARM_EXECUTOR, _SESSION_SHORT, _SESSION_STREAM
+         from services.audio_service import _WARM_EXECUTOR, _SESSION_SHORT, _SESSION_STREAM
          from shared.clients import _YDL_GLOBAL
          if _WARM_EXECUTOR:
              _WARM_EXECUTOR.shutdown(wait=False, cancel_futures=True)
@@ -82,6 +82,9 @@ app.include_router(cache.router, prefix="/api/cache")
 app.include_router(genres.router, prefix="/api/genres")
 app.include_router(genres.playlists_router, prefix="/api")
 app.include_router(upcoming_releases.router, prefix="/api/upcoming-releases")
+
+# Stats
+app.include_router(stats.router, prefix="/api/stats")
 
 # Rutas de debug/test (solo en desarrollo)
 if ENV != "production":

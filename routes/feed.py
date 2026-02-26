@@ -33,13 +33,11 @@ async def get_feed_db(limit: Optional[int] = 25):
     tracks = list_feed("most_played", "track", limit or 25)
     return {"ok": True, "albums": albums, "tracks": tracks}
 
-
 @router.get("/db/new-releases", summary="Feed (DB) new releases")
 @cached(CacheType.NEW_RELEASES)
 async def get_new_releases_db(limit: Optional[int] = 25):
     albums = list_feed("new_releases", "album", limit or 25)
     return {"ok": True, "new_releases": albums}
-
 
 @router.get("/db/new-singles", summary="Feed (DB) singles nuevos")
 @cached(CacheType.NEW_SINGLES, ttl=43200)
@@ -47,13 +45,11 @@ async def get_new_singles_db(limit: Optional[int] = 25):
     tracks = list_feed("new_singles", "track", limit or 25)
     return {"ok": True, "tracks": tracks}
 
-
 @router.get("/db/seed-tracks", summary="Feed (DB) seed tracks")
 @cached(CacheType.SEED_TRACKS)
 async def get_seed_tracks_db(limit: Optional[int] = 25):
     tracks = list_feed("seed_tracks", "track", limit or 25)
     return {"ok": True, "tracks": tracks}
-
 
 @router.get("/recommendations/me", summary="User recommendations (Bearer auth)")
 async def get_user_recommendations_me(
@@ -118,7 +114,6 @@ async def get_user_recommendations_me(
     
     set_cached(CacheType.USER_RECOMMENDATIONS, result, suffix=user_id)
     return result
-
 
 @router.get("/recommendations", summary="User recommendations (by user_id)")
 async def get_user_recommendations_db(
