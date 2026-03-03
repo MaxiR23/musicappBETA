@@ -23,7 +23,7 @@ def extract_artist_name(info: dict) -> str | None:
     artist_from_list = first.get("name") if isinstance(first, dict) else None
 
     name = (
-    info.get("artistName")
+    info.get("artist_name")
       or artist_from_list
       or info.get("artist")
       or info.get("subtitle")
@@ -45,14 +45,14 @@ def build_album_payload(
         "id": album_id,
         "info": info,
         "tracks": tracks or [],
-        "otherVersions": parse_album_other_versions(raw) or [],
-        "moreFromArtist": more_from_artist or [],
-        "upcomingEvents": events or [],
-        "releasesForYou": parse_album_releases_for_you(raw) or [],
+        "other_versions": parse_album_other_versions(raw) or [],
+        "more_from_artist": more_from_artist or [],
+        "upcoming_events": events or [],
+        "releases_for_you": parse_album_releases_for_you(raw) or [],
     }
 
 def get_album_tracks(audio_playlist_id: str) -> list:
-    """Trae tracks de un álbum por su audioPlaylistId."""
+    """Trae tracks de un álbum por su audio_playlist_id."""
     if not audio_playlist_id:
         return []
     return parse_tracks_from_audio_playlist(audio_playlist_id)
@@ -71,9 +71,9 @@ def get_album(album_id: str, use_cache: bool = True) -> dict:
         
         info = parse_album_info(raw) or {}
 
-        artist_id = info.get("artistId")
+        artist_id = info.get("artist_id")
         artist_name = extract_artist_name(info)
-        audio_playlist_id = info.get("audioPlaylistId")
+        audio_playlist_id = info.get("audio_playlist_id")
 
         # Fetch tracks y more_from_artist en paralelo
         results = gather({

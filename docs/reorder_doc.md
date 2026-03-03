@@ -65,7 +65,7 @@ BEGIN
     SELECT json_agg(row_to_json(t) ORDER BY t.position)
     INTO v_rows
     FROM (
-      SELECT id AS "internalId", track_id AS "trackId", position
+      SELECT id AS "internalId", track_id AS "track_id", position
       FROM playlist_tracks
       WHERE playlist_id = p_playlist_id
       ORDER BY position
@@ -115,7 +115,7 @@ BEGIN
   SELECT json_agg(row_to_json(t) ORDER BY t.position)
   INTO v_rows
   FROM (
-    SELECT id AS "internalId", track_id AS "trackId", position
+    SELECT id AS "internalId", track_id AS "track_id", position
     FROM playlist_tracks
     WHERE playlist_id = p_playlist_id
     ORDER BY position
@@ -199,8 +199,8 @@ Nota: Las posiciones son 1-based (el primer track es posicion 1, no 0).
 {
   "ok": true,
   "order": [
-    {"internalId": "uuid-playlist-track", "trackId": "uuid-track", "position": 1},
-    {"internalId": "uuid-playlist-track", "trackId": "uuid-track", "position": 2},
+    {"internalId": "uuid-playlist-track", "track_id": "uuid-track", "position": 1},
+    {"internalId": "uuid-playlist-track", "track_id": "uuid-track", "position": 2},
     ...
   ]
 }
@@ -227,7 +227,7 @@ Nota: Las posiciones son 1-based (el primer track es posicion 1, no 0).
 
 ### Mapeo de IDs
 
-- `song.internalId` (frontend) = `order.trackId` (backend) = `tracks.id` (DB)
+- `song.internalId` (frontend) = `order.track_id` (backend) = `tracks.id` (DB)
 - `order.internalId` (backend) = `playlist_tracks.id` (DB)
 
 ---

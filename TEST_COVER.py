@@ -43,7 +43,7 @@ def search_artist_id(artist: str) -> tuple[str,str] | None:
             if r.status_code != 200:
                 continue
             for it in r.json().get("results", []):
-                if norm(it.get("artistName","")) == aq:
+                if norm(it.get("artist_name","")) == aq:
                     exacts.append((it, country))
 
         if not exacts:
@@ -57,16 +57,16 @@ def search_artist_id(artist: str) -> tuple[str,str] | None:
                     continue
                 items = r.json().get("results", [])
                 if items:
-                    items.sort(key=lambda x: int(x.get("artistId",0)), reverse=True)
+                    items.sort(key=lambda x: int(x.get("artist_id",0)), reverse=True)
                     best = (items[0], country)
                     break
-            return (str(best[0]["artistId"]), best[1]) if best else None
+            return (str(best[0]["artist_id"]), best[1]) if best else None
 
-        # Deduplicar por artistId
+        # Deduplicar por artist_id
         seen = {}
         for it, country in exacts:
-            seen.setdefault(str(it.get("artistId")), (it, set()))
-            seen[str(it.get("artistId"))][1].add(country)
+            seen.setdefault(str(it.get("artist_id")), (it, set()))
+            seen[str(it.get("artist_id"))][1].add(country)
 
         # Score por "riqueza de catálogo": #álbumes reales en US (si se puede) o en el primer país visto
         def albums_count(artist_id: str, pref_country: str) -> tuple[int, str, int]:
@@ -94,7 +94,7 @@ def search_artist_id(artist: str) -> tuple[str,str] | None:
             scored.append((score, aid, used_cc))
 
         scored.sort(reverse=True)
-        # devuelve el artistId "rico" y el país que funcionó mejor
+        # devuelve el artist_id "rico" y el país que funcionó mejor
         _, aid, cc = scored[0]
         return aid, cc
 
@@ -118,7 +118,7 @@ def strict_pick_album(albums: list[dict], artist: str, album: str) -> dict | Non
     if not albums: return None
 
     def score(x: dict):
-        an = norm(x.get("artistName",""))
+        an = norm(x.get("artist_name",""))
         tn = norm(x.get("collectionName",""))
         exact_title = int(tn == tq)
         starts_title = int(tn.startswith(tq))
@@ -132,7 +132,7 @@ def strict_pick_album(albums: list[dict], artist: str, album: str) -> dict | Non
     preview = sorted(albums, key=score, reverse=True)[:5]
     for i, it in enumerate(preview, 1):
         dbg(f"cand#{i}",
-            "artist=", it.get("artistName"),
+            "artist=", it.get("artist_name"),
             "| title=", it.get("collectionName"),
             "| rdate=", it.get("releaseDate"),
             "| cid=", it.get("collectionId"),
@@ -140,15 +140,15 @@ def strict_pick_album(albums: list[dict], artist: str, album: str) -> dict | Non
 
     albums.sort(key=score, reverse=True)
     top = albums[0]
-    a_ok = (norm(top.get("artistName","")) == aq)
+    a_ok = (norm(top.get("artist_name","")) == aq)
     t_ok = (norm(top.get("collectionName","")) == tq)
     ts_ok = norm(top.get("collectionName","")).startswith(tq)
     if not (a_ok and (t_ok or ts_ok)):
         dbg("top candidate rejected by strict check:",
-            "artist=", top.get("artistName"), "title=", top.get("collectionName"))
+            "artist=", top.get("artist_name"), "title=", top.get("collectionName"))
         return None
     dbg("top candidate ACCEPTED:",
-        "artist=", top.get("artistName"), "title=", top.get("collectionName"), "cid=", top.get("collectionId"))
+        "artist=", top.get("artist_name"), "title=", top.get("collectionName"), "cid=", top.get("collectionId"))
     return top
 
 def apple_cover_by_artist_catalog(artist: str, album: str, size: int) -> dict | None:
@@ -208,7 +208,7 @@ def apple_cover_by_text_search(artist: str, album: str, size: int) -> dict | Non
             if not results:
                 continue
             def score(x: dict):
-                an = norm(x.get("artistName","")); tn = norm(x.get("collectionName",""))
+                an = norm(x.get("artist_name","")); tn = norm(x.get("collectionName",""))
                 exact_title = int(tn == tq)
                 starts_title = int(tn.startswith(tq))
                 contains_title = int(tq in tn)
@@ -220,10 +220,10 @@ def apple_cover_by_text_search(artist: str, album: str, size: int) -> dict | Non
             # log top-3
             for i, it in enumerate(results[:3], 1):
                 dbg(f"text cand#{i}",
-                    "artist=", it.get("artistName"), "title=", it.get("collectionName"),
+                    "artist=", it.get("artist_name"), "title=", it.get("collectionName"),
                     "rdate=", it.get("releaseDate"), "cid=", it.get("collectionId"), "score=", score(it))
             top = results[0]
-            a_ok = (norm(top.get("artistName","")) == aq)
+            a_ok = (norm(top.get("artist_name","")) == aq)
             t_ok = (norm(top.get("collectionName","")) == tq)
             ts_ok = norm(top.get("collectionName","")).startswith(tq)
             if not (a_ok and (t_ok or ts_ok)):

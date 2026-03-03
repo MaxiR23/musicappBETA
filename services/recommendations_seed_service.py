@@ -1,9 +1,8 @@
 # services/recommendations_seed_service.py
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, TypedDict
-import threading
+from typing import Any, Dict, List, Optional
 
-from innertube import InnerTube
+from shared.clients import _ytm
 from services.cache_service import get_cached_legacy, set_cached_legacy
 from services.activity_repo import recent_seeds_from_activity
 from utils.artist_parser import parse_related_artists, pick_related_artists_section
@@ -11,18 +10,8 @@ from utils.album_parser import parse_album_releases_for_you
 
 _RECO_TTL = 20 * 60  # 20 minutos
 
-# ---------- YT Music client (singleton liviano) ----------
-_YTM_GLOBAL: Optional[InnerTube] = None
-_YTM_LOCK = threading.RLock()
-def _ytm() -> InnerTube:
-    global _YTM_GLOBAL
-    with _YTM_LOCK:
-        if _YTM_GLOBAL is None:
-            _YTM_GLOBAL = InnerTube("WEB_REMIX")
-        return _YTM_GLOBAL
-
 # ---------- Helpers ----------
-def _seed_artist_info(seed: Dict[str, Any], yt: InnerTube) -> Dict[str, Optional[str]]:
+def _seed_artist_info(seed: Dict[str, Any], yt) -> Dict[str, Optional[str]]:
     """
     Devuelve {id, name, thumbnail} del artista semilla.
     Usa metadata si viene; si falta, consulta header rápido.
@@ -58,7 +47,7 @@ def _seed_artist_info(seed: Dict[str, Any], yt: InnerTube) -> Dict[str, Optional
     except Exception:
         return {"id": aid, "name": name or None, "thumbnail": thumb or None}
 
-def _browse_artist_related(yt: InnerTube, artist_id: str, limit_each: int = 5) -> List[Dict[str, Any]]:
+def _browse_artist_related(yt, artist_id: str, limit_each: int = 5) -> List[Dict[str, Any]]:
     ckey = f"artist:related:{artist_id}"
     cached = get_cached_legacy(ckey)
     if cached is not None:
@@ -79,9 +68,9 @@ def _browse_artist_related(yt: InnerTube, artist_id: str, limit_each: int = 5) -
     set_cached_legacy(ckey, out, _RECO_TTL)
     return out
 
-def _browse_album_related(yt: InnerTube, album_id: str, limit_each: int = 5) -> List[Dict[str, Any]]:
+def _browse_album_related(yt, album_id: str, limit_each: int = 5) -> List[Dict[str, Any]]:
     """
-    Por ahora solo 'Releases For You' (sin similarTo). Lo de álbumes se mejora después.
+    Por ahora solo 'Releases For You' (sin similar_to). Lo de álbumes se mejora después.
     """
     ckey = f"album:recos:{album_id}"
     cached = get_cached_legacy(ckey)
@@ -104,13 +93,13 @@ def build_seed_recommendations(
     """
     Devuelve:
       - seed.{artists, albums} (hasta per_type cada uno)
-      - recommend.related_artists: cada item incluye 'similarTo' = {id,name,thumbnail} del seed-artist
-      - recommend.related_albums: como vienen del parser (sin similarTo por ahora)
+      - recommend.related_artists: cada item incluye 'similar_to' = {id,name,thumbnail} del seed-artist
+      - recommend.related_albums: como vienen del parser (sin similar_to por ahora)
     """
     seeds = recent_seeds_from_activity(user_id=user_id, per_type=per_type, lookback=lookback)
     yt = _ytm()
 
-    # ----- Artists (enriquecidos con similarTo) -----
+    # ----- Artists (enriquecidos con similar_to) -----
     artists_out: List[Dict[str, Any]] = []
     a_seen: set[str] = set()
     for seed_artist in seeds.get("artists", []):
@@ -120,16 +109,16 @@ def build_seed_recommendations(
         similar_to = _seed_artist_info(seed_artist, yt)
         rel = _browse_artist_related(yt, aid, limit_each=per_seed)
         for it in rel:
-            rid = (it.get("id") or it.get("browseId") or "").strip()
+            rid = (it.get("id") or it.get("browse_id") or "").strip()
             if not rid or rid in a_seen:
                 continue
             a_seen.add(rid)
             enriched = dict(it)
-            enriched["similarTo"] = similar_to
+            enriched["similar_to"] = similar_to
             artists_out.append(enriched)
     artists_out = artists_out[: per_type * per_seed]
 
-    # ----- Albums (sin similarTo por ahora) -----
+    # ----- Albums (sin similar_to por ahora) -----
     albums_out: List[Dict[str, Any]] = []
     al_seen: set[str] = set()
     for al in seeds.get("albums", []):
@@ -138,7 +127,7 @@ def build_seed_recommendations(
             continue
         rel = _browse_album_related(yt, bid, limit_each=per_seed)
         for it in rel:
-            rid = (it.get("id") or it.get("browseId") or "").strip()
+            rid = (it.get("id") or it.get("browse_id") or "").strip()
             if not rid or rid in al_seen:
                 continue
             al_seen.add(rid)

@@ -17,7 +17,6 @@ router = APIRouter(tags=["feed"])
 
 _RECO_LIMIT_PER_TYPE = int(os.getenv("RECO_LIMIT_PER_TYPE", "20"))
 
-
 @router.get("/cache/versions", summary="Versiones actuales del caché")
 async def get_cache_versions():
     return {
@@ -89,7 +88,7 @@ async def get_user_recommendations_me(
         if itype == "artist":
             item = {"id": iid, **payload}
             if r.get("seed_id"):
-                item["similarTo"] = {
+                item["similar_to"] = {
                     "id":        r.get("seed_id"),
                     "name":      r.get("seed_name"),
                     "thumbnail": r.get("seed_thumb"),
@@ -144,7 +143,7 @@ async def get_user_recommendations_db(
         if itype == "artist":
             item = {"id": iid, **payload}
             if r.get("seed_id"):
-                item["similarTo"] = {
+                item["similar_to"] = {
                     "id":        r.get("seed_id"),
                     "name":      r.get("seed_name"),
                     "thumbnail": r.get("seed_thumb"),

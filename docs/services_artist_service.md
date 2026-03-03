@@ -51,7 +51,7 @@ Trae “más del artista” usando get_albums y filtrando un album a excluir.
     new_releases: list | None = None,
 ) -> dict
 Función pura. Arma el payload final del artista.
-Elimina keys vacías (albums, singles_eps, topSongs) para mantener respuesta limpia.
+Elimina keys vacías (albums, singles_eps, top_songs) para mantener respuesta limpia.
 
 ### get_artist(artist_id: str, use_cache: bool = True) -> dict
 Orquesta principal:

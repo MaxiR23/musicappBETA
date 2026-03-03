@@ -92,7 +92,7 @@ def map_album(artist: str, title: str) -> Optional[Dict[str, Any]]:
         "type": "album",
         "title": info.get("title") or title,
         "artist": ", ".join(artist_names) or artist,   
-        "artistId": artist_ids[0] if artist_ids else None,  #TODO: add two ids if its necessary.
+        "artist_id": artist_ids[0] if artist_ids else None,  #TODO: add two ids if its necessary.
         "year": info.get("year") or "",
         "track_count": info.get("track_count") or "",
         "thumb": last_thumb(thumbs),
@@ -128,9 +128,9 @@ def map_track(artist: str, title: str) -> Optional[Dict[str, Any]]:
         "id": vid, "type": "track",
         "title": vdet.get("title") or res[0].get("title","") or title,
         "artist": ", ".join([n for n in artist_names if n]) or artist,
-        "artistId": artist_id, "album": album_name,
+        "artist_id": artist_id, "album": album_name,
         "duration": _fmt_mmss(dur),
-        "duration_s": int(dur) if str(dur).isdigit() else None,
+        "duration_seconds": int(dur) if str(dur).isdigit() else None,
         "thumb": _pick_lh3(hit_thumbs), "url": f"/watch/{vid}",
     }
 
@@ -154,7 +154,7 @@ def map_albums_until(
             out.append(mapped)
             seen_ids.add(mid)
             
-            # ✅ Cortar cuando llegue a la meta
+            # cortar cuando llegue a la meta
             if len(out) >= want:
                 if on_limit_reached:
                     on_limit_reached(len(out))

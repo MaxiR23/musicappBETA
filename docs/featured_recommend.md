@@ -65,12 +65,12 @@ def build_featured_from_top(top_songs: list[dict], n: int = 25) -> list[dict]:
             # 2.a) inferir artist_id principal desde los items (sin parámetros extra)
             id_count = {}
             for t in top_songs:
-                # preferir lista de artistas (parser) y caer a artistId legacy
+                # preferir lista de artistas (parser) y caer a artist_id legacy
                 arts = t.get("artists") or []
                 if isinstance(arts, list) and arts and isinstance(arts[0], dict) and arts[0].get("id"):
                     aid = arts[0]["id"]
                 else:
-                    aid = t.get("artistId")
+                    aid = t.get("artist_id")
                 if aid:
                     id_count[aid] = id_count.get(aid, 0) + 1
 
@@ -994,7 +994,7 @@ def search_music(request: Request, q: str = Query(..., description="Texto a busc
     if cached:
         try_log_activity_from_request(request, event_type="search", entity_type="query", metadata={"query": q})
         try:
-            artist_ids = [s.get("videoId") for s in (cached.get("artistSongs") or []) if s.get("videoId")]
+            artist_ids = [s.get("videoId") for s in (cached.get("artist_songs") or []) if s.get("videoId")]
             general_ids = [] if cached.get("artist") else [s.get("videoId") for s in (cached.get("search", {}).get("songs") or []) if s.get("videoId")]
             _schedule_warm(list(dict.fromkeys(artist_ids + general_ids))[:24])
         except Exception as _e:
@@ -1016,8 +1016,8 @@ def search_music(request: Request, q: str = Query(..., description="Texto a busc
     result = {
         "query": q,
         "artist": artist,
-        "artistSongs": artist_songs,
-        "artistAlbums": artist_albums,
+        "artist_songs": artist_songs,
+        "artist_albums": artist_albums,
         "search": general,
     }
     set_cached(f"search:{q}", result, SEARCH_RESULT_TTL)
@@ -1101,19 +1101,19 @@ def _artist_payload(artist_id: str):
             "thumbnails": thumbs,
             "monthlyListeners": listeners,
         },
-        "topSongs": parse_top_songs(contents[0]) if len(contents) > 0 else [],
+        "top_songs": parse_top_songs(contents[0]) if len(contents) > 0 else [],
         "albums": parse_albums(contents[1]) if len(contents) > 1 else [],
         "singles_eps": parse_singles_eps(contents[2]) if len(contents) > 2 else [],
         "related": parse_related_artists(rel_sec) if rel_sec else [],
-        "upcomingEvents": upcoming_events,
+        "upcoming_events": upcoming_events,
     }
 
-    # ── FEATURED: construir desde topSongs, cachear ítems y exponer solo flag ──
+    # ── FEATURED: construir desde top_songs, cachear ítems y exponer solo flag ──
     featured_key = f"artist:featured:items:{artist_id}:25"
 
     featured_items = get_cached(featured_key)
     if featured_items is None:
-        candidates = build_featured_from_top(payload["topSongs"], n=25)  # devuelve [] si no llega a 25
+        candidates = build_featured_from_top(payload["top_songs"], n=25)  # devuelve [] si no llega a 25
         set_cached(featured_key, candidates, FEATURED_TTL)
         featured_items = candidates
 
@@ -1124,7 +1124,7 @@ def _artist_payload(artist_id: str):
 
     byl_items = get_cached(byl_key)
     if byl_items is None:
-        seed = seed_from_top(payload["topSongs"])
+        seed = seed_from_top(payload["top_songs"])
         raw = MusicLookup.fetch_radio_by_seed(seed, limit=25) if seed else []
         byl_items = [normalize_track(t) for t in take_songs(raw, 25)]
         set_cached(byl_key, byl_items, RADIO_TTL)
@@ -1132,12 +1132,12 @@ def _artist_payload(artist_id: str):
     # Solo informamos si está listo (≥25). Los ítems se sirven por su endpoint dedicado.
     payload["becauseYouLikeReady"] = len(byl_items) >= 25
 
-    payload["newReleases"] = list_new_releases_for_artist(artist_id, limit=8)
+    payload["new_releases"] = list_new_releases_for_artist(artist_id, limit=8)
 
     _ARTIST_CACHE[artist_id] = {"ts": now, "payload": payload}
 
     try:
-        ids = [t.get("videoId") for t in payload["topSongs"] if t.get("videoId")]
+        ids = [t.get("videoId") for t in payload["top_songs"] if t.get("videoId")]
         _schedule_warm(ids[:_WARM_BURST])
     except Exception as _e:
         print(f"[artist][warm][WARN] {_e}")
@@ -1169,14 +1169,14 @@ def _album_payload(album_id: str):
     other_versions = parse_album_other_versions(response) or []
     releases_for_you = parse_album_releases_for_you(response) or []
 
-    artist_id = (info or {}).get("artistId")
+    artist_id = (info or {}).get("artist_id")
     more_from_artist = build_more_from_artist(artist_id, exclude_album_id=album_id, limit=10) if artist_id else []
     # ---------- UPCOMING EVENTS (mostrar 1 en álbum) ----------
     upcoming_events_one = []
     try:
         # 1) nombre del artista con múltiples fallbacks (algunos álbumes traen estructuras distintas)
         artist_name = (
-            (info or {}).get("artistName")
+            (info or {}).get("artist_name")
             or ((info or {}).get("artists") or [{}])[0].get("name")
             or (info or {}).get("artist")
             or (info or {}).get("subtitle")  # a veces el parser mete "Artist • type"
@@ -1189,7 +1189,7 @@ def _album_payload(album_id: str):
         #    => garantiza que TODOS los álbumes muestren evento tras abrir artista una vez
         if artist_id and artist_id in _ARTIST_CACHE:
             try:
-                evs_from_artist = (_ARTIST_CACHE[artist_id]["payload"].get("upcomingEvents") or [])
+                evs_from_artist = (_ARTIST_CACHE[artist_id]["payload"].get("upcoming_events") or [])
                 if evs_from_artist:
                     upcoming_events_one = evs_from_artist[:1]
             except Exception:
@@ -1220,17 +1220,17 @@ def _album_payload(album_id: str):
     except Exception as _e:
         print(f"[album][events][ERR] {album_id}: {_e}")
 
-    apid = (info or {}).get("audioPlaylistId")
+    apid = (info or {}).get("audio_playlist_id")
     if not apid:
-        print("[album][WARN] sin audioPlaylistId → tracks=[]")
+        print("[album][WARN] sin audio_playlist_id → tracks=[]")
         payload = {
             "id": album_id,
             "info": info,
             "tracks": [],
-            "otherVersions": other_versions,
-            "moreFromArtist": more_from_artist,
-            "upcomingEvents": upcoming_events_one, 
-            "releasesForYou": releases_for_you,
+            "other_versions": other_versions,
+            "more_from_artist": more_from_artist,
+            "upcoming_events": upcoming_events_one, 
+            "releases_for_you": releases_for_you,
         }
         set_cached(f"album:{album_id}", payload, 30 * 60)
         return payload
@@ -1247,10 +1247,10 @@ def _album_payload(album_id: str):
         "id": album_id,
         "info": info,
         "tracks": tracks,
-        "otherVersions": other_versions,
-        "moreFromArtist": more_from_artist,
-        "upcomingEvents": upcoming_events_one, 
-        "releasesForYou": releases_for_you,
+        "other_versions": other_versions,
+        "more_from_artist": more_from_artist,
+        "upcoming_events": upcoming_events_one, 
+        "releases_for_you": releases_for_you,
     }
     set_cached(f"album:{album_id}", payload, 30 * 60)
     return payload
@@ -1564,7 +1564,7 @@ def move_playlist_track(
                   .execute()
             ).data or []
             return {"ok": True, "noop": True, "order": [
-                {"internalId": r["id"], "trackId": r["track_id"], "position": r["position"]}
+                {"internalId": r["id"], "track_id": r["track_id"], "position": r["position"]}
                 for r in ordered_now
             ]}
 
@@ -1662,7 +1662,7 @@ def move_playlist_track(
 
         return {
             "ok": True,
-            "order": [{"internalId": r["id"], "trackId": r["track_id"], "position": r["position"]} for r in ordered],
+            "order": [{"internalId": r["id"], "track_id": r["track_id"], "position": r["position"]} for r in ordered],
             "positions_sample": [r["position"] for r in post[:30]],
             "dups": dups,
             "gaps": gaps

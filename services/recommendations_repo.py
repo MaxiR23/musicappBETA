@@ -5,18 +5,16 @@ from datetime import datetime
 from services.supabase_service import supabase_service as sb
 
 ItemType = Literal["artist", "album", "playlist"]  # playlist opcional si tu enum lo soporta
-
 class SeedInfo(TypedDict, total=False):
     seed_type: ItemType
     seed_id: str
     seed_name: Optional[str]
     seed_thumb: Optional[str]
-
 class RecommendationItem(TypedDict, total=False):
     """
     Item genérico para persistir en public.user_recommendations
     - rank: si no viene, lo asignamos secuencialmente 1..N
-    - payload: libre (name/title/subtitle/thumbnails/artistName/track_count/etc.)
+    - payload: libre (name/title/subtitle/thumbnails/artist_name/track_count/etc.)
     - source: etiqueta del algoritmo (ej. 'seed_recos_v1')
     - valid_until: ISO-8601 string o datetime opcional
     """

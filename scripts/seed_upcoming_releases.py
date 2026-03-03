@@ -53,9 +53,9 @@ def insert_releases(rows: List[Dict[str, Any]], dry_run: bool = False):
         print("\nDRY RUN - No se insertara nada\n")
         for i, row in enumerate(rows[:5], 1):
             print(f"{i}. {row['artist_name']} - {row['album_name']}")
-            print(f"   Fecha: {row['release_date'] or 'TBA'}")
-            print(f"   Cover: {'SI' if row['thumbnail_url'] else 'NO'}")
-            print(f"   Artist ID: {'SI' if row['artist_id'] else 'NO'}\n")
+            print(f"Fecha: {row['release_date'] or 'TBA'}")
+            print(f"Cover: {'SI' if row['thumbnail_url'] else 'NO'}")
+            print(f"Artist ID: {'SI' if row['artist_id'] else 'NO'}\n")
         
         if len(rows) > 5:
             print(f"... y {len(rows) - 5} mas\n")
@@ -76,9 +76,9 @@ def insert_releases(rows: List[Dict[str, Any]], dry_run: bool = False):
         tba_count = sum(1 for r in rows if r.get("is_tba"))
         
         print(f"\nEstadisticas:")
-        print(f"   Con cover: {with_cover}/{len(rows)}")
-        print(f"   Con artist_id: {with_artist_id}/{len(rows)}")
-        print(f"   TBA: {tba_count}")
+        print(f"Con cover: {with_cover}/{len(rows)}")
+        print(f"Con artist_id: {with_artist_id}/{len(rows)}")
+        print(f"TBA: {tba_count}")
         
     except Exception as e:
         print(f"Error insertando: {e}")

@@ -159,7 +159,7 @@ async def get_tracks(
                     "title": "Never Gonna Give You Up",
                     "artist": "Rick Astley",
                     "album": "Whenever You Need Somebody",
-                    "duration_ms": 213000,
+                    "duration_seconds": 213000,
                     "thumbnail_url": "https://...",
                     "artist_id": "..."
                 },

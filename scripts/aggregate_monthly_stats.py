@@ -14,7 +14,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from services.supabase_service import supabase_service as sb
 
-
 def get_first_day_of_last_month() -> str:
     """Retorna el primer día del mes pasado en formato YYYY-MM-DD"""
     today = datetime.now()
@@ -29,7 +28,6 @@ def get_month_end(month: str) -> str:
     month_date = datetime.strptime(month, '%Y-%m-%d')
     next_month = (month_date.replace(day=28) + timedelta(days=4)).replace(day=1)
     return next_month.strftime('%Y-%m-%d')
-
 
 def get_weeks_in_month(month: str) -> List[str]:
     """
@@ -56,7 +54,6 @@ def get_weeks_in_month(month: str) -> List[str]:
         current += timedelta(days=7)
     
     return weeks
-
 
 def aggregate_for_user(user_id: str, weeks: List[str]) -> Dict[str, List[Dict[str, Any]]]:
     """
@@ -132,7 +129,6 @@ def aggregate_for_user(user_id: str, weeks: List[str]) -> Dict[str, List[Dict[st
     
     return result
 
-
 def save_monthly_stats(user_id: str, month: str, entity_type: str, stats: List[Dict[str, Any]]):
     """Guarda stats en user_monthly_stats con UPSERT"""
     if not stats:
@@ -154,7 +150,7 @@ def save_monthly_stats(user_id: str, month: str, entity_type: str, stats: List[D
 
 
 def main():
-    print("🗓️  Iniciando agregación mensual...")
+    print("Iniciando agregación mensual...")
     
     month = get_first_day_of_last_month()
     month_end = get_month_end(month)

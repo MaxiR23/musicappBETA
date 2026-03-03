@@ -89,17 +89,17 @@ def upsert_track(track: Dict[str, Any]) -> None:
     Inserta o actualiza un track en la tabla tracks.
     
     Args:
-        track: Dict con formato {track_id, title, artist, album, duration_ms, thumbnail_url, artist_id}
+        track: Dict con formato {track_id, title, artist, album, duration_seconds, thumbnail_url, artist_id}
     """
-    # TODO: map_track should return duration_ms directly instead of duration_s for consistency
+    # TODO: map_track should return duration_seconds directly instead of duration_seconds for consistency
     data = {
         "track_id": track.get("id") or track.get("track_id"),
         "title": track.get("title"),
         "artist": track.get("artist"),
         "album": track.get("album"),
-        "duration_ms": track.get("duration_ms") or (track.get("duration_s") * 1000 if track.get("duration_s") else None),
+        "duration_seconds": track.get("duration_seconds") or (track.get("duration_seconds") * 1000 if track.get("duration_seconds") else None),
         "thumbnail_url": track.get("thumbnail_url") or track.get("thumb"),
-        "artist_id": track.get("artist_id") or track.get("artistId"),
+        "artist_id": track.get("artist_id") or track.get("artist_id"),
     }
     
     # Upsert por track_id (unique constraint)
@@ -141,7 +141,7 @@ def insert_genre_playlist_tracks(playlist_id: str, tracks: List[Dict[str, Any]])
             inserted += 1
             
         except Exception as e:
-            print(f"⚠️ Error insertando track {track.get('title')}: {e}")
+            print(f"Error insertando track {track.get('title')}: {e}")
             continue
     
     return inserted
@@ -222,7 +222,7 @@ def get_playlists_by_genre(
             thumbnails_map[pid].append(row.get("thumbnail_url"))
         
     except Exception as e:
-        print(f"⚠️ Error obteniendo thumbnails: {e}")
+        print(f"Error obteniendo thumbnails: {e}")
         thumbnails_map = {}
     
     # Agregar thumbnails a cada playlist
@@ -271,7 +271,7 @@ def get_playlist_tracks(
         return []
     
     tracks_result = sb.table("tracks") \
-        .select("track_id, title, artist, album, duration_ms, thumbnail_url, artist_id") \
+        .select("track_id, title, artist, album, duration_seconds, thumbnail_url, artist_id") \
         .in_("track_id", track_ids) \
         .execute()
     
@@ -290,7 +290,7 @@ def get_playlist_tracks(
             "title": track_data.get("title"),
             "artist": track_data.get("artist"),
             "album": track_data.get("album"),
-            "duration_ms": track_data.get("duration_ms"),
+            "duration_seconds": track_data.get("duration_seconds"),
             "thumbnail_url": track_data.get("thumbnail_url"),
             "artist_id": track_data.get("artist_id"),
         })

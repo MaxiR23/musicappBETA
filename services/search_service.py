@@ -24,24 +24,24 @@ def build_search_payload(
     return {
         "query": query,
         "artist": artist,
-        "artistSongs": artist_songs,
-        "artistAlbums": artist_albums,
+        "artist_songs": artist_songs,
+        "artist_albums": artist_albums,
         "search": general,
     }
 
 def get_warm_ids(result: dict) -> list[str]:
-    """Extrae videoIds para warming."""
+    """Extrae video_ids para warming."""
     artist_ids = [
-        s.get("videoId") 
-        for s in (result.get("artistSongs") or []) 
-        if s.get("videoId")
+        s.get("video_id") 
+        for s in (result.get("artist_songs") or []) 
+        if s.get("video_id")
     ]
     general_ids = []
     if not result.get("artist"):
         general_ids = [
-            s.get("videoId") 
+            s.get("video_id") 
             for s in (result.get("search", {}).get("songs") or []) 
-            if s.get("videoId")
+            if s.get("video_id")
         ]
     return list(dict.fromkeys(artist_ids + general_ids))[:24]
 

@@ -20,7 +20,7 @@ FEED_NEW_RELEASES_URL = os.getenv("FEED_NEW_RELEASES_URL")
 FEED_CLIENT_ID        = os.getenv("FEED_CLIENT_ID")
 FEED_CLIENT_SECRET    = os.getenv("FEED_CLIENT_SECRET")
 
-# ⚙️ Config leída de .env (nombres genéricos, sin mencionar proveedor)
+# Config leída de .env (nombres genéricos, sin mencionar proveedor)
 @dataclass(frozen=True)
 class FeedConfig:
     store: str = os.getenv("FEED_STORE", "us").strip().lower()
@@ -132,7 +132,7 @@ def fetch_new_releases_pairs(
     seen_ids: set[str] = set()
     offset, page_size = 0, 50
 
-    # ⚠️ CRÍTICO: Paginar hasta 1000 (no cortar por hit_old_date prematuramente)
+    # CRÍTICO: Paginar hasta 1000 (no cortar por hit_old_date prematuramente)
     while offset < 1000 and not (should_stop and should_stop()):
         r = requests.get(
             "https://api.spotify.com/v1/search",
@@ -152,9 +152,9 @@ def fetch_new_releases_pairs(
             rdp = (it.get("release_date_precision") or "").strip()
             d = _parse_date(rd, rdp)
             
-            # ✅ Solo filtramos por cutoff, NO cortamos el loop completo
+            # Solo filtramos por cutoff, NO cortamos el loop completo
             if d and d < cutoff:
-                continue  # ← Cambio clave: continue en vez de hit_old_date=True
+                continue  # <- continue en vez de hit_old_date=True
 
             sid = it.get("id")
             if not sid or sid in seen_ids:
@@ -237,9 +237,9 @@ def fetch_new_singles_tracks(store: Optional[str] = None, want: int = 25, pages:
     offset, page_size = 0, 50
 
     for _ in range(max(1, pages)):
-        # 🔁 URL desde .env (DRY)
+        # URL desde .env (DRY)
         base = FEED_NEW_RELEASES_URL.format(store=market, limit=page_size)
-        r = requests.get(base, headers=headers, params={"offset": offset}, timeout=20)  # ← sin hardcode
+        r = requests.get(base, headers=headers, params={"offset": offset}, timeout=20) 
         r.raise_for_status()
         items = ((r.json() or {}).get("albums") or {}).get("items") or []
         if not items:

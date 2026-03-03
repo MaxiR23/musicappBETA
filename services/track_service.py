@@ -1,14 +1,15 @@
 # services/track_service.py
 """
 Lógica de negocio para tracks.
-Lyrics, related, upnext.
+Lyrics, related, up_next.
 """
 from services.cache_service import get_cached_legacy, set_cached_legacy
 from shared.clients import _ytmusic_client
+from utils.related_parser import parse_related_sections
 
 LYRICS_TTL = 12 * 60 * 60
 RELATED_TTL = 12 * 60 * 60
-UPNEXT_TTL = 6 * 60 * 60
+UPNEXTTTL = 6 * 60 * 60
 
 EXCLUDED_RELATED_SECTIONS = {
     "Recommended playlists",
@@ -36,6 +37,28 @@ def duration_to_seconds(d: str | None) -> int | None:
         hh, mm, ss = parts
         return hh * 3600 + mm * 60 + ss
     return None
+
+def ensure_duration_seconds(track_id: str, duration_seconds=None) -> int | None:
+    if duration_seconds:
+        return duration_seconds
+
+    if not track_id:
+        return None
+
+    try:
+        yt = _ytmusic_client()
+        song_raw = yt.get_song(track_id) or {}
+        seconds = (song_raw.get("videoDetails") or {}).get("lengthSeconds")
+
+        if isinstance(seconds, int):
+            return seconds
+
+        if isinstance(seconds, str) and seconds.strip().isdigit():
+            return int(seconds.strip())
+
+        return None
+    except Exception:
+        return None
 
 def best_thumb_url(track: dict) -> str | None:
     """Extrae la mejor URL de thumbnail."""
@@ -81,7 +104,7 @@ def normalize_track_item(track: dict) -> dict:
             seen.add(i)
             artist_ids.append(i)
 
-    artist_name = track.get("artistName")
+    artist_name = track.get("artist_name")
     if not artist_name:
         if artist_names:
             artist_name = ", ".join(artist_names)
@@ -89,7 +112,7 @@ def normalize_track_item(track: dict) -> dict:
             author = track.get("author")
             artist_name = author.strip() if isinstance(author, str) and author.strip() else None
 
-    artist_id = track.get("artistId")
+    artist_id = track.get("artist_id")
     if not artist_id:
         artist_id = artist_ids[0] if artist_ids else None
 
@@ -97,11 +120,11 @@ def normalize_track_item(track: dict) -> dict:
     if not isinstance(album, dict):
         album = {}
 
-    album_id = track.get("albumId") or album.get("id")
-    album_name = track.get("albumName") or album.get("name")
+    album_id = track.get("album_id") or album.get("id")
+    album_name = track.get("album_name") or album.get("name")
 
     duration = track.get("duration") or track.get("length")
-    length_seconds = track.get("lengthSeconds") or track.get("durationSeconds") or track.get("duration_seconds")
+    length_seconds = track.get("lengthSeconds") or track.get("duration_seconds") or track.get("duration_seconds")
 
     duration_seconds = None
     if isinstance(length_seconds, int):
@@ -114,15 +137,15 @@ def normalize_track_item(track: dict) -> dict:
     return {
         "id": video_id,
         "title": title,
-        "artistName": artist_name,
-        "artistId": artist_id,
-        "artistIds": artist_ids,
+        "artist_name": artist_name,
+        "artist_id": artist_id,
+        "artist_ids": artist_ids,
         "artists": artists_list,
-        "albumId": album_id,
-        "albumName": album_name,
+        "album_id": album_id,
+        "album_name": album_name,
         "thumbnail": best_thumb_url(track),
         "duration": duration,
-        "durationSeconds": duration_seconds,
+        "duration_seconds": duration_seconds,
     }
 
 def get_lyrics(video_id: str) -> dict:
@@ -190,8 +213,9 @@ def get_related(video_id: str) -> dict:
         if isinstance(related_data, list):
             related_data = [
                 section for section in related_data
-                if section.get("title") not in EXCLUDED_RELATED_SECTIONS
+                if isinstance(section, dict) and section.get("title") not in EXCLUDED_RELATED_SECTIONS
             ]
+            related_data = parse_related_sections(related_data)
 
         out = {"ok": True, "related": related_data}
         set_cached_legacy(ck, out, RELATED_TTL)
@@ -226,8 +250,8 @@ def get_related_raw(video_id: str) -> dict:
 
         return {
             "ok": True,
-            "trackId": video_id,
-            "browseId": browse_id,
+            "track_id": video_id,
+            "browse_id": browse_id,
             "watch_related_field": rb,
             "related_raw": related_data,
         }
@@ -235,9 +259,9 @@ def get_related_raw(video_id: str) -> dict:
     except Exception as e:
         return {"ok": False, "reason": "error", "detail": str(e)}
 
-def get_upnext(video_id: str) -> dict:
+def get_up_next(video_id: str) -> dict:
     """Obtiene la cola de reproducción."""
-    ck = f"upnext:{video_id}"
+    ck = f"up_next:{video_id}"
     cached = get_cached_legacy(ck)
     if cached is not None:
         return cached
@@ -263,15 +287,15 @@ def get_upnext(video_id: str) -> dict:
         }
         current = normalize_track_item(current_raw)
 
-        upnext = [normalize_track_item(t) for t in tracks if isinstance(t, dict)]
+        up_next = [normalize_track_item(t) for t in tracks if isinstance(t, dict)]
 
         out = {
             "ok": True,
             "current": current,
-            "upNext": upnext,
+            "up_next": up_next,
             "autoplay": watch.get("autoplay"),
         }
-        set_cached_legacy(ck, out, UPNEXT_TTL)
+        set_cached_legacy(ck, out, UPNEXTTTL)
         return out
 
     except Exception as e:

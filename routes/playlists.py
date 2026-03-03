@@ -5,6 +5,7 @@ from services.supabase_service import db_as_user, supabase_service
 from services.cache_service import get_cached, set_cached, invalidate
 from services.cache_config import CacheType
 from services.auth_utils import get_user_id
+from services.track_service import ensure_duration_seconds
 
 router = APIRouter(tags=["playlists"])
 
@@ -116,13 +117,18 @@ async def add_track_to_playlist(request: Request, playlist_id: str, body: dict =
         return {"error": "unauthorized"}
 
     try:
+        duration_seconds = ensure_duration_seconds(
+            track_id=track_id,
+            duration_seconds=body.get("duration_seconds"),
+        )
+
         track_resp = supabase_service.table("tracks").upsert({
             "track_id": track_id,
             "title": body.get("title"),
             "artist": body.get("artist"),
             "artist_id": body.get("artist_id"),
             "album": body.get("album"),
-            "duration_ms": body.get("duration_ms"),
+            "duration_seconds": duration_seconds,
             "thumbnail_url": body.get("thumbnail_url"),
             "extra": body.get("extra"),
         }, on_conflict="track_id").execute()
@@ -147,7 +153,7 @@ async def add_track_to_playlist(request: Request, playlist_id: str, body: dict =
 
         invalidate(CacheType.USER_PLAYLISTS, suffix=added_by)
         invalidate(CacheType.USER_PLAYLISTS, suffix=f"{playlist_id}:{added_by}")
-        
+
         return {"ok": True, "track": track_resp.data[0], "link": link_resp.data[0]}
     except Exception as e:
         return {"error": "db_error", "detail": str(e)}

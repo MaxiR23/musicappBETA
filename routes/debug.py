@@ -56,15 +56,15 @@ def _extract_menu_navs(mrlir: dict) -> dict:
     """
     Devuelve ids navegables que aparecen en el menú contextual del item:
       {
-        "albumId": "MPREb_...",
-        "artistId": "UCxxxx...",
+        "album_id": "MPREb_...",
+        "artist_id": "UCxxxx...",
         "albumItem": {...} | None,
         "artistItem": {...} | None
       }
     Soporta ES/EN: "Go to album/artist" / "Ir al álbum/artista".
     """
     items = _dig(mrlir, ["menu", "menuRenderer", "items"], []) or []
-    out = {"albumId": None, "artistId": None, "albumItem": None, "artistItem": None}
+    out = {"album_id": None, "artist_id": None, "albumItem": None, "artistItem": None}
 
     def _txt(nir):
         return (_dig(nir, ["text", "runs", 0, "text"]) or "").strip().lower()
@@ -98,7 +98,7 @@ def _extract_menu_navs(mrlir: dict) -> dict:
                 or txt == "album"
             )
         ):
-            out["albumId"] = bid
+            out["album_id"] = bid
             out["albumItem"] = nir
 
         # Artist
@@ -112,7 +112,7 @@ def _extract_menu_navs(mrlir: dict) -> dict:
                 or txt == "artista"
             )
         ):
-            out["artistId"] = bid
+            out["artist_id"] = bid
             out["artistItem"] = nir
 
     return out
@@ -124,7 +124,7 @@ def parse_artist_card_info(resp: dict) -> dict | None:
     """
     Devuelve info del artista del Top result:
       - name
-      - artistId (browseId)
+      - artist_id (browseId)
       - subtitle (string)
       - subtitleRuns (runs crudos)
       - subtitleTexts (lista de textos de los runs)
@@ -170,7 +170,7 @@ def parse_artist_card_info(resp: dict) -> dict | None:
 
     return {
         "name": name,
-        "artistId": artist_id,
+        "artist_id": artist_id,
         "subtitle": subtitle,            # ej: "Artist • 288M monthly audience"
         "subtitleRuns": subtitle_runs,   # runs crudos
         "subtitleTexts": subtitle_texts, # ["Artist", " • ", "288M monthly audience"]
@@ -227,8 +227,8 @@ def parse_artist_card_songs(resp: dict, strict_atv: bool = True, limit: int | No
             "thumbnails": item.get("thumbnails", []),
             "musicVideoType": item.get("musicVideoType"),
             "goTo": {                      # NUEVO
-                "albumId": links["albumId"],
-                "artistId": links["artistId"],
+                "album_id": links["album_id"],
+                "artist_id": links["artist_id"],
             },
         })
         if limit is not None and len(out) >= limit:
@@ -293,17 +293,17 @@ def _extract_album_item(mrlir: dict) -> dict:
             break
 
     thumbs = _thumbs_from_mrlir(mrlir, None)
-    links = _extract_menu_navs(mrlir)  # para goTo.artistId
+    links = _extract_menu_navs(mrlir)  # para goTo.artist_id
 
     return {
         "title": title,
-        "albumId": album_browse_id,
+        "album_id": album_browse_id,
         "playlistId": playlist_id,
         "artists": artists,
         "year": year,
         "thumbnails": thumbs,
         "type": "album",
-        "goTo": {"artistId": links["artistId"]},  # NUEVO
+        "goTo": {"artist_id": links["artist_id"]},  # NUEVO
     }
 
 def parse_artist_card_albums(resp: dict, limit: int | None = None) -> list[dict]:
@@ -337,7 +337,7 @@ def parse_artist_card_albums(resp: dict, limit: int | None = None) -> list[dict]
         if not _is_album_item(mrlir):
             continue
         item = _extract_album_item(mrlir)
-        if not (item.get("albumId") or item.get("playlistId")):
+        if not (item.get("album_id") or item.get("playlistId")):
             continue
         out.append(item)
         if limit is not None and len(out) >= limit:
@@ -464,17 +464,17 @@ def _extract_album_item_from_search(mrlir: dict) -> dict:
             break
 
     thumbs = _thumbs_from_mrlir(mrlir, None)
-    links = _extract_menu_navs(mrlir)  # para goTo.artistId
+    links = _extract_menu_navs(mrlir)  # para goTo.artist_id
 
     return {
         "title": title,
-        "albumId": album_browse_id,
+        "album_id": album_browse_id,
         "playlistId": playlist_id,
         "artists": artists,
         "year": year,
         "thumbnails": thumbs,
         "type": "album",
-        "goTo": {"artistId": links["artistId"]},  # NUEVO
+        "goTo": {"artist_id": links["artist_id"]},  # NUEVO
     }
 
 def parse_search_albums_and_songs(resp: dict, song_limit: int | None = None, album_limit: int | None = None) -> dict:
@@ -506,7 +506,7 @@ def parse_search_albums_and_songs(resp: dict, song_limit: int | None = None, alb
             )
             if label.startswith("album") or pt == "MUSIC_PAGE_TYPE_ALBUM":
                 album = _extract_album_item_from_search(mrlir)
-                if album.get("albumId") or album.get("playlistId"):
+                if album.get("album_id") or album.get("playlistId"):
                     albums.append(album)
                 continue
 
@@ -523,8 +523,8 @@ def parse_search_albums_and_songs(resp: dict, song_limit: int | None = None, alb
                         "musicVideoType": s.get("musicVideoType"),
                         "type": "song",
                         "goTo": {                # NUEVO
-                            "albumId": links["albumId"],
-                            "artistId": links["artistId"],
+                            "album_id": links["album_id"],
+                            "artist_id": links["artist_id"],
                         },
                     })
 
@@ -789,12 +789,12 @@ def search_debug_improved_version(
 ):
     """
     Respuesta en este orden:
-      - artist  : { name, artistId, subtitle, subtitleRuns, subtitleTexts, thumbnails }
-      - songs   : (artist card) [{ title, videoId, duration, artists, thumbnails, musicVideoType, goTo{albumId,artistId} }]
-      - albums  : (artist card) [{ title, albumId, playlistId, artists, year, thumbnails, goTo{artistId} }]
+      - artist  : { name, artist_id, subtitle, subtitleRuns, subtitleTexts, thumbnails }
+      - songs   : (artist card) [{ title, videoId, duration, artists, thumbnails, musicVideoType, goTo{album_id,artist_id} }]
+      - albums  : (artist card) [{ title, album_id, playlistId, artists, year, thumbnails, goTo{artist_id} }]
       - search  : (generales) {
-                     songs : [{ ...ATV only..., goTo{albumId,artistId} }],
-                     albums: [{ ..., goTo{artistId} }]
+                     songs : [{ ...ATV only..., goTo{album_id,artist_id} }],
+                     albums: [{ ..., goTo{artist_id} }]
                    }
     """
     try:
@@ -863,7 +863,7 @@ def artist_debug_contents(id: str = Query(..., description="Artist browseId")):
             .get("contents", [])
         )
 
-        return {"artistId": id, "contents": contents}
+        return {"artist_id": id, "contents": contents}
 
     except Exception as e:
         return {"error": "artist_debug_contents_error", "detail": str(e), "id": id}
@@ -1434,7 +1434,7 @@ def album_tracks_audio_resolved(
             q_tracks = _fetch_full_audio_queue(yt, apl_id, seed_vid=seed_vid, seed_idx=seed_idx or 0)
             if q_tracks:
                 out = {
-                    "albumId": id,
+                    "album_id": id,
                     "count": len(q_tracks),
                     "resolved": 0,
                     "tracks": q_tracks,
@@ -1475,7 +1475,7 @@ def album_tracks_audio_resolved(
     tracks_raw.sort(key=_idx)
 
     out = {
-        "albumId": id,
+        "album_id": id,
         "count": sum(1 for t in tracks_raw if t.get("type") == "audio"),
         "resolved": resolved,
         "tracks": [t for t in tracks_raw if t.get("type") == "audio"],
@@ -1561,13 +1561,13 @@ def new_releases():
 @router.get("/album/ytmusicapi")
 def debug_album_ytmusicapi(
     id: str | None = Query(None, description="Album browseId MPRE…"),
-    apl: str | None = Query(None, description="audioPlaylistId OLAK5…"),
+    apl: str | None = Query(None, description="audio_playlist_id OLAK5…"),
     raw: int | None = Query(0, description="Si raw=1, devuelve TODO sin filtrar"),
 ):
     """
     Devuelve el tracklist ATV de un álbum o audio-playlist.
     - Si viene apl=OLAK5…, usa esa audio-playlist (get_playlist).
-    - Si no, usa id=MPRE… → get_album → audioPlaylistId → get_playlist.
+    - Si no, usa id=MPRE… → get_album → audio_playlist_id → get_playlist.
     - Si raw=1, devuelve TODO lo que traen las llamadas de ytmusicapi (sin filtrar).
     Cambios pedidos:
       • Removido "artists" del objeto "album".
@@ -1607,11 +1607,11 @@ def debug_album_ytmusicapi(
             apl_id = apl
         elif id:
             alb = ytm.get_album(id)
-            apl_id = alb.get("audioPlaylistId")
+            apl_id = alb.get("audio_playlist_id")
             if not apl_id:
                 raise HTTPException(status_code=404, detail={
                     "error": "no_audio_playlist",
-                    "message": "El álbum no expone audioPlaylistId (OLAK5…).",
+                    "message": "El álbum no expone audio_playlist_id (OLAK5…).",
                     "album_browseId": id
                 })
             album_title = alb.get("title")
@@ -1661,9 +1661,9 @@ def debug_album_ytmusicapi(
                 "videoId": vid,
                 "musicVideoType": t.get("videoType", "MUSIC_VIDEO_TYPE_ATV"),
                 "artist": first_art.get("name"),
-                "artistId": first_art.get("id"),
+                "artist_id": first_art.get("id"),
                 "album": album.get("name"),
-                "albumId": album.get("id"),
+                "album_id": album.get("id"),
                 "thumbnail": thumb_big,
                 "urls": {
                     "watch": f"https://music.youtube.com/watch?v={vid}" if vid else None,
@@ -1681,7 +1681,7 @@ def debug_album_ytmusicapi(
                 "title": album_title or pl_title,
                 # ← pedido: SIN 'artists' en 'album'
                 "tracks_count": len(out_tracks),
-                "audioPlaylistId": apl_id,
+                "audio_playlist_id": apl_id,
                 "audioPlaylistTitle": pl_title,
                 "tracks": out_tracks,
             },
@@ -1733,13 +1733,13 @@ def debug_artist_info(id: str = Query(...)):
                 "id": track.get("videoId"),
                 "title": track.get("title"),
                 "thumbnail": thumbnail,
-                "albumId": album_id,
+                "album_id": album_id,
                 "albumTitle": album_title,
-                "artistId": primary_artist_id,
-                "artistName": artist_name,
+                "artist_id": primary_artist_id,
+                "artist_name": artist_name,
                 "artists": artists,
                 "duration": track.get("duration"),
-                "durationSeconds": track.get("duration_seconds")
+                "duration_seconds": track.get("duration_seconds")
             })
         
         return {
@@ -1877,15 +1877,15 @@ def album_name_only(album_id: str = Query(..., description="Album browseId")):
         ])
         
         return {
-            "albumId": album_id,
-            "albumName": title,
+            "album_id": album_id,
+            "album_name": title,
             "success": title is not None
         }
     except Exception as e:
         import traceback
         return {
-            "albumId": album_id,
-            "albumName": None,
+            "album_id": album_id,
+            "album_name": None,
             "success": False,
             "error": str(e),
             "traceback": traceback.format_exc()
@@ -1937,12 +1937,12 @@ def song_duration_only(video_id: str = Query(..., description="videoId de la can
             duration_seconds = int(duration_seconds)
             minutes = duration_seconds // 60
             seconds = duration_seconds % 60
-            duration_str = f"{minutes}:{seconds:02d}"
+            duration_secondstr = f"{minutes}:{seconds:02d}"
             
             return {
                 "videoId": video_id,
-                "duration": duration_str,
-                "durationSeconds": duration_seconds,
+                "duration": duration_secondstr,
+                "duration_seconds": duration_seconds,
                 "success": True
             }
         else:

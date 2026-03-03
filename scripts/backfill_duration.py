@@ -2,7 +2,7 @@
 backfill_duration.py
 
 Lee el SQL exportado de Supabase, parsea los registros,
-y enriquece metadata con durationSeconds usando _get_duration_fast.
+y enriquece metadata con duration_seconds usando _get_duration_fast.
 
 MODO TEST: procesa solo el primer registro y muestra el resultado en consola.
 Cuando confirmes que está todo bien, cambiá TEST_MODE = False para correr en los 226.
@@ -65,7 +65,7 @@ def enrich_records(records: list[dict]) -> list[dict]:
     """
     Itera los registros, llama a _get_duration_fast por cada track_id
     (con cache en memoria para no repetir llamadas reales),
-    y agrega durationSeconds a metadata.
+    y agrega duration_seconds a metadata.
     """
     yt_api = _ytmusic_client()
     enriched = []
@@ -75,9 +75,9 @@ def enrich_records(records: list[dict]) -> list[dict]:
         track_id = rec["track_id"]
         metadata = rec["metadata"].copy()
 
-        # Si ya tiene durationSeconds, skip
-        if metadata.get("durationSeconds"):
-            print(f"[{i+1}/{len(records)}] {track_id} — ya tiene durationSeconds={metadata['durationSeconds']}, skip.")
+        # Si ya tiene duration_seconds, skip
+        if metadata.get("duration_seconds"):
+            print(f"[{i+1}/{len(records)}] {track_id} — ya tiene duration_seconds={metadata['duration_seconds']}, skip.")
             enriched.append({**rec, "metadata": metadata})
             continue
 
@@ -91,12 +91,12 @@ def enrich_records(records: list[dict]) -> list[dict]:
             print(f"  ↳ Esperando {SLEEP_BETWEEN_API_CALLS}s para no ser bloqueados...")
             time.sleep(SLEEP_BETWEEN_API_CALLS)
 
-        duration_str, duration_sec = _get_duration_fast(yt_api, track_id)
+        duration_secondstr, duration_secondsec = _get_duration_fast(yt_api, track_id)
         last_api_call_track.add(track_id)
 
-        if duration_sec is not None:
-            metadata["durationSeconds"] = duration_sec
-            print(f"[{i+1}/{len(records)}] {track_id} — '{metadata.get('track_name', '?')}' → {duration_str} ({duration_sec}s) ✓")
+        if duration_secondsec is not None:
+            metadata["duration_seconds"] = duration_secondsec
+            print(f"[{i+1}/{len(records)}] {track_id} — '{metadata.get('track_name', '?')}' → {duration_secondstr} ({duration_secondsec}s) ✓")
         else:
             print(f"[{i+1}/{len(records)}] {track_id} — '{metadata.get('track_name', '?')}' → No se pudo obtener duración ✗")
 
@@ -109,8 +109,8 @@ def save_to_db(enriched: list[dict]):
     ok = 0
     failed = 0
     for rec in enriched:
-        if not rec["metadata"].get("durationSeconds"):
-            print(f"  [SKIP] {rec['id']} — sin durationSeconds, no se actualiza.")
+        if not rec["metadata"].get("duration_seconds"):
+            print(f"  [SKIP] {rec['id']} — sin duration_seconds, no se actualiza.")
             continue
         try:
             sb.table("play_events") \

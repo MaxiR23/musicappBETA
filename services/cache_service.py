@@ -78,8 +78,6 @@ def _clear():
 def _keys_pattern(pattern: str) -> list[str]:
     return [k.decode() if isinstance(k, bytes) else k for k in _redis.keys(pattern)]
 """
-
-
 # ============================================================================
 # CACHE FUNCTIONS - NO tocar cuando migres a Redis
 # ============================================================================
@@ -98,7 +96,6 @@ def _make_key(cache_type: CacheType, suffix: str = "") -> str:
     version = get_version(cache_type)
     base = f"{cache_type.value}:{version}"
     return f"{base}:{suffix}" if suffix else base
-
 
 def get_cached(cache_type: CacheType, suffix: str = "") -> Optional[Any]:
     """
@@ -138,7 +135,6 @@ def get_cached(cache_type: CacheType, suffix: str = "") -> Optional[Any]:
         # Caché corrupto, lo borra
         _delete(key)
         return None
-
 
 def set_cached(
     cache_type: CacheType,
@@ -229,11 +225,9 @@ def cached(
         return wrapper
     return decorator
 
-
 # ============================================================================
 # INVALIDACIÓN - Para borrar caché manualmente
 # ============================================================================
-
 def invalidate(cache_type: CacheType, suffix: str = ""):
     """
     Invalida un caché específico.
@@ -245,7 +239,6 @@ def invalidate(cache_type: CacheType, suffix: str = ""):
     key = _make_key(cache_type, suffix)
     _delete(key)
     #DBG print(f"[CACHE INVALIDATED] {key}")
-
 
 def invalidate_all(cache_type: CacheType):
     """
@@ -261,12 +254,10 @@ def invalidate_all(cache_type: CacheType):
         _delete(key)
     print(f"[CACHE INVALIDATED ALL] {cache_type.value} ({len(keys)} keys)")
 
-
 def clear_all_cache():
     """Limpia TODO el caché. Usar con cuidado."""
     _clear()
     print("[CACHE CLEARED] Todo el caché fue eliminado")
-
 
 # ============================================================================
 # COMPATIBILIDAD - Mantiene tus funciones viejas funcionando

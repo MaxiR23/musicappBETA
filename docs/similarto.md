@@ -23,7 +23,7 @@ create table if not exists public.user_recommendations (
   seed_name     text null,
   seed_thumb    text null,
 
-  -- Metadatos flexibles (name/title/subtitle/thumbnails/artistName/etc.)
+  -- Metadatos flexibles (name/title/subtitle/thumbnails/artist_name/etc.)
   payload       jsonb not null default '{}'::jsonb,
 
   -- Auditoría / vigencia
@@ -49,7 +49,7 @@ create index if not exists user_recommendations_valid_idx
   on public.user_recommendations (valid_until);
 
 Notas rápidas
-DRY: una sola tabla para artistas y álbumes; el payload guarda lo que venga (p. ej. {"name": "...", "thumbnails": [...], "artistName": "..."}).
+DRY: una sola tabla para artistas y álbumes; el payload guarda lo que venga (p. ej. {"name": "...", "thumbnails": [...], "artist_name": "..."}).
 
 “Similar to …” listo para el front: seed_name y seed_thumb están en columnas planas (no necesitas abrir JSON).
 

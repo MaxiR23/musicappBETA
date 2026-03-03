@@ -3,11 +3,9 @@ from __future__ import annotations
 from typing import Any, Dict, List, TypedDict
 from services.supabase_service import supabase_service as sb
 
-
 class RecentSeeds(TypedDict):
     artists: List[Dict[str, Any]]
     albums: List[Dict[str, Any]]
-
 
 def recent_seeds_from_activity(
     user_id: str,

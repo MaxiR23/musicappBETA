@@ -44,21 +44,21 @@ def _get_duration_fast(yt_api, video_id: str) -> tuple[str | None, int | None]:
     return None, None
 
 def _enrich_songs_with_metadata(yt_innertube, yt_api, songs: list[dict]):
-    """Enriquece canciones con albumName y duration si no las tienen"""
+    """Enriquece canciones con album_name y duration si no las tienen"""
     for song in songs:
         # Album name (usa InnerTube)
-        album_id = song.get("goTo", {}).get("albumId")
-        if album_id and not song.get("albumName"):
-            song["albumName"] = _get_album_name_fast(yt_innertube, album_id)
+        album_id = song.get("go_to", {}).get("album_id")
+        if album_id and not song.get("album_name"):
+            song["album_name"] = _get_album_name_fast(yt_innertube, album_id)
         
         # Duration (usa ytmusicapi)
-        video_id = song.get("videoId")
-        if video_id and not song.get("durationSeconds"):
-            dstr, dsec = _get_duration_fast(yt_api, video_id)
+        track_id = song.get("track_id")
+        if track_id and not song.get("duration_seconds"):
+            dstr, dsec = _get_duration_fast(yt_api, track_id)
             if dstr and not song.get("duration"):
                 song["duration"] = dstr
             if dsec:
-                song["durationSeconds"] = dsec
+                song["duration_seconds"] = dsec
 
 # ---------- helpers básicos ----------
 def _dig(cur, path, default=None):
@@ -124,7 +124,7 @@ def _is_album_row(mrlir) -> bool:
     return _page_type_from(mrlir) == "MUSIC_PAGE_TYPE_ALBUM"
 
 def _is_episode_or_video_row(mrlir) -> bool:
-    # 1) texto “episode/episodio”
+    # 1) texto "episode/episodio"
     col1 = _runs_text(_runs(mrlir, 1)).strip().lower()
     if "episode" in col1 or "episodio" in col1: return True
     # 2) mvtype de video no-musical
@@ -159,7 +159,7 @@ def _parse_duration(info_runs, accessibility_label):
 
 def _extract_menu_navs(mrlir: dict) -> dict:
     items = _dig(mrlir, ["menu", "menuRenderer", "items"], []) or []
-    out = {"albumId": None, "artistId": None, "albumItem": None, "artistItem": None}
+    out = {"album_id": None, "artist_id": None, "album_item": None, "artist_item": None}
     def _txt(nir): return (_dig(nir, ["text","runs",0,"text"]) or "").strip().lower()
     for it in items:
         nir = it.get("menuNavigationItemRenderer"); 
@@ -169,9 +169,9 @@ def _extract_menu_navs(mrlir: dict) -> dict:
         bid = be.get("browseId")
         pgt = _page_type_from(nir)
         if bid and pgt == "MUSIC_PAGE_TYPE_ALBUM" and ( "go to album" in txt or "ir al álbum" in txt or "ir al album" in txt or txt == "album" ):
-            out["albumId"], out["albumItem"] = bid, nir
+            out["album_id"], out["album_item"] = bid, nir
         if bid and pgt == "MUSIC_PAGE_TYPE_ARTIST" and ( "go to artist" in txt or "ir al artista" in txt or txt in ("artist","artista") ):
-            out["artistId"], out["artistItem"] = bid, nir
+            out["artist_id"], out["artist_item"] = bid, nir
     return out
 
 # ---------- extracción de SONG ----------
@@ -184,12 +184,12 @@ def _extract_song_item(mrlir: dict) -> dict:
     artists = []
     for r in info_runs:
         if _page_type_from(r) == "MUSIC_PAGE_TYPE_ARTIST":
-            artists.append({"name": r.get("text",""), "browseId": _dig(r,["navigationEndpoint","browseEndpoint","browseId"])})
+            artists.append({"name": r.get("text",""), "browse_id": _dig(r,["navigationEndpoint","browseEndpoint","browseId"])})
 
     album = None
     for r in info_runs:
         if _page_type_from(r) == "MUSIC_PAGE_TYPE_ALBUM":
-            album = {"name": r.get("text",""), "browseId": _dig(r,["navigationEndpoint","browseEndpoint","browseId"])}
+            album = {"name": r.get("text",""), "browse_id": _dig(r,["navigationEndpoint","browseEndpoint","browseId"])}
             break
 
     duration = _parse_duration(info_runs, _dig(mrlir, ["accessibility","accessibilityData","label"]))
@@ -199,11 +199,10 @@ def _extract_song_item(mrlir: dict) -> dict:
         "title": title,
         "artists": artists,
         "album": album,
-        "duration": duration,                    # OJO: la card de artista no la expondrá
-        "videoId": _video_id(mrlir),
-        "musicVideoType": _mvtype(mrlir),
+        "duration": duration,
+        "track_id": _video_id(mrlir),
+        "music_video_type": _mvtype(mrlir),
         "thumbnails": thumbs,
-        # debug opcional
         "title_runs": title_runs,
         "info_runs": info_runs,
     }
@@ -222,8 +221,8 @@ def parse_search_songs(resp: dict, strict_atv: bool = True) -> list[dict]:
             if not mrlir: continue
             if not _is_atv_song_row(mrlir): continue
             item = _extract_song_item(mrlir)
-            if not item.get("videoId"): continue
-            if strict_atv and item.get("musicVideoType") != "MUSIC_VIDEO_TYPE_ATV": continue
+            if not item.get("track_id"): continue
+            if strict_atv and item.get("music_video_type") != "MUSIC_VIDEO_TYPE_ATV": continue
             out.append(item)
         break
     return out
@@ -255,10 +254,10 @@ def parse_artist_card_info(resp: dict) -> dict | None:
 
     return {
         "name": name,
-        "artistId": artist_id,
+        "artist_id": artist_id,
         "subtitle": subtitle,
-        "subtitleRuns": subtitle_runs,
-        "subtitleTexts": subtitle_texts,
+        "subtitle_runs": subtitle_runs,
+        "subtitle_texts": subtitle_texts,
         "thumbnails": thumbs,
         "type": "artist",
     }
@@ -288,16 +287,16 @@ def parse_artist_card_songs(resp: dict, strict_atv: bool = True, limit: int | No
 
         links = _extract_menu_navs(mrlir)
         s = _extract_song_item(mrlir)
-        if not s.get("videoId"): continue
-        if strict_atv and s.get("musicVideoType") != "MUSIC_VIDEO_TYPE_ATV": continue
+        if not s.get("track_id"): continue
+        if strict_atv and s.get("music_video_type") != "MUSIC_VIDEO_TYPE_ATV": continue
 
         out.append({
             "title": s.get("title"),
-            "videoId": s.get("videoId"),
+            "track_id": s.get("track_id"),
             "artists": s.get("artists", []),
             "thumbnails": s.get("thumbnails", []),
-            "musicVideoType": s.get("musicVideoType"),
-            "goTo": {"albumId": links["albumId"], "artistId": links["artistId"]},
+            "music_video_type": s.get("music_video_type"),
+            "go_to": {"album_id": links["album_id"], "artist_id": links["artist_id"]},
         })
         if limit is not None and len(out) >= limit: break
     
@@ -320,22 +319,22 @@ def parse_search_albums_and_songs(resp: dict, song_limit: int | None = None, alb
 
             if _is_album_row(mrlir):
                 album = _extract_album_item_from_search(mrlir)
-                if album.get("albumId") or album.get("playlistId"):
+                if album.get("album_id") or album.get("playlist_id"):
                     albums.append(album)
                 continue
 
             if _is_atv_song_row(mrlir):
                 links = _extract_menu_navs(mrlir)
                 s = _extract_song_item(mrlir)
-                if s.get("videoId"):
+                if s.get("track_id"):
                     songs.append({
                         "title": s.get("title"),
-                        "videoId": s.get("videoId"),
+                        "track_id": s.get("track_id"),
                         "artists": s.get("artists", []),
                         "thumbnails": s.get("thumbnails", []),
-                        "musicVideoType": s.get("musicVideoType"),
+                        "music_video_type": s.get("music_video_type"),
                         "type": "song",
-                        "goTo": {"albumId": links["albumId"], "artistId": links["artistId"]},
+                        "go_to": {"album_id": links["album_id"], "artist_id": links["artist_id"]},
                         "duration": s.get("duration"),
                     })
 
@@ -361,7 +360,7 @@ def _extract_album_item(mrlir: dict) -> dict:
     artists = []
     for r in _runs(mrlir, 1):
         if _page_type_from(r) == "MUSIC_PAGE_TYPE_ARTIST":
-            artists.append({"name": r.get("text",""), "browseId": _dig(r,["navigationEndpoint","browseEndpoint","browseId"])})
+            artists.append({"name": r.get("text",""), "browse_id": _dig(r,["navigationEndpoint","browseEndpoint","browseId"])})
     year = None
     for r in reversed(_runs(mrlir, 1)):
         t = (r or {}).get("text","").strip()
@@ -370,13 +369,13 @@ def _extract_album_item(mrlir: dict) -> dict:
     links = _extract_menu_navs(mrlir)
     return {
         "title": title,
-        "albumId": album_browse_id,
-        "playlistId": playlist_id,
+        "album_id": album_browse_id,
+        "playlist_id": playlist_id,
         "artists": artists,
         "year": year,
         "thumbnails": thumbs,
         "type": "album",
-        "goTo": {"artistId": links["artistId"]},
+        "go_to": {"artist_id": links["artist_id"]},
     }
 
 def parse_artist_card_albums(resp: dict, limit: int | None = None) -> list[dict]:
@@ -401,7 +400,7 @@ def parse_artist_card_albums(resp: dict, limit: int | None = None) -> list[dict]
         if not mrlir: continue
         if not _is_album_row(mrlir): continue
         album = _extract_album_item(mrlir)
-        if not (album.get("albumId") or album.get("playlistId")): continue
+        if not (album.get("album_id") or album.get("playlist_id")): continue
         out.append(album)
         if limit is not None and len(out) >= limit: break
     return out
@@ -437,7 +436,7 @@ def parse_search_top_result(resp: dict) -> dict | None:
             "musicVideoType"
         ])
 
-        # ✅ solo si es ATV devolvemos algo
+        # Solo si es ATV devolvemos algo
         if video_type != "MUSIC_VIDEO_TYPE_ATV":
             return None
 
@@ -465,8 +464,8 @@ def parse_search_top_result(resp: dict) -> dict | None:
 
         return {
             "title": title_text,
-            "videoId": video_id,
-            "musicVideoType": video_type,
+            "track_id": video_id,
+            "music_video_type": video_type,
             "artists": artists,
             "duration": duration,
             "thumbnail_url": thumb_url,
@@ -491,7 +490,6 @@ def parse_search_first_song_or_top(resp: dict) -> tuple[str | None, dict | None]
         return "Songs", songs[0]
 
     return None, None
-
 
 # ---------- CARD DE ARTISTA (lista de 1 si hay) ----------
 def parse_search_artists(resp: dict) -> list[dict]:

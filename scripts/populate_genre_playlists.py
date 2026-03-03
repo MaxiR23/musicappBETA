@@ -28,7 +28,6 @@ from services.genre_repo import (
 )
 from utils.feed_utils import map_track
 
-
 def process_playlist(
     playlist_id: str,
     playlist_title: str,
@@ -94,7 +93,6 @@ def process_playlist(
     print(f"{len(mapped_tracks)} tracks mapeados correctamente")
     return mapped_tracks
 
-
 def populate_genre_entry(
     entry: Dict[str, Any],
     limit_per_playlist: int = 100,
@@ -138,7 +136,7 @@ def populate_genre_entry(
         playlist_title = playlist_data.get("title")
         playlist_id = playlist_data.get("id")
         
-        print(f"\n📀 [{idx}/{total_playlists}] {playlist_title}")
+        print(f"\n[{idx}/{total_playlists}] {playlist_title}")
         print(f"ID: {playlist_id}")
         
         # 2.1 Extraer y mapear tracks

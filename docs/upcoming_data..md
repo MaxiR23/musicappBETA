@@ -309,8 +309,8 @@ def search_artist_id(artist):
                 continue
                 
             for it in r.json().get("results", []):
-                if norm(it.get("artistName", "")) == aq:
-                    return (str(it.get("artistId")), country)
+                if norm(it.get("artist_name", "")) == aq:
+                    return (str(it.get("artist_id")), country)
         except:
             continue
     return None
@@ -338,7 +338,7 @@ def strict_pick_album(albums, artist, album):
         return None
 
     def score(x):
-        an = norm(x.get("artistName", ""))
+        an = norm(x.get("artist_name", ""))
         tn = norm(x.get("collectionName", ""))
         exact_title = int(tn == tq)
         starts_title = int(tn.startswith(tq))
@@ -350,7 +350,7 @@ def strict_pick_album(albums, artist, album):
 
     albums.sort(key=score, reverse=True)
     top = albums[0]
-    a_ok = (norm(top.get("artistName", "")) == aq)
+    a_ok = (norm(top.get("artist_name", "")) == aq)
     t_ok = (norm(top.get("collectionName", "")) == tq)
     ts_ok = norm(top.get("collectionName", "")).startswith(tq)
     

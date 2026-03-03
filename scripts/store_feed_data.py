@@ -20,21 +20,21 @@ def build_most_played() -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
 
     albums: List[Dict[str, Any]] = []
     for it in albums_raw:
-        artist = (it.get("artistName") or "").strip()
+        artist = (it.get("artist_name") or "").strip()
         title = (it.get("name") or "").strip()
         if not artist or not title:
             continue
         m = _map_album(artist, title)
         if m:
             out = dict(m)
-            aid = out.get("artistId")
+            aid = out.get("artist_id")
             if aid:
                 out["artist_id"] = aid
             albums.append(out)
 
     tracks: List[Dict[str, Any]] = []
     for it in songs_raw:
-        artist = (it.get("artistName") or "").strip()
+        artist = (it.get("artist_name") or "").strip()
         title = (it.get("name") or "").strip()
         if not artist or not title:
             continue
@@ -43,7 +43,6 @@ def build_most_played() -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
             tracks.append(m)
 
     return albums, tracks
-
 
 def build_new_releases(store: Optional[str], limit: Optional[int]) -> List[Dict[str, Any]]:
     WANT = limit or 25
@@ -75,7 +74,7 @@ def build_new_releases(store: Optional[str], limit: Optional[int]) -> List[Dict[
         
         out = dict(m)
         
-        aid = out.get("artistId")
+        aid = out.get("artist_id")
         if aid:
             out["artist_id"] = aid
         

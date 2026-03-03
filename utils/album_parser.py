@@ -1,11 +1,7 @@
 import re
 from urllib.parse import urlparse, parse_qs
-from ytmusicapi import YTMusic
-
+from shared.clients import _ytm
 from .artist_parser import parse_albums as _artist_parse_albums, parse_singles_eps as _artist_parse_singles
-from innertube import InnerTube
-
-ytm = YTMusic()
 
 def _find_album_header(response: dict):
     """
@@ -72,7 +68,7 @@ def parse_album_info(response: dict):
     Extrae info general del álbum desde el browse() crudo.
     - PRIORIDAD de título/metadata: musicResponsiveHeaderRenderer
     - Fallback para thumbs/url/etc: microformat
-    - AGREGA: audioPlaylistId (OLAK5…) y, si existe, recorta url -> OLAK5…
+    - AGREGA: audio_playlist_id (OLAK5…) y, si existe, recorta url -> OLAK5…
     """
     # ---------- Header (titulo/artist/songs/duration) ----------
     header = _find_album_header(response)
@@ -161,7 +157,7 @@ def parse_album_info(response: dict):
     url = micro.get("urlCanonical")
     thumbnails = micro.get("thumbnail", {}).get("thumbnails", [])
 
-    # Derivar audioPlaylistId desde urlCanonical / applinks
+    # Derivar audio_playlist_id desde urlCanonical / applinks
     audio_playlist_id = None
     candidatos = [
         micro.get("urlCanonical"),
@@ -198,20 +194,20 @@ def parse_album_info(response: dict):
         "thumbnails": thumbnails,
 
         ## TODO: { debería tener esto teniendo included_artists? 
-        "artistName": artist_name, 
-        "artistId": artist_id, 
+        "artist_name": artist_name, 
+        "artist_id": artist_id, 
         ## TODO }
 
-        "includedArtists": included_artists,      # [{id,name}, ...]
-        "straplineThumbnail": strapline_thumbs,   # lista de thumbs del strapline
+        "included_artists": included_artists,      # [{id,name}, ...]
+        "strapline_thumbnail": strapline_thumbs,   # lista de thumbs del strapline
 
-        "songCount": song_count,
-        "durationText": duration_text,
+        "song_count": song_count,
+        "duration_text": duration_text,
         "year": year,
     }
 
     if audio_playlist_id:
-        payload["audioPlaylistId"] = audio_playlist_id
+        payload["audio_playlist_id"] = audio_playlist_id
 
     return payload
 
@@ -226,7 +222,6 @@ def parse_album_thumbnails_from_background(node: dict):
         .get("thumbnails", [])
     )
     return background or []
-
 
 def _extract_artist_name_from_accessibility(renderer: dict):
     """
@@ -256,7 +251,6 @@ def _extract_artist_name_from_accessibility(renderer: dict):
                 return parts[-1].strip() or None
 
     return None
-
 
 def _find_any_browse_id(renderer: dict):
     """
@@ -305,7 +299,6 @@ def _find_any_browse_id(renderer: dict):
 
     return None
 
-
 def _detect_music_video_type(renderer: dict):
     """
     Devuelve 'MUSIC_VIDEO_TYPE_ATV' (song), 'MUSIC_VIDEO_TYPE_OMV' (video) o None.
@@ -325,7 +318,6 @@ def _detect_music_video_type(renderer: dict):
         .get("watchEndpointMusicConfig", {})
     )
     return cfg.get("musicVideoType")
-
 
 def _first_text(runlist: list) -> str | None:
     if not runlist:
@@ -451,13 +443,13 @@ def parse_album_tracks(album_response: dict):
 
             tracks.append({
                 "title": title,
-                "videoId": video_id,
+                "track_id": video_id,
                 "artists": artists,
                 "plays": plays,
                 "duration": duration,
-                "durationSeconds": duration_seconds,
+                "duration_seconds": duration_seconds,
                 "index": index_print,
-                "musicVideoType": mvt,
+                "music_video_type": mvt,
             })
 
     return tracks
@@ -506,12 +498,12 @@ def parse_tracks_from_audio_playlist(audio_playlist_id: str) -> list[dict]:
 
         out.append({
             "title": title,
-            "videoId": video_id,
+            "track_id": video_id,
             "artists": artists,
             "duration": duration,
-            "durationSeconds": duration_seconds,
+            "duration_seconds": duration_seconds,
             "index": index_print,
-            "musicVideoType": mvt,
+            "music_video_type": mvt,
         })
 
     return out
@@ -519,18 +511,18 @@ def parse_tracks_from_audio_playlist(audio_playlist_id: str) -> list[dict]:
 def parse_album_other_versions(album_response: dict) -> list[dict]:
     """
     Extrae el carrusel 'Other versions' (u 'Otras versiones') del browse del álbum.
-    Devuelve: [{ title, browseId, params, type, artistName, thumbnails }]
+    Devuelve: [{ title, browseId, params, type, artist_name, thumbnails }]
     """
     def _title_of(header: dict) -> str:
         runs = ((header or {}).get("musicCarouselShelfBasicHeaderRenderer", {})
-                .get("title", {}).get("runs", [])) or []
+            .get("title", {}).get("runs", [])) or []
         return (runs[0].get("text") if runs and isinstance(runs[0], dict) else "") or ""
 
     def _thumbs(node: dict) -> list:
         return (node.get("thumbnailRenderer", {})
-                    .get("musicThumbnailRenderer", {})
-                    .get("thumbnail", {})
-                    .get("thumbnails", [])) or []
+            .get("musicThumbnailRenderer", {})
+            .get("thumbnail", {})
+            .get("thumbnails", [])) or []
 
     # twoColumn → secondaryContents → sectionListRenderer → contents[]
     contents = (
@@ -580,10 +572,10 @@ def parse_album_other_versions(album_response: dict) -> list[dict]:
 
             out.append({
                 "title": title,
-                "browseId": bid,
+                "browse_id": bid,
                 "params": params,
                 "type": type_txt,           # p.ej. "Album", "EP", "Single"
-                "artistName": artist_name,  # p.ej. "Justin Bieber"
+                "artist_name": artist_name,  # p.ej. "Justin Bieber"
                 "thumbnails": _thumbs(row),
             })
 
@@ -593,7 +585,7 @@ def parse_album_releases_for_you(album_response: dict) -> list[dict]:
     """
     Extrae el carrusel 'Releases for you' del browse del álbum.
     Filtra los ítems donde el artista sea 'Various Artists'.
-    Devuelve: [{ title, browseId, params, type, artistName, thumbnails }]
+    Devuelve: [{ title, browseId, params, type, artist_name, thumbnails }]
     """
     def _title_of(header: dict) -> str:
         runs = ((header or {}).get("musicCarouselShelfBasicHeaderRenderer", {})
@@ -650,16 +642,16 @@ def parse_album_releases_for_you(album_response: dict) -> list[dict]:
             if not artist_name and len(sub_runs) >= 3:
                 artist_name = sub_runs[-1].get("text")
 
-            # 🔎 filtro: excluir 'Various Artists'
+            # filtro: excluir 'Various Artists'
             if isinstance(artist_name, str) and artist_name.strip().lower() == "various artists":
                 continue
 
             out.append({
                 "title": title,
-                "browseId": bid,
+                "browse_id": bid,
                 "params": params,
                 "type": type_txt,           # "Album" | "Single" | "EP"
-                "artistName": artist_name,  # p.ej. "Reggie Becton"
+                "artist_name": artist_name,  # p.ej. "Reggie Becton"
                 "thumbnails": _thumbs(row),
             })
 
@@ -675,7 +667,7 @@ def build_more_from_artist(artist_id: str, exclude_album_id: str | None = None, 
         return []
 
     try:
-        yt = InnerTube("WEB_REMIX")
+        yt = _ytm()
         aresp = yt.browse(artist_id)
 
         # Navega a la misma ruta que ya usás para artista

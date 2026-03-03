@@ -2,7 +2,7 @@
 """Endpoints de tracks: lyrics, related, upnext."""
 from fastapi import APIRouter, Path
 from fastapi.responses import JSONResponse
-from services.track_service import get_lyrics, get_related, get_related_raw, get_upnext
+from services.track_service import get_lyrics, get_related, get_related_raw, get_up_next
 
 router = APIRouter()
 
@@ -29,7 +29,7 @@ def get_track_related_raw(track_id: str = Path(...)):
 
 @router.get("/tracks/{track_id}/upnext")
 def get_track_upnext(track_id: str = Path(...)):
-    res = get_upnext(track_id)
+    res = get_up_next(track_id)
     if not res.get("ok"):
         return JSONResponse(status_code=404, content=res)
     return res

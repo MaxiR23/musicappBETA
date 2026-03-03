@@ -24,11 +24,11 @@ Devuelve la mejor URL de thumbnail soportando:
 Normaliza un track a un formato consistente:
 - id (videoId o id)
 - title
-- artistName / artistId (con fallbacks desde artists/author)
-- artistIds + artists (lista original)
-- albumId / albumName (desde album o campos planos)
+- artist_name / artist_id (con fallbacks desde artists/author)
+- artist_ids + artists (lista original)
+- album_id / album_name (desde album o campos planos)
 - thumbnail (best_thumb_url)
-- duration + durationSeconds (desde lengthSeconds o parse de duration)
+- duration + duration_seconds (desde lengthSeconds o parse de duration)
 
 ## Funciones (API pública)
 

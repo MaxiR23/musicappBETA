@@ -11,7 +11,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from services.supabase_service import supabase_service as sb
 
-
 def purge_play_events(days: int = 60):
     """Borra registros de play_events más antiguos que X días"""
     cutoff_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
@@ -29,10 +28,10 @@ def purge_play_events(days: int = 60):
         count = count_response.count if hasattr(count_response, 'count') else 0
         
         if count == 0:
-            print("    No hay registros para purgar")
+            print("No hay registros para purgar")
             return
         
-        print(f"    Se borrarán {count} registros...")
+        print(f"Se borrarán {count} registros...")
         
         # Borrar
         sb.table('play_events') \
@@ -40,12 +39,11 @@ def purge_play_events(days: int = 60):
             .lt('played_at', cutoff_date) \
             .execute()
         
-        print(f"    ✓ {count} registros borrados")
+        print(f"✓ {count} registros borrados")
         
     except Exception as e:
-        print(f"    ✗ Error: {e}")
+        print(f"✗ Error: {e}")
         raise
-
 
 def purge_weekly_stats(days: int = 90):
     """Borra registros de user_weekly_stats más antiguos que X días"""
@@ -64,10 +62,10 @@ def purge_weekly_stats(days: int = 90):
         count = count_response.count if hasattr(count_response, 'count') else 0
         
         if count == 0:
-            print("    No hay registros para purgar")
+            print("No hay registros para purgar")
             return
         
-        print(f"    Se borrarán {count} registros...")
+        print(f"Se borrarán {count} registros...")
         
         # Borrar
         sb.table('user_weekly_stats') \
@@ -75,15 +73,14 @@ def purge_weekly_stats(days: int = 90):
             .lt('week_start', cutoff_date) \
             .execute()
         
-        print(f"    ✓ {count} registros borrados")
+        print(f"✓ {count} registros borrados")
         
     except Exception as e:
-        print(f"    ✗ Error: {e}")
+        print(f"✗ Error: {e}")
         raise
 
-
 def main():
-    print("🧹 Iniciando purga automática...")
+    print("Iniciando purga automática...")
     print(f"Fecha actual: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
     
     # Purgar play_events (>60 días)
@@ -92,8 +89,7 @@ def main():
     # Purgar user_weekly_stats (>90 días)
     purge_weekly_stats(days=90)
     
-    print("\n✅ Purga completada")
-
+    print("\nPurga completada")
 
 if __name__ == '__main__':
     main()

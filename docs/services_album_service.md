@@ -1,13 +1,13 @@
 # services/album_service.py
 
 ## Objetivo
-Orquestación del payload de álbum: browse + parsing info, tracks por audioPlaylistId, “more from artist”, eventos, cache.
+Orquestación del payload de álbum: browse + parsing info, tracks por audio_playlist_id, “more from artist”, eventos, cache.
 
 ## Funciones (API pública)
 
 ### extract_artist_name(info: dict) -> str | None
 Obtiene nombre de artista desde info:
-- artistName
+- artist_name
 - artists[0].name
 - artist
 - subtitle
@@ -25,10 +25,10 @@ Función pura. Arma payload final del álbum:
 - id
 - info
 - tracks
-- otherVersions (parse_album_other_versions)
-- moreFromArtist
-- upcomingEvents
-- releasesForYou (parse_album_releases_for_you)
+- other_versions (parse_album_other_versions)
+- more_from_artist
+- upcoming_events
+- releases_for_you (parse_album_releases_for_you)
 
 ### get_album_tracks(audio_playlist_id: str) -> list
 Devuelve tracks parseando audio_playlist_id vía parse_tracks_from_audio_playlist.
@@ -40,8 +40,8 @@ Orquesta principal:
 2) raw = music_client.browse(album_id)
 3) info = parse_album_info(raw)
 4) fetch paralelo:
-   - tracks (audioPlaylistId)
-   - more_from_artist (artistId, excluyendo este album)
+   - tracks (audio_playlist_id)
+   - more_from_artist (artist_id, excluyendo este album)
 5) events: get_events_cached_only(artist_name) + schedule_events_refresh si vacío
 6) build_album_payload + cache + return
 

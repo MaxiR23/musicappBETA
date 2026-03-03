@@ -27,11 +27,11 @@ def _row_from_album(kind: str, a: Dict[str, Any]) -> Dict[str, Any]:
         "year":        _to_int(a.get("year")),          # int4
         "track_count":  _to_int(a.get("track_count")),    # int4
         "release_date": a.get("release_date"),            # text  
-        "artist_id":   a.get("artist_id") or a.get("artistId"),
+        "artist_id":   a.get("artist_id") or a.get("artist_id"),
         # campos de track -> null
         "album":       None,
         "duration":    None,
-        "duration_s":  None,
+        "duration_seconds":  None,
     }
 
 def _row_from_track(kind: str, t: Dict[str, Any]) -> Dict[str, Any]:
@@ -43,10 +43,10 @@ def _row_from_track(kind: str, t: Dict[str, Any]) -> Dict[str, Any]:
         "artist":      t.get("artist"),
         "thumb":       t.get("thumb"),
         "url":         t.get("url"),
-        "artist_id":   t.get("artist_id") or t.get("artistId"),
+        "artist_id":   t.get("artist_id") or t.get("artist_id"),
         "album":       t.get("album"),
         "duration":    t.get("duration"),
-        "duration_s":  _to_int(t.get("duration_s")),    # int4
+        "duration_seconds":  _to_int(t.get("duration_seconds")), # int4
         # solo álbum -> null
         "year":        None,
         "track_count":  None,
@@ -65,7 +65,7 @@ def replace_feed(kind: str, media_type: str, items: Iterable[Dict[str, Any]]) ->
         del_res = sb.table(TABLE).delete().eq("kind", kind).eq("type", media_type).execute()
         deleted = getattr(del_res, "count", None) or None
     except Exception as e:
-        print(f"⚠️ Warning: DELETE falló: {e}")
+        print(f"Warning: DELETE falló: {e}")
         deleted = None
 
     # 2) Preparar rows
@@ -74,7 +74,7 @@ def replace_feed(kind: str, media_type: str, items: Iterable[Dict[str, Any]]) ->
     else:
         rows = [_row_from_track(kind, it) for it in items]
 
-    # 3) ✅ DEDUPLICAR por ID antes de insertar (último gana)
+    # 3) DEDUPLICAR por ID antes de insertar (último gana)
     rows_by_id: Dict[str, Dict[str, Any]] = {}
     for r in rows:
         row_id = r.get("id")

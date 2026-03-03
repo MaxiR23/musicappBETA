@@ -73,7 +73,7 @@ def to_items_for_db(
     source: str,
     valid_until: Optional[str],
 ) -> List[Dict[str, Any]]:
-    """Mapea a filas de public.user_recommendations (artistas con similarTo, álbum sin)."""
+    """Mapea a filas de public.user_recommendations (artistas con similar_to, álbum sin)."""
     out: List[Dict[str, Any]] = []
     rank = 1
 
@@ -81,7 +81,7 @@ def to_items_for_db(
         rid = id_any(it)
         if not rid:
             continue
-        st = it.get("similarTo") or {}
+        st = it.get("similar_to") or {}
         out.append({
             "item_type": "artist",
             "item_id": rid,
@@ -110,7 +110,7 @@ def to_items_for_db(
             "rank": rank,
             "payload": {
                 "title": album_title(it),
-                "artistName": it.get("artistName") or it.get("artist"),
+                "artist_name": it.get("artist_name") or it.get("artist"),
                 "thumbnails": thumbnails(it),
                 "type": it.get("type"),
                 "year": it.get("year"),

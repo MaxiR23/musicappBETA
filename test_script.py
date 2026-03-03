@@ -245,7 +245,7 @@ def search_artist_id(artist: str) -> tuple[str,str] | None:
                 if r.status_code != 200:
                     continue
                 for it in r.json().get("results", []):
-                    if norm(it.get("artistName","")) == aq:
+                    if norm(it.get("artist_name","")) == aq:
                         exacts.append((it, country))
             except:
                 continue
@@ -265,17 +265,17 @@ def search_artist_id(artist: str) -> tuple[str,str] | None:
                         continue
                     items = r.json().get("results", [])
                     if items:
-                        items.sort(key=lambda x: int(x.get("artistId",0)), reverse=True)
+                        items.sort(key=lambda x: int(x.get("artist_id",0)), reverse=True)
                         best = (items[0], country)
                         break
                 except:
                     continue
-            return (str(best[0]["artistId"]), best[1]) if best else None
+            return (str(best[0]["artist_id"]), best[1]) if best else None
 
         seen = {}
         for it, country in exacts:
-            seen.setdefault(str(it.get("artistId")), (it, set()))
-            seen[str(it.get("artistId"))][1].add(country)
+            seen.setdefault(str(it.get("artist_id")), (it, set()))
+            seen[str(it.get("artist_id"))][1].add(country)
 
         def albums_count(artist_id: str, pref_country: str) -> tuple[int, str, int]:
             for cc in ("us", pref_country):
@@ -326,7 +326,7 @@ def strict_pick_album(albums: list[dict], artist: str, album: str) -> dict | Non
         return None
 
     def score(x: dict):
-        an = norm(x.get("artistName",""))
+        an = norm(x.get("artist_name",""))
         tn = norm(x.get("collectionName",""))
         exact_title = int(tn == tq)
         starts_title = int(tn.startswith(tq))
@@ -338,7 +338,7 @@ def strict_pick_album(albums: list[dict], artist: str, album: str) -> dict | Non
 
     albums.sort(key=score, reverse=True)
     top = albums[0]
-    a_ok = (norm(top.get("artistName","")) == aq)
+    a_ok = (norm(top.get("artist_name","")) == aq)
     t_ok = (norm(top.get("collectionName","")) == tq)
     ts_ok = norm(top.get("collectionName","")).startswith(tq)
     if not (a_ok and (t_ok or ts_ok)):
@@ -410,7 +410,7 @@ def apple_cover_by_text_search(artist: str, album: str, size: int) -> dict | Non
                 if not results:
                     continue
                 def score(x: dict):
-                    an = norm(x.get("artistName","")); tn = norm(x.get("collectionName",""))
+                    an = norm(x.get("artist_name","")); tn = norm(x.get("collectionName",""))
                     exact_title = int(tn == tq)
                     starts_title = int(tn.startswith(tq))
                     contains_title = int(tq in tn)
@@ -420,7 +420,7 @@ def apple_cover_by_text_search(artist: str, album: str, size: int) -> dict | Non
                     return (exact_artist, exact_title, starts_title, contains_title, rdate, cid)
                 results.sort(key=score, reverse=True)
                 top = results[0]
-                a_ok = (norm(top.get("artistName","")) == aq)
+                a_ok = (norm(top.get("artist_name","")) == aq)
                 t_ok = (norm(top.get("collectionName","")) == tq)
                 ts_ok = norm(top.get("collectionName","")).startswith(tq)
                 if not (a_ok and (t_ok or ts_ok)):

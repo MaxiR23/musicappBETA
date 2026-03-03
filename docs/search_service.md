@@ -15,13 +15,13 @@ Orquestar la búsqueda: consulta a InnerTube/ytmusicapi, parseo de “artist car
 Función pura. Construye el payload final:
 - query
 - artist
-- artistSongs
-- artistAlbums
+- artist_songs
+- artist_albums
 - search (general)
 
 ### get_warm_ids(result: dict) -> list[str]
 Extrae `videoId` para warming:
-- Siempre toma `artistSongs[*].videoId`
+- Siempre toma `artist_songs[*].videoId`
 - Si NO hay artist card, también toma `search.songs[*].videoId`
 - Dedup + límite 24
 
@@ -32,8 +32,8 @@ Orquesta principal:
 3) fetch: `yt = _ytm()` y `response = yt.search(query)`
 4) parse:
    - artist: parse_artist_card_info
-   - artistSongs: parse_artist_card_songs (con enrich_metadata, strict_atv)
-   - artistAlbums: parse_artist_card_albums
+   - artist_songs: parse_artist_card_songs (con enrich_metadata, strict_atv)
+   - artist_albums: parse_artist_card_albums
 5) general:
    - si hay artist => albums 10, songs 0
    - si no hay artist => songs 10 + albums 10 (con enrich_metadata)

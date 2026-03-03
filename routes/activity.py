@@ -3,6 +3,7 @@ Endpoints de actividad: plays y recent
 """
 from fastapi import APIRouter, Path, Body, Request
 from fastapi.responses import JSONResponse
+from services.track_service import ensure_duration_seconds
 
 from services.activity_service import log_play_from_request, upsert_recent_from_request, get_recents_from_request
 
@@ -22,9 +23,13 @@ def log_play_track(request: Request, track_id: str = Path(...), body: dict | Non
     if b.get("artist_id"): metadata["artist_id"] = b["artist_id"]
     if b.get("track_name"): metadata["track_name"] = b["track_name"]
     if b.get("artist_name"): metadata["artist_name"] = b["artist_name"]
-    if b.get("durationSeconds"): metadata["durationSeconds"] = b["durationSeconds"]
     if b.get("thumbnail_url"): metadata["thumbnail_url"] = b["thumbnail_url"]
     
+    metadata["duration_seconds"] = ensure_duration_seconds(
+        track_id=track_id,
+        duration_seconds=b.get("duration_seconds"),
+    )
+
     result = log_play_from_request(request, track_id=track_id, metadata=metadata)
     return {"ok": result.get("ok", False)}
 

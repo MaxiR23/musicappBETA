@@ -1,96 +1,4 @@
 # utils/artist_parser.py
-def parse_top_songs_legacy(section):
-    songs = []
-    shelf = section.get("musicShelfRenderer", {})
-    for item in shelf.get("contents", []):
-        r = item.get("musicResponsiveListItemRenderer")
-        if not r:
-            continue
-
-        # videoId
-        video_id = (
-            r.get("overlay", {})
-             .get("musicItemThumbnailOverlayRenderer", {})
-             .get("content", {})
-             .get("musicPlayButtonRenderer", {})
-             .get("playNavigationEndpoint", {})
-             .get("watchEndpoint", {})
-             .get("videoId")
-        )
-
-        # título
-        title_runs = (
-            r.get("flexColumns", [])[0]
-             .get("musicResponsiveListItemFlexColumnRenderer", {})
-             .get("text", {})
-             .get("runs", [])
-        )
-        title = title_runs[0]["text"] if title_runs else None
-
-        # ARTISTAS (varios)
-        artist_runs = (
-            r.get("flexColumns", [])[1]
-             .get("musicResponsiveListItemFlexColumnRenderer", {})
-             .get("text", {})
-             .get("runs", [])
-        )
-        artists = []
-        for run in artist_runs:
-            name = (run.get("text") or "").strip()
-            browse = run.get("navigationEndpoint", {}).get("browseEndpoint", {})
-            bid = browse.get("browseId")
-            if not bid or not name or name in {"•", "&", ","}:
-                continue
-            artists.append({"id": bid, "name": name})
-
-        artist_name_joined = ", ".join(a["name"] for a in artists) if artists else None
-        primary_artist_id = artists[0]["id"] if artists else None
-
-        # Álbum (si está presente)
-        album_id = None
-        album_title = None 
-        try:
-            album_runs = (
-                r.get("flexColumns", [])[3]
-                 .get("musicResponsiveListItemFlexColumnRenderer", {})
-                 .get("text", {})
-                 .get("runs", [])
-            )
-            if album_runs:
-                album_title = album_runs[0].get("text") or None
-                album_id = (
-                    album_runs[0]
-                    .get("navigationEndpoint", {})
-                    .get("browseEndpoint", {})
-                    .get("browseId")
-                )
-        except Exception:
-            pass
-
-        # Thumbnails
-        thumbs = (
-            r.get("thumbnail", {})
-             .get("musicThumbnailRenderer", {})
-             .get("thumbnail", {})
-             .get("thumbnails", [])
-        )
-
-        songs.append({
-            "id": video_id,
-            "title": title,
-            "thumbnail": thumbs[-1]["url"] if thumbs else None,
-            "albumId": album_id,
-            "albumTitle": album_title,
-            "artistId": primary_artist_id,
-            "artistName": artist_name_joined,
-            "artists": artists,
-            "duration": None,
-            "durationSeconds": None,
-        })
-    return songs
-
-
-# Nueva función V2
 def parse_top_songs_v2(artist_data, yt_client):
     """
     Obtiene las top 10 songs usando get_playlist.
@@ -123,13 +31,13 @@ def parse_top_songs_v2(artist_data, yt_client):
             "id": track.get("videoId"),
             "title": track.get("title"),
             "thumbnail": thumbnail,
-            "albumId": album_id,
-            "albumTitle": album_title,
-            "artistId": primary_artist_id,
-            "artistName": artist_name,
+            "album_id": album_id,
+            "album_title": album_title,
+            "artist_id": primary_artist_id,
+            "artist_name": artist_name,
             "artists": artists,
             "duration": track.get("duration"),
-            "durationSeconds": track.get("duration_seconds")
+            "duration_seconds": track.get("duration_seconds")
         })
     
     return top_songs_filtered

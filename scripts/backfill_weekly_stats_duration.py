@@ -2,7 +2,7 @@
 backfill_weekly_stats_duration.py
 
 Lee el JSON exportado de user_weekly_stats, enriquece cada track
-en el array stats con durationSeconds (antes de thumbnail_url),
+en el array stats con duration_seconds (antes de thumbnail_url),
 y actualiza la DB.
 
 TEST_MODE = True  → muestra el resultado en consola, no toca la DB.
@@ -27,7 +27,7 @@ SLEEP_BETWEEN_API_CALLS = 2
 # ─────────────────────────────────────────
 
 def enrich_stats(stats: list[dict], yt_api) -> list[dict]:
-    """Agrega durationSeconds a cada track del array stats."""
+    """Agrega duration_seconds a cada track del array stats."""
     seen = set()
     enriched = []
 
@@ -44,15 +44,15 @@ def enrich_stats(stats: list[dict], yt_api) -> list[dict]:
             print(f"  ↳ Esperando {SLEEP_BETWEEN_API_CALLS}s...")
             time.sleep(SLEEP_BETWEEN_API_CALLS)
 
-        _, duration_sec = _get_duration_fast(yt_api, entity_id)
+        _, duration_secondsec = _get_duration_fast(yt_api, entity_id)
         seen.add(entity_id)
 
-        if duration_sec is not None:
+        if duration_secondsec is not None:
             thumbnail = item.pop("thumbnail_url", None)
-            item["durationSeconds"] = duration_sec
+            item["duration_seconds"] = duration_secondsec
             if thumbnail:
                 item["thumbnail_url"] = thumbnail
-            print(f"  ✓ {entity_id} — '{item.get('display_name', '?')}' → {duration_sec}s")
+            print(f"  ✓ {entity_id} — '{item.get('display_name', '?')}' → {duration_secondsec}s")
         else:
             print(f"  ✗ {entity_id} — '{item.get('display_name', '?')}' → no se pudo obtener duración")
 

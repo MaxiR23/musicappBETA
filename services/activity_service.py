@@ -25,9 +25,7 @@ def _db_for_request(request):
     jwt = (request.headers.get("Authorization") or "").replace("Bearer ", "")
     return db_as_user(jwt)
 
-
 # ── PLAY EVENTS ──────────────────────────────────────────
-
 def log_play(db, *, user_id: str, track_id: str, metadata: dict = None) -> dict:
     """INSERT en play_events. Un row por cada play real (30+ seg)."""
     try:
@@ -44,7 +42,6 @@ def log_play(db, *, user_id: str, track_id: str, metadata: dict = None) -> dict:
         return {"ok": False, "error": str(e)}
 
 # ── RECENT ACTIVITY ──────────────────────────────────────
-
 def upsert_recent(db, *, user_id: str, entity_type: str, entity_id: str, metadata: dict = None) -> dict:
     """
     UPSERT en recent_activity. Si ya existe (user, type, id) → actualiza played_at.
@@ -75,7 +72,6 @@ def upsert_recent(db, *, user_id: str, entity_type: str, entity_id: str, metadat
         print(f"[recent][ERROR] {e}")
         return {"ok": False, "error": str(e)}
 
-
 def _trim_recents(db, user_id: str):
     """Borra recents más allá del límite de MAX_RECENTS."""
     try:
@@ -94,7 +90,6 @@ def _trim_recents(db, user_id: str):
     except Exception as e:
         print(f"[recent][trim][ERROR] {e}")
 
-
 def get_recents(db, *, user_id: str, limit: int = 25) -> list:
     """Lee recent_activity ordenado por played_at DESC."""
     try:
@@ -111,9 +106,7 @@ def get_recents(db, *, user_id: str, limit: int = 25) -> list:
         print(f"[recent][get][ERROR] {e}")
         return []
 
-
 # ── CONVENIENCE (desde request) ──────────────────────────
-
 def log_play_from_request(request, *, track_id: str, metadata: dict = None) -> dict:
     user_id = _get_user_id_from_request(request)
     if not user_id:
@@ -121,14 +114,12 @@ def log_play_from_request(request, *, track_id: str, metadata: dict = None) -> d
     db = _db_for_request(request)
     return log_play(db, user_id=user_id, track_id=track_id, metadata=metadata)
 
-
 def upsert_recent_from_request(request, *, entity_type: str, entity_id: str, metadata: dict = None) -> dict:
     user_id = _get_user_id_from_request(request)
     if not user_id:
         return {"ok": False, "error": "unauthorized"}
     db = _db_for_request(request)
     return upsert_recent(db, user_id=user_id, entity_type=entity_type, entity_id=entity_id, metadata=metadata)
-
 
 def get_recents_from_request(request, limit: int = 25) -> list:
     user_id = _get_user_id_from_request(request)

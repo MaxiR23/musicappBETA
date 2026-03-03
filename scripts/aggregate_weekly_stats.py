@@ -84,7 +84,7 @@ def main():
         for entity_type, items in stats.items(): # No es necesario agregar duración a artistas y álbumes.
             if entity_type != "track":
                 for item in items:
-                    item.pop("durationSeconds", None)
+                    item.pop("duration_seconds", None)
             save_weekly_stats(user_id, week_start, entity_type, items)
     
     print("Agregación semanal completada")

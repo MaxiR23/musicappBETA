@@ -132,21 +132,21 @@ def build_artist_payload(
     """Pura. Construye el payload final del artista."""
     payload = {
         "header": header,
-        "topSongs": top_songs,
+        "top_songs": top_songs,
         "albums": albums,
         "singles_eps": singles,
         "has_more": has_more,
         "related": related,
-        "upcomingEvents": events or [],
+        "upcoming_events": events or [],
     }
     if new_releases:
-        payload["newReleases"] = new_releases
+        payload["new_releases"] = new_releases
     if not albums:
         payload.pop("albums", None)
     if not singles:
         payload.pop("singles_eps", None)
     if not top_songs:
-        payload.pop("topSongs", None)
+        payload.pop("top_songs", None)
     return payload
 
 def get_artist(artist_id: str, use_cache: bool = True) -> dict:
