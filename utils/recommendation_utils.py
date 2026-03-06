@@ -12,7 +12,7 @@ def calc_valid_until(days: int | None) -> Optional[str]:
     return (now_utc() + timedelta(days=days)).isoformat() + "Z"
 
 def id_any(it: Dict[str, Any]) -> Optional[str]:
-    v = it.get("id") or it.get("browseId") or it.get("playlistId")
+    v = it.get("id") or it.get("browse_id") or it.get("browseId") or it.get("playlistId")
     return v.strip() if isinstance(v, str) and v.strip() else None
 
 def thumbnails(it: Dict[str, Any]) -> List[Dict[str, Any]]:

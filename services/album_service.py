@@ -16,8 +16,8 @@ from utils.album_parser import (
     parse_tracks_from_audio_playlist,
 )
 
+# extrae nombre del artista desde album info.
 def extract_artist_name(info: dict) -> str | None:
-    """Extrae nombre del artista desde album info."""
     artists = info.get("artists") or []
     first = artists[0] if isinstance(artists, list) and artists else {}
     artist_from_list = first.get("name") if isinstance(first, dict) else None
@@ -32,6 +32,28 @@ def extract_artist_name(info: dict) -> str | None:
         name = name.split(" • ", 1)[0].strip()
     return name
 
+# agrega contexto de álbum a cada track sin modificar el parser base.  
+def _enrich_album_tracks(
+    tracks: list[dict] | None,
+    album_id: str,
+    info: dict | None = None,
+) -> list[dict]:
+    if not tracks:
+        return []
+
+    info = info or {}
+    album_name = info.get("title")
+
+    return [
+        {
+            **track,
+            "album_id": album_id,
+            "album_name": album_name,
+        }
+        for track in tracks
+    ]
+
+# pura. Transforma datos crudos en payload final.
 def build_album_payload(
     album_id: str,
     raw: dict,
@@ -40,7 +62,6 @@ def build_album_payload(
     more_from_artist: list | None = None,
     events: list | None = None,
 ) -> dict:
-    """Pura. Transforma datos crudos en payload final."""
     return {
         "id": album_id,
         "info": info,
@@ -51,14 +72,14 @@ def build_album_payload(
         "releases_for_you": parse_album_releases_for_you(raw) or [],
     }
 
+# trae tracks de un álbum por su audio_playlist_id.
 def get_album_tracks(audio_playlist_id: str) -> list:
-    """Trae tracks de un álbum por su audio_playlist_id."""
     if not audio_playlist_id:
         return []
     return parse_tracks_from_audio_playlist(audio_playlist_id)
-
+ 
+# orquesta: cache -> fetch -> build -> cache.
 def get_album(album_id: str, use_cache: bool = True) -> dict:
-    """Orquesta: cache -> fetch -> build -> cache."""
     if use_cache:
         cached = get_cached(CacheType.ALBUM, suffix=album_id)
         if cached:
@@ -82,6 +103,7 @@ def get_album(album_id: str, use_cache: bool = True) -> dict:
         })
 
         tracks = results["tracks"] or []
+        tracks = _enrich_album_tracks(tracks, album_id=album_id, info=info)
         more_from = results["more_from"] or []
         
         events = []

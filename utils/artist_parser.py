@@ -21,7 +21,7 @@ def parse_top_songs_v2(artist_data, yt_client):
         # Album
         album = track.get("album") or {}
         album_id = album.get("id")
-        album_title = album.get("name")
+        album_name = album.get("name")
         
         # Thumbnail
         thumbs = track.get("thumbnails", [])
@@ -32,7 +32,7 @@ def parse_top_songs_v2(artist_data, yt_client):
             "title": track.get("title"),
             "thumbnail": thumbnail,
             "album_id": album_id,
-            "album_title": album_title,
+            "album_name": album_name,
             "artist_id": primary_artist_id,
             "artist_name": artist_name,
             "artists": artists,

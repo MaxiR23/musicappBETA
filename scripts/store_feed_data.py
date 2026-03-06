@@ -15,12 +15,14 @@ from services.feed_repo import replace_feed
 from services.cache_config import set_manual_version, CacheType
 from utils.feed_utils import norm as _norm, map_album as _map_album, map_track as _map_track, map_albums_until
 
+from services.feed_source import CFG
+
 def build_most_played() -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     albums_raw, songs_raw = fetch_most_played_raw()
 
     albums: List[Dict[str, Any]] = []
     for it in albums_raw:
-        artist = (it.get("artist_name") or "").strip()
+        artist = (it.get("artistName") or "").strip()
         title = (it.get("name") or "").strip()
         if not artist or not title:
             continue
@@ -34,7 +36,7 @@ def build_most_played() -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
 
     tracks: List[Dict[str, Any]] = []
     for it in songs_raw:
-        artist = (it.get("artist_name") or "").strip()
+        artist = (it.get("artistName") or "").strip()
         title = (it.get("name") or "").strip()
         if not artist or not title:
             continue
@@ -45,7 +47,7 @@ def build_most_played() -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     return albums, tracks
 
 def build_new_releases(store: Optional[str], limit: Optional[int]) -> List[Dict[str, Any]]:
-    WANT = limit or 25
+    WANT = limit or CFG.limit 
 
     # 1) Trae TODOS los pairs de 14 días + metadata extra
     pairs, release_by_key, tracks_by_key = fetch_new_releases_pairs(store=store, limit=limit)
@@ -85,11 +87,6 @@ def build_new_releases(store: Optional[str], limit: Optional[int]) -> List[Dict[
         if rd:
             out["release_date"] = rd
         
-        if not out.get("track_count"):
-            tc = tracks_by_key.get(key)
-            if isinstance(tc, int):
-                out["track_count"] = tc
-        
         albums.append(out)
         if bid:
             seen_ids.add(bid)
@@ -115,7 +112,7 @@ def build_new_releases(store: Optional[str], limit: Optional[int]) -> List[Dict[
     return albums
 
 def build_seed_tracks(want: int) -> List[Dict[str, Any]]:
-    return fetch_seed_tracks(limit_pairs=want * 2, want=want)
+    return fetch_seed_tracks(limit_pairs=max(100, want * 3), want=want)
 
 def main(argv: Optional[List[str]] = None) -> int:
     p = argparse.ArgumentParser(description="Fetch → map → persist feed data")
@@ -166,7 +163,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if run_all or args.only_new_singles:
         print("[feed] building new_singles…")
-        new_singles = fetch_new_singles_tracks(store=args.store, want=(args.limit or 25))
+        new_singles = fetch_new_singles_tracks(store=args.store, want=(args.limit or CFG.limit))
         print(f"[feed] new_singles: tracks={len(new_singles)}")
         print("[feed] persisting new_singles…")
         replace_feed(kind="new_singles", media_type="track", items=new_singles)
@@ -177,7 +174,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if run_all or args.only_seed_tracks:
         print("[feed] building seed_tracks…")
-        seed_tracks = build_seed_tracks(want=(args.limit or 25))
+        seed_tracks = build_seed_tracks(want=(args.limit or CFG.limit))
         print(f"[feed] seed_tracks: tracks={len(seed_tracks)}")
         print("[feed] persisting seed_tracks…")
         replace_feed(kind="seed_tracks", media_type="track", items=seed_tracks)

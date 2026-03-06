@@ -1,4 +1,6 @@
 from datetime import date, timedelta
+from services.cache_service import get_cached, set_cached
+from services.cache_config import CacheType
 
 def _get_week_start(d: date = None) -> date:
     """Lunes de la semana PASADA (la última cerrada)."""
@@ -8,6 +10,12 @@ def _get_week_start(d: date = None) -> date:
 
 def get_weekly_stats(db, user_id: str, entity_type: str, limit: int = None) -> list:
     """Base: trae stats de la semana actual para un entity_type."""
+    cache_suffix = f"{user_id}:{entity_type}"
+    
+    cached = get_cached(CacheType.WEEKLY_STATS, suffix=cache_suffix)
+    if cached is not None:
+        return cached[:limit] if limit else cached
+
     week = _get_week_start()
     
     resp = db.table("user_weekly_stats") \
@@ -18,10 +26,9 @@ def get_weekly_stats(db, user_id: str, entity_type: str, limit: int = None) -> l
         .maybe_single() \
         .execute()
 
-    if not resp:
-        return []    
+    stats = (resp.data or {}).get("stats") or [] if resp else []
+    set_cached(CacheType.WEEKLY_STATS, stats, suffix=cache_suffix)
     
-    stats = (resp.data or {}).get("stats") or []
     return stats[:limit] if limit else stats
 
 def get_weekly_artists(db, user_id: str, limit: int = None) -> list:
@@ -33,12 +40,20 @@ def get_weekly_albums(db, user_id: str, limit: int = None) -> list:
 def get_weekly_tracks(db, user_id: str, limit: int = None) -> list:
     return get_weekly_stats(db, user_id, "track", limit=limit)
 
-def get_weekly_summary(db, user_id: str, preview: bool = False) -> dict:
-    """preview=True → top 3 para el home card."""
-    limit = 3 if preview else None
-    return {
-        "week_start": _get_week_start().isoformat(),
-        "artists": get_weekly_artists(db, user_id, limit),
-        "albums": get_weekly_albums(db, user_id, limit),
-        "tracks": get_weekly_tracks(db, user_id, limit),
-    }
+def get_weekly_summary(db, user_id: str, include: str = None, limit: int = None) -> dict:
+    """
+    include: None (todo) o "artists" o "artists,albums,tracks"
+    limit: límite por tipo
+    """
+    types = [t.strip() for t in include.split(",")] if include else ["artists", "albums", "tracks"]
+    
+    result = {"week_start": _get_week_start().isoformat()}
+    
+    if "artists" in types:
+        result["artists"] = get_weekly_artists(db, user_id, limit)
+    if "albums" in types:
+        result["albums"] = get_weekly_albums(db, user_id, limit)
+    if "tracks" in types:
+        result["tracks"] = get_weekly_tracks(db, user_id, limit)
+    
+    return result

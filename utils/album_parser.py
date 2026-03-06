@@ -1,6 +1,6 @@
 import re
 from urllib.parse import urlparse, parse_qs
-from shared.clients import _ytm
+from shared.clients import _ytmusic_client, _ytm
 from .artist_parser import parse_albums as _artist_parse_albums, parse_singles_eps as _artist_parse_singles
 
 def _find_album_header(response: dict):
@@ -299,26 +299,6 @@ def _find_any_browse_id(renderer: dict):
 
     return None
 
-def _detect_music_video_type(renderer: dict):
-    """
-    Devuelve 'MUSIC_VIDEO_TYPE_ATV' (song), 'MUSIC_VIDEO_TYPE_OMV' (video) o None.
-    Lee primero el watch del botón Play, luego el del navigationEndpoint.
-    """
-    # overlay -> playNavigationEndpoint.watchEndpoint
-    overlay = renderer.get("overlay", {}).get("musicItemThumbnailOverlayRenderer", {})
-    mpr = overlay.get("content", {}).get("musicPlayButtonRenderer", {}) or {}
-    watch = (
-        mpr.get("playNavigationEndpoint", {}) or {}
-    ).get("watchEndpoint", {}) or {}
-    if not watch.get("videoId"):
-        watch = renderer.get("navigationEndpoint", {}).get("watchEndpoint", {}) or {}
-
-    cfg = (
-        watch.get("watchEndpointMusicSupportedConfigs", {})
-        .get("watchEndpointMusicConfig", {})
-    )
-    return cfg.get("musicVideoType")
-
 def _first_text(runlist: list) -> str | None:
     if not runlist:
         return None
@@ -438,9 +418,6 @@ def parse_album_tracks(album_response: dict):
                 runs = renderer["index"].get("runs", [])
                 index_print = _first_text(runs)
 
-            # Tipo (ATV/OMV)
-            mvt = _detect_music_video_type(renderer)
-
             tracks.append({
                 "title": title,
                 "track_id": video_id,
@@ -449,7 +426,6 @@ def parse_album_tracks(album_response: dict):
                 "duration": duration,
                 "duration_seconds": duration_seconds,
                 "index": index_print,
-                "music_video_type": mvt,
             })
 
     return tracks
@@ -459,7 +435,7 @@ def parse_tracks_from_audio_playlist(audio_playlist_id: str) -> list[dict]:
     Devuelve lista de tracks con el MISMO shape que parse_album_tracks(),
     usando ytmusicapi.get_playlist (ATV). Nunca OMV.
     """
-    ytm_local = YTMusic()  # evita estado raro del global
+    ytm_local = _ytmusic_client()  # evita estado raro del global
     
     try:
         pl = ytm_local.get_playlist(audio_playlist_id, limit=None) or {}
@@ -493,9 +469,6 @@ def parse_tracks_from_audio_playlist(audio_playlist_id: str) -> list[dict]:
         # índice impreso (string, como en parse_album_tracks)
         index_print = str(idx)
 
-        # tipo: aseguramos ATV
-        mvt = "MUSIC_VIDEO_TYPE_ATV"
-
         out.append({
             "title": title,
             "track_id": video_id,
@@ -503,7 +476,6 @@ def parse_tracks_from_audio_playlist(audio_playlist_id: str) -> list[dict]:
             "duration": duration,
             "duration_seconds": duration_seconds,
             "index": index_print,
-            "music_video_type": mvt,
         })
 
     return out

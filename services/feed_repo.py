@@ -15,23 +15,20 @@ def _to_int(v: Any) -> int | None:
         return None
 
 def _row_from_album(kind: str, a: Dict[str, Any]) -> Dict[str, Any]:
-    # mapea a tus columnas reales (lowercase)
     return {
-        "kind":        kind,               # 'most_played' | 'new_releases'
+        "kind":        kind,
         "type":        "album",
         "id":          a.get("id"),
         "title":       a.get("title"),
         "artist":      a.get("artist"),
-        "thumb":       a.get("thumb"),
-        "url":         a.get("url"),
-        "year":        _to_int(a.get("year")),          # int4
-        "track_count":  _to_int(a.get("track_count")),    # int4
-        "release_date": a.get("release_date"),            # text  
-        "artist_id":   a.get("artist_id") or a.get("artist_id"),
-        # campos de track -> null
+        "artist_id":   a.get("artist_id"),
         "album":       None,
-        "duration":    None,
-        "duration_seconds":  None,
+        "album_id":    None,
+        "thumb":       a.get("thumbnail"),
+        "url":         f"/browse/{a.get('id')}" if a.get("id") else None,
+        "year":        _to_int(a.get("year")),
+        "release_date": a.get("release_date"),
+        "duration_seconds": None,
     }
 
 def _row_from_track(kind: str, t: Dict[str, Any]) -> Dict[str, Any]:
@@ -41,25 +38,17 @@ def _row_from_track(kind: str, t: Dict[str, Any]) -> Dict[str, Any]:
         "id":          t.get("id"),
         "title":       t.get("title"),
         "artist":      t.get("artist"),
-        "thumb":       t.get("thumb"),
-        "url":         t.get("url"),
-        "artist_id":   t.get("artist_id") or t.get("artist_id"),
+        "artist_id":   t.get("artist_id"),
+        "thumb":       t.get("thumbnail_url"),
+        "url":         f"/watch/{t.get('id')}" if t.get("id") else None,
         "album":       t.get("album"),
-        "duration":    t.get("duration"),
-        "duration_seconds":  _to_int(t.get("duration_seconds")), # int4
-        # solo álbum -> null
+        "album_id":    t.get("album_id"),
+        "duration_seconds": _to_int(t.get("duration_seconds")),
         "year":        None,
-        "track_count":  None,
-        # new-releases solo aplica a álbumes; por las dudas lo respetamos si viene
         "release_date": t.get("release_date"),
     }
 
 def replace_feed(kind: str, media_type: str, items: Iterable[Dict[str, Any]]) -> Tuple[int | None, int]:
-    """
-    Reemplaza TODO el contenido actual de feed_current para (kind, media_type)
-    por 'items' (ya mapeados). Devuelve (#deleted | None, #inserted).
-    """
-    
     # 1) DELETE
     try:
         del_res = sb.table(TABLE).delete().eq("kind", kind).eq("type", media_type).execute()
@@ -74,7 +63,7 @@ def replace_feed(kind: str, media_type: str, items: Iterable[Dict[str, Any]]) ->
     else:
         rows = [_row_from_track(kind, it) for it in items]
 
-    # 3) DEDUPLICAR por ID antes de insertar (último gana)
+    # 3) DEDUPLICAR por ID
     rows_by_id: Dict[str, Dict[str, Any]] = {}
     for r in rows:
         row_id = r.get("id")
@@ -96,14 +85,13 @@ def replace_feed(kind: str, media_type: str, items: Iterable[Dict[str, Any]]) ->
 
 def list_feed(kind: str, media_type: str, limit: int = 25) -> List[Dict[str, Any]]:
     q = sb.table(TABLE).select("*").eq("kind", kind).eq("type", media_type)
-    # Para new_releases (álbumes) ordenamos por fecha de lanzamiento desc
     if media_type == "album" and kind == "new_releases":
         q = q.order("release_date", desc=True)
     else:
         q = q.order("id", desc=False)
     q = q.limit(limit)
     res = q.execute()
-    return (getattr(res, "data", None) or [])  # filas ya tienen el shape que espera el front
+    return (getattr(res, "data", None) or [])
 
 def list_new_releases_for_artist(artist_id: str, limit: int = 8) -> List[Dict[str, Any]]:
     q = sb.table(TABLE).select("*") \

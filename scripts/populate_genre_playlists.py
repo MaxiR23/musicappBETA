@@ -20,7 +20,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from data.genre_playlists import GENRE_PLAYLISTS
-from services.music_lookup import MusicLookup
+from shared.clients import _ytmusic_client
 from services.genre_repo import (
     upsert_genre,
     upsert_genre_playlist,
@@ -50,7 +50,15 @@ def process_playlist(
     
     # 1. Extraer pares (artist, title) de la playlist
     try:
-        pairs = MusicLookup.get_seed_pairs(playlist_id=playlist_id, limit=limit)
+        raw = _ytmusic_client().get_watch_playlist(playlistId=playlist_id, limit=limit) or {}
+        tracks = raw.get("tracks") or []
+        pairs = []
+        for t in tracks:
+            title = (t.get("title") or "").strip()
+            artists = t.get("artists") or []
+            artist = ", ".join(a.get("name", "").strip() for a in artists if isinstance(a, dict))
+            if title and artist:
+                pairs.append({"title": title, "artist": artist})
     except Exception as e:
         print(f"Error extrayendo playlist: {e}")
         return []

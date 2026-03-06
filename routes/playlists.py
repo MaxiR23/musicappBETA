@@ -128,6 +128,7 @@ async def add_track_to_playlist(request: Request, playlist_id: str, body: dict =
             "artist": body.get("artist"),
             "artist_id": body.get("artist_id"),
             "album": body.get("album"),
+            "album_id": body.get("album_id"),
             "duration_seconds": duration_seconds,
             "thumbnail_url": body.get("thumbnail_url"),
             "extra": body.get("extra"),

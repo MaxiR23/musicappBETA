@@ -30,7 +30,6 @@ def _normalize_track(track: dict) -> dict:
     return {
         "track_id": track.get("videoId"),
         "title": track.get("title"),
-        "music_video_type": track.get("videoType"),
         "thumbnail": _best_thumbnail(track.get("thumbnails")),
         "is_explicit": track.get("isExplicit", False),
         "artist_name": artist_name,

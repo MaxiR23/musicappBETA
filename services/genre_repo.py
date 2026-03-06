@@ -91,15 +91,15 @@ def upsert_track(track: Dict[str, Any]) -> None:
     Args:
         track: Dict con formato {track_id, title, artist, album, duration_seconds, thumbnail_url, artist_id}
     """
-    # TODO: map_track should return duration_seconds directly instead of duration_seconds for consistency
     data = {
         "track_id": track.get("id") or track.get("track_id"),
         "title": track.get("title"),
         "artist": track.get("artist"),
+        "artist_id": track.get("artist_id") or track.get("artist_id"),
         "album": track.get("album"),
+        "album_id": track.get("album_id"),
         "duration_seconds": track.get("duration_seconds") or (track.get("duration_seconds") * 1000 if track.get("duration_seconds") else None),
         "thumbnail_url": track.get("thumbnail_url") or track.get("thumb"),
-        "artist_id": track.get("artist_id") or track.get("artist_id"),
     }
     
     # Upsert por track_id (unique constraint)

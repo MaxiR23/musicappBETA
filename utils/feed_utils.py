@@ -2,8 +2,8 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Optional, Callable
 import re, unicodedata
-from services.music_lookup import MusicLookup as Catalog
-import time  # import local para no tocar globales
+from shared.clients import _ytmusic_client
+import time
 
 def norm(s: str) -> str:
     s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
@@ -50,7 +50,7 @@ def map_album(artist: str, title: str) -> Optional[Dict[str, Any]]:
 
     pick = None
     for lim in (25, 50, 100):  # ampliamos pool
-        hits = Catalog.search_albums(f"{artist} {title}", limit=lim) or []
+        hits = _ytmusic_client().search(f"{artist} {title}", filter="albums", limit=lim) or []
 
         # 1) match exacto + artista
         for h in hits:
@@ -81,7 +81,7 @@ def map_album(artist: str, title: str) -> Optional[Dict[str, Any]]:
     if not bid:
         return None
 
-    info = Catalog.get_album(bid) or {}
+    info = _ytmusic_client().get_album(bid) or {}
     artist_objs  = [a for a in (info.get("artists") or []) if isinstance(a, dict)]
     artist_names = [a.get("name","") for a in artist_objs if a.get("name")]
     artist_ids   = [a.get("id") for a in artist_objs if a.get("id")]
@@ -94,44 +94,34 @@ def map_album(artist: str, title: str) -> Optional[Dict[str, Any]]:
         "artist": ", ".join(artist_names) or artist,   
         "artist_id": artist_ids[0] if artist_ids else None,  #TODO: add two ids if its necessary.
         "year": info.get("year") or "",
-        "track_count": info.get("track_count") or "",
-        "thumb": last_thumb(thumbs),
-        "url": f"/browse/{bid}",
+        "thumbnail": last_thumb(thumbs),
     }
 
 def map_track(artist: str, title: str) -> Optional[Dict[str, Any]]:
-    res = Catalog.search_songs(f"{artist} {title}", limit=1)
-    if not res: return None
-    vid = Catalog.first_song_id(res)
-    if not vid: return None
-    s = Catalog.get_song(vid) or {}
-    micro = (s.get("microformat", {}) or {}).get("microformatDataRenderer", {}) or {}
-    vdet  = s.get("videoDetails") or {}
-    song_details = s.get("songDetails", {}) or {}
-    artists = song_details.get("artists") or res[0].get("artists") or []
-    artist_names = [a.get("name","") for a in artists if isinstance(a, dict)]
-    artist_id = (artists[0].get("id") if isinstance(artists, list) and artists else None) \
-                or ((res[0].get("artists") or [{}])[0].get("id"))
-    album_name = (song_details.get("album") or {}).get("name") or (res[0].get("album") or {}).get("name", "")
-    dur = micro.get("lengthSeconds") or vdet.get("lengthSeconds") or ""
-    def _fmt_mmss(val): 
-        try: sec=int(val); return f"{sec//60}:{sec%60:02d}"
-        except: return ""
-    hit_thumbs = res[0].get("thumbnails") or []
-    def _pick_lh3(ths):
-        if not ths: return ""
-        lh3 = [t for t in ths if "lh3.googleusercontent.com" in str((t or {}).get("url",""))]
-        cand = lh3 if lh3 else ths
-        best = max((c for c in cand if isinstance(c, dict)), key=lambda t: int((t.get("width") or 0)), default={})
-        return best.get("url","") or ""
+    results = _ytmusic_client().search(f"{artist} {title}", filter="songs", limit=1)
+    if not results:
+        return None
+    
+    hit = results[0]
+    video_id = hit.get("videoId")
+    if not video_id:
+        return None
+    
+    artists = hit.get("artists") or []
+    album = hit.get("album") or {}
+    thumbnails = hit.get("thumbnails") or []
+    
     return {
-        "id": vid, "type": "track",
-        "title": vdet.get("title") or res[0].get("title","") or title,
-        "artist": ", ".join([n for n in artist_names if n]) or artist,
-        "artist_id": artist_id, "album": album_name,
-        "duration": _fmt_mmss(dur),
-        "duration_seconds": int(dur) if str(dur).isdigit() else None,
-        "thumb": _pick_lh3(hit_thumbs), "url": f"/watch/{vid}",
+        "id": video_id,
+        "track_id": video_id,
+        "type": "track",
+        "title": hit.get("title") or title,
+        "artist": ", ".join(a.get("name", "") for a in artists if a.get("name")) or artist,
+        "artist_id": artists[0].get("id") if artists else None,
+        "album": album.get("name"),
+        "album_id": album.get("id"),
+        "duration_seconds": hit.get("duration_seconds"),
+        "thumbnail_url": thumbnails[-1].get("url") if thumbnails else None,
     }
 
 def map_albums_until(

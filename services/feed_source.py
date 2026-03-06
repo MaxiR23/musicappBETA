@@ -4,9 +4,9 @@ from __future__ import annotations
 import os
 import requests
 from dataclasses import dataclass
-from typing import Tuple, List, Dict, Any, Optional, Callable
+from typing import Tuple, List, Dict, Any, Optional 
 
-from services.music_lookup import MusicLookup
+from shared.clients import _ytmusic_client
 from utils.feed_utils import map_track
 
 from utils.feed_utils import norm
@@ -290,8 +290,15 @@ def fetch_seed_tracks(limit_pairs: int = 300, want: int = 50, micro_pause: float
     Lee (title, artist) desde la seed (ENV) y devuelve SOLO los tracks mapeados
     con map_track (mismo shape que Apple/Spotify).
     """
-
-    pairs = MusicLookup.get_seed_pairs(limit=limit_pairs)
+    raw = _ytmusic_client().get_watch_playlist(playlistId=os.getenv("FEED_MUSIC_RELEASE_PLAYLIST_ID"), limit=limit_pairs) or {}
+    tracks_raw = raw.get("tracks") or []
+    pairs = []
+    for t in tracks_raw:
+        t_title = (t.get("title") or "").strip()
+        t_artists = t.get("artists") or []
+        t_artist = ", ".join(a.get("name", "").strip() for a in t_artists if isinstance(a, dict))
+        if t_title and t_artist:
+            pairs.append({"title": t_title, "artist": t_artist})
     out: List[Dict[str, Any]] = []
     seen: set[str] = set()
 
