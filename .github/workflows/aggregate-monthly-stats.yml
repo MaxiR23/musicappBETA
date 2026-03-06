@@ -1,8 +1,8 @@
 name: Aggregate Monthly Stats
 
 on:
-  workflow_dispatch:  # Permite ejecución manual
-  
+  workflow_dispatch:
+
   schedule:
     # Día 1 de cada mes a las 3:00 AM Argentina = 6:00 UTC
     - cron: '0 6 1 * *'
@@ -13,15 +13,33 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: pip install --no-deps -r requirements.txt
-      
+
+      - name: Flush last week of month
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PYTHONPATH: .
+        run: |
+          LAST_MONDAY=$(python3 -c "
+          from datetime import datetime, timedelta
+          today = datetime.now()
+          first_of_month = today.replace(day=1)
+          last_day = first_of_month - timedelta(days=1)
+          offset = last_day.weekday()
+          last_monday = last_day - timedelta(days=offset)
+          print(last_monday.strftime('%Y-%m-%d'))
+          ")
+          python scripts/aggregate_weekly_stats.py --week-start $LAST_MONDAY
+
       - name: Run monthly aggregation
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -29,6 +47,6 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PYTHONPATH: .
         run: python scripts/aggregate_monthly_stats.py
-      
+
       - name: Summary
         run: echo "Monthly stats aggregated - $(date)"
