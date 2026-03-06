@@ -4,15 +4,18 @@ Usa RPC para hacer GROUP BY en Postgres (escalable).
 Corre cada domingo a las 23:59 (GitHub Actions).
 """
 from __future__ import annotations
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Dict, List, Any
 import argparse
+import re
 import sys
 import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from services.supabase_service import supabase_service as sb
+from services.artist_service import get_artist
 
 def get_monday_of_last_week() -> str:
     today = datetime.now()
@@ -56,6 +59,25 @@ def save_weekly_stats(user_id: str, week_start: str, entity_type: str, stats: Li
     
     print(f" ✓ {entity_type}: {len(stats)} guardados")
 
+def enrich_artist_thumbnails(artists: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def fetch_thumb(artist):
+        artist_id = artist.get('entity_id')
+        if not artist_id:
+            return
+        try:
+            data = get_artist(artist_id)
+            thumbs = (data.get('header') or {}).get('thumbnails') or []
+            if thumbs:
+                url = thumbs[-1].get('url', '')
+                artist['thumbnail_url'] = re.sub(r'=w\d+-h\d+.*$', '=w512-h512-p-l90-rj', url)
+        except Exception as e:
+            print(f"    thumb FAIL {artist_id}: {e}")
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        executor.map(fetch_thumb, artists)
+
+    return artists
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--week-start', type=str, default=None)
@@ -80,6 +102,8 @@ def main():
         stats = aggregate_for_user(user_id, week_start, week_end)
         
         for entity_type, items in stats.items():
+            if entity_type == 'artist':
+                items = enrich_artist_thumbnails(items)
             if entity_type != "track":
                 for item in items:
                     item.pop("duration_seconds", None)

@@ -22,7 +22,6 @@ def get_first_day_of_last_month() -> str:
     first_of_last_month = last_month.replace(day=1)
     return first_of_last_month.strftime('%Y-%m-%d')
 
-
 def get_month_end(month: str) -> str:
     """Retorna el primer día del mes siguiente"""
     month_date = datetime.strptime(month, '%Y-%m-%d')

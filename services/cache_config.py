@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Dict, Optional
 import json
 from pathlib import Path
+import calendar
 
 class CacheType(str, Enum):
     # Feed
@@ -40,6 +41,8 @@ class CacheType(str, Enum):
 
     # Stats
     WEEKLY_STATS = "weekly-stats"
+    MONTHLY_STATS = "monthly-stats"
+
 class CacheSchedule(str, Enum):
     """Schedules de invalidación automática"""
     TWICE_WEEKLY = "twice-weekly"
@@ -77,6 +80,7 @@ CACHE_SCHEDULE: Dict[CacheType, CacheSchedule] = {
     CacheType.UPCOMING_ARTIST: CacheSchedule.MANUAL,
 
     CacheType.WEEKLY_STATS: CacheSchedule.MONDAY,
+    CacheType.MONTHLY_STATS: CacheSchedule.MANUAL,
 }
 
 DEFAULT_TTL: Dict[CacheType, int] = {
@@ -275,7 +279,6 @@ def get_all_versions() -> Dict[str, str]:
         for cache_type in CacheType
     }
 
-
 def get_ttl(cache_type: CacheType) -> int:
     """
     Devuelve el TTL por defecto para un tipo de caché.
@@ -286,4 +289,10 @@ def get_ttl(cache_type: CacheType) -> int:
     Returns:
         TTL en segundos
     """
+
+    if cache_type == CacheType.MONTHLY_STATS:
+        today = datetime.now()
+        days_in_month = calendar.monthrange(today.year, today.month)[1]
+        return days_in_month * 86400
+
     return DEFAULT_TTL.get(cache_type, 1800)
