@@ -109,6 +109,7 @@ def aggregate_for_user(user_id: str, weeks: List[str]) -> Dict[str, List[Dict[st
                 consolidated[entity_type][entity_id]['artist_name'] = item.get('artist_name')
                 consolidated[entity_type][entity_id]['album_id'] = item.get('album_id')
                 consolidated[entity_type][entity_id]['album_name'] = item.get('album_name')
+                consolidated[entity_type][entity_id]['duration_seconds'] = item.get('duration_seconds')
             elif entity_type == 'album':
                 consolidated[entity_type][entity_id]['artist_id'] = item.get('artist_id')
                 consolidated[entity_type][entity_id]['artist_name'] = item.get('artist_name')
