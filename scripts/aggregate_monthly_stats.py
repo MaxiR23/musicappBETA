@@ -113,14 +113,14 @@ def aggregate_for_user(user_id: str, weeks: List[str]) -> Dict[str, List[Dict[st
                 consolidated[entity_type][entity_id]['artist_id'] = item.get('artist_id')
                 consolidated[entity_type][entity_id]['artist_name'] = item.get('artist_name')
     
-    def top_10(items: Dict) -> List[Dict]:
+    def top_n(items: Dict, n: int = 12) -> List[Dict]:
         sorted_items = sorted(items.values(), key=lambda x: x['play_count'], reverse=True)
-        return sorted_items[:10]
+        return sorted_items[:n]
     
     result = {
-        'track': top_10(consolidated['track']),
-        'artist': top_10(consolidated['artist']),
-        'album': top_10(consolidated['album'])
+        'track': top_n(consolidated['track'], 12),
+        'artist': top_n(consolidated['artist'], 10),
+        'album': top_n(consolidated['album'], 10)
     }
     
     for entity_type, items in result.items():
