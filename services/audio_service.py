@@ -1,80 +1,59 @@
-# services/audio_service.py
 """
 Audio service: extracción, cache y streaming.
-Mantiene el mismo comportamiento que routes/audio.py pero fuera de endpoints.
 """
 import os
 import re
 import time
-import tempfile
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
+from typing import Tuple, Any
 
 import requests
 from requests.adapters import HTTPAdapter
 from fastapi.responses import StreamingResponse
-
 from pytubefix import YouTube as PytubeYouTube
+
 from shared.clients import _ydl_global
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# CONFIG
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# ── CONFIG ───────────────────────────────────────────────
 MAX_WORKERS = 8
 WARM_MAX_WORKERS = 10
 WARM_ENABLED = False
-
-URL_TTL = 1800  # default TTL
-
+URL_TTL = 1800
 _WARM_BURST = 20
 _WARM_DEDUP_TTL = 45
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# COOKIES
-# ═══════════════════════════════════════════════════════════════════════════════
-
 POSSIBLE_COOKIE_PATHS = [
-    "/root/musicappbackend/cookies.txt",  # VPS Linux
-    os.path.join(os.getcwd(), "cookies.txt"),  # local carpeta backend/
-    os.path.join(os.path.dirname(__file__), "..", "cookies.txt"),  # relativo
+    "/root/musicappbackend/cookies.txt",
+    os.path.join(os.getcwd(), "cookies.txt"),
+    os.path.join(os.path.dirname(__file__), "..", "cookies.txt"),
 ]
-
 COOKIEFILE = next(
     (p for p in POSSIBLE_COOKIE_PATHS if os.path.exists(p) and os.path.getsize(p) > 0),
     None,
 )
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# CACHES
-# ═══════════════════════════════════════════════════════════════════════════════
-
-_cache: dict[str, dict] = {}  # videoId -> {info, direct_url, ttl, ts}
-_FORCE_CACHE: dict[str, dict] = {}  # OMV->ATV resolver (si lo usás)
+# ── CACHES ───────────────────────────────────────────────
+_cache: dict[str, dict] = {}
+_FORCE_CACHE: dict[str, dict] = {}
 _FORCE_TTL = 24 * 60 * 60
 _ARTIST_CACHE: dict[str, dict] = {}
 _WARM_INFLIGHT: dict[str, float] = {}
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# HTTP SESSIONS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ── HTTP SESSIONS ────────────────────────────────────────
+def _create_session(pool_size: int, pool_block: bool = True) -> requests.Session:
+    session = requests.Session()
+    session.headers.update({"User-Agent": "Mozilla/5.0", "Accept": "*/*", "Connection": "keep-alive"})
+    adapter = HTTPAdapter(pool_connections=pool_size, pool_maxsize=pool_size, max_retries=0, pool_block=pool_block)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
 
-_SESSION_SHORT = requests.Session()
-_SESSION_SHORT.headers.update({"User-Agent": "Mozilla/5.0", "Accept": "*/*", "Connection": "keep-alive"})
-_SESSION_SHORT.mount("https://", HTTPAdapter(pool_connections=80, pool_maxsize=80, max_retries=0))
-_SESSION_SHORT.mount("http://", HTTPAdapter(pool_connections=80, pool_maxsize=80, max_retries=0))
-
-_SESSION_STREAM = requests.Session()
-_SESSION_STREAM.headers.update({"User-Agent": "Mozilla/5.0", "Accept": "*/*", "Connection": "keep-alive"})
-_SESSION_STREAM.mount("https://", HTTPAdapter(pool_connections=100, pool_maxsize=100, max_retries=0, pool_block=False))
-_SESSION_STREAM.mount("http://", HTTPAdapter(pool_connections=100, pool_maxsize=100, max_retries=0, pool_block=False))
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# EXECUTORS
-# ═══════════════════════════════════════════════════════════════════════════════
+_SESSION_SHORT = _create_session(80)
+_SESSION_STREAM = _create_session(100, pool_block=False)
 
 _BACKGROUND_EXECUTOR = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-_WARM_EXECUTOR = None
+_WARM_EXECUTOR: ThreadPoolExecutor | None = None
 
 def _get_warm_executor() -> ThreadPoolExecutor:
     global _WARM_EXECUTOR
@@ -82,13 +61,13 @@ def _get_warm_executor() -> ThreadPoolExecutor:
         _WARM_EXECUTOR = ThreadPoolExecutor(max_workers=WARM_MAX_WORKERS)
     return _WARM_EXECUTOR
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# HELPERS
-# ═══════════════════════════════════════════════════════════════════════════════
+_norm_re_strip = re.compile(r"(\(|\[).{0,80}?(\)|\])", re.IGNORECASE)
+_norm_re_noise = re.compile(r"\b(official\s*video|video\s*oficial|video\s*clip|lyrics?|audio\s*only|HD|4K)\b", re.IGNORECASE)
 
-def _ttl_from_url(u: str) -> int:
+def _ttl_from_url(url: str) -> int:
+    """Extrae TTL de la URL de YouTube."""
     try:
-        qs = urllib.parse.parse_qs(urllib.parse.urlsplit(u).query)
+        qs = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
         now = int(time.time())
         if "expire" in qs:
             exp = int(qs["expire"][0])
@@ -100,23 +79,55 @@ def _ttl_from_url(u: str) -> int:
         pass
     return URL_TTL
 
-_norm_re_strip = re.compile(r"(\(|\[).{0,80}?(\)|\])", re.IGNORECASE)
-_norm_re_noise = re.compile(r"\b(official\s*video|video\s*oficial|video\s*clip|lyrics?|audio\s*only|HD|4K)\b", re.IGNORECASE)
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# EXTRACTION
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def pick_best_audio(info: dict):
+def pick_best_audio(info: dict) -> Tuple[str | None, dict | None, dict]:
+    """Selecciona el mejor formato de audio de los disponibles."""
     fmts = info.get("formats") or []
-
     for f in reversed(fmts):
         if f.get("vcodec") in (None, "none") and f.get("acodec") not in (None, "none") and f.get("url"):
             return f.get("url"), f, {"reason": "best_available"}
+    return info.get("url"), None, {"reason": "fallback"}
 
-    return (info.get("url"), None, {"reason": "fallback"})
+def _guess_audio_media_type(url: str, hdr_ct: str | None) -> str:
+    """Infiere el MIME type del audio."""
+    if hdr_ct and hdr_ct != "application/octet-stream":
+        return hdr_ct
+    u = url.lower()
+    if ".m4a" in u or ".mp4" in u:
+        return "audio/mp4"
+    if ".webm" in u or ".weba" in u:
+        return "audio/webm"
+    if "mime=" in u:
+        qs = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
+        mime = qs.get("mime", [None])[0]
+        if mime:
+            return mime
+    return "audio/*"
 
-def _extract_best_url(video_id: str):
+def _ct_base(ct: str | None) -> str | None:
+    """Extrae el MIME base sin parámetros."""
+    if not ct:
+        return None
+    return ct.split(";", 1)[0].strip()
+
+def is_cache_valid(entry: dict | None, now: float) -> bool:
+    """Verifica si una entrada de cache sigue válida."""
+    if not entry or not entry.get("direct_url"):
+        return False
+    age = now - entry["ts"]
+    ttl = entry.get("ttl", URL_TTL)
+    return age < ttl
+
+def build_cache_entry(info: dict, url: str, client: str, now: float) -> dict:
+    """Construye entrada de cache."""
+    return {
+        "info": info,
+        "direct_url": url,
+        "client": client,
+        "ts": now,
+        "ttl": _ttl_from_url(url),
+    }
+
+def _extract_best_url(video_id: str) -> Tuple[dict, str, str]:
     """pytubefix primero, fallback a yt-dlp si falla."""
     try:
         yt = PytubeYouTube(f"https://www.youtube.com/watch?v={video_id}")
@@ -133,57 +144,21 @@ def _extract_best_url(video_id: str):
         raise RuntimeError("no_audio_format")
     return info, url, "yt-dlp"
 
-def _get_or_extract(video_id: str, _force: bool = False):
-    """Extrae URL directa de audio. Con cache por TTL derivado de la URL."""
+def _get_or_extract(video_id: str, _force: bool = False) -> dict:
+    """Extrae URL directa de audio. Con cache por TTL."""
     now = time.time()
-
     if not _force:
         ent = _cache.get(video_id)
-        if ent and ent.get("direct_url"):
-            age = now - ent["ts"]
-            ttl = ent.get("ttl", URL_TTL)
-            if age < ttl:
-                return ent
+        if is_cache_valid(ent, now):
+            return ent
 
-    info1, url1, client1 = _extract_best_url(video_id)
-
-    data = {
-        "info": info1,
-        "direct_url": url1,
-        "client": client1,
-        "ts": now,
-        "ttl": _ttl_from_url(url1),
-    }
-
+    info, url, client = _extract_best_url(video_id)
+    data = build_cache_entry(info, url, client, now)
     _cache[video_id] = data
     return data
 
-def get_audio_info(video_id: str):
+def get_audio_info(video_id: str) -> dict:
     return _get_or_extract(video_id)
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# NETWORKING / STREAMING
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _guess_audio_media_type(url: str, hdr_ct: str | None) -> str:
-    if hdr_ct and hdr_ct != "application/octet-stream":
-        return hdr_ct
-    u = url.lower()
-    if ".m4a" in u or ".mp4" in u:
-        return "audio/mp4"
-    if ".webm" in u or ".weba" in u:
-        return "audio/webm"
-    if "mime=" in u:
-        qs = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
-        mime = qs.get("mime", [None])[0]
-        if mime:
-            return mime
-    return "audio/*"
-
-def _ct_base(ct: str | None) -> str | None:
-    if not ct:
-        return None
-    return ct.split(";", 1)[0].strip()
 
 def stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
     ORIGIN_CHUNK = 256 * 1024
@@ -194,23 +169,12 @@ def stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
             hdrs["Range"] = extra_range
         elif range_header:
             hdrs["Range"] = range_header
-
-        r = _SESSION_STREAM.get(
-            url,
-            headers=hdrs,
-            stream=True,
-            timeout=(5, 120),
-            allow_redirects=True,
-        )
+        r = _SESSION_STREAM.get(url, headers=hdrs, stream=True, timeout=(5, 120), allow_redirects=True)
         r.raw.decode_content = False
         return r
 
     r = open_req(None)
-
-    resp_headers = {
-        "Accept-Ranges": "bytes",
-        "Connection": "keep-alive",
-    }
+    resp_headers = {"Accept-Ranges": "bytes", "Connection": "keep-alive"}
 
     ct = _ct_base(r.headers.get("Content-Type"))
     cr = r.headers.get("Content-Range")
@@ -221,19 +185,16 @@ def stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
     if cl:
         resp_headers["Content-Length"] = cl
 
-    media_type = ct if ct else _guess_audio_media_type(url, None)
-    media_type = _ct_base(media_type) or "audio/*"
+    media_type = _ct_base(ct if ct else _guess_audio_media_type(url, None)) or "audio/*"
 
     status = r.status_code
-    if range_header and range_header.lower().startswith("bytes="):
-        if cr:
-            status = 206
+    if range_header and range_header.lower().startswith("bytes=") and cr:
+        status = 206
 
     def streamer():
         nonlocal r
         sent = 0
         tried_resume = False
-
         try:
             while True:
                 try:
@@ -243,16 +204,11 @@ def stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
                         sent += len(chunk)
                         yield chunk
                     break
-                except (
-                    requests.exceptions.ChunkedEncodingError,
-                    requests.exceptions.ConnectionError,
-                    requests.exceptions.ReadTimeout,
-                    TimeoutError,
-                ):
+                except (requests.exceptions.ChunkedEncodingError, requests.exceptions.ConnectionError,
+                        requests.exceptions.ReadTimeout, TimeoutError):
                     if tried_resume:
                         break
                     tried_resume = True
-
                     try:
                         if range_header and range_header.lower().startswith("bytes="):
                             base = range_header.split("=", 1)[1].split("-", 1)[0]
@@ -260,21 +216,17 @@ def stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
                             new_start = base_offset + sent
                         else:
                             new_start = sent
-
                         try:
                             r.close()
                         except Exception:
                             pass
-
                         r = open_req(f"bytes={new_start}-")
-
                         cr2 = r.headers.get("Content-Range")
                         cl2 = r.headers.get("Content-Length")
                         if cr2:
                             resp_headers["Content-Range"] = cr2
                         if cl2:
                             resp_headers["Content-Length"] = cl2
-
                         continue
                     except Exception:
                         break
@@ -288,14 +240,9 @@ def stream_from_url(url: str, range_header: str | None) -> StreamingResponse:
 
     return StreamingResponse(streamer(), media_type=media_type, headers=resp_headers, status_code=status)
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# WARMING
-# ═══════════════════════════════════════════════════════════════════════════════
-
 def _probe_url(url: str) -> bool:
-    headers = {"Range": "bytes=0-1"}
     try:
-        r = _SESSION_SHORT.get(url, headers=headers, stream=True, timeout=(1, 3), allow_redirects=True)
+        r = _SESSION_SHORT.get(url, headers={"Range": "bytes=0-1"}, stream=True, timeout=(1, 3), allow_redirects=True)
         ok = r.status_code in (200, 206)
         r.close()
         return ok

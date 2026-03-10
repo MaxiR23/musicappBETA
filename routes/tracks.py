@@ -1,7 +1,8 @@
-# routes/tracks.py
-"""Endpoints de tracks: lyrics, related, upnext."""
+from __future__ import annotations
+
 from fastapi import APIRouter, Path
 from fastapi.responses import JSONResponse
+
 from services.track_service import get_lyrics, get_related, get_related_raw, get_up_next
 
 router = APIRouter()

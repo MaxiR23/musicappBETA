@@ -1,7 +1,4 @@
-"""
-Endpoints de audio: play, prefetch, warm
-Incluye lógica de extracción y streaming (delegada a services/audio_service.py)
-"""
+"""Endpoints de audio: play, prefetch, warm"""
 import urllib.parse
 
 from fastapi import APIRouter, Body, Query, Request
@@ -17,20 +14,28 @@ from services.audio_service import (
 
 router = APIRouter()
 
+# ── HELPERS ──────────────────────────────────────────────
+def _has_ip_param(url: str) -> bool:
+    """Verifica si la URL tiene parámetro ip."""
+    parsed_qs = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
+    return bool(parsed_qs.get("ip", [None])[0])
+
+def _extract_and_limit_ids(raw_ids: list, limit: int) -> list:
+    """Extrae y limita IDs."""
+    return [str(i).strip() for i in raw_ids if i][:limit]
+
+# ── ENDPOINTS ────────────────────────────────────────────
 @router.get("/play")
 def play_song(request: Request, id: str = Query(...), redir: int = Query(2)):
     try:
         data = get_audio_info(id)
         audio_url = data["direct_url"]
 
-        parsed_qs = urllib.parse.parse_qs(urllib.parse.urlsplit(audio_url).query)
-        has_ip_param = "ip" in parsed_qs and parsed_qs["ip"] and parsed_qs["ip"][0]
-        if redir == 1 and has_ip_param:
+        if redir == 1 and _has_ip_param(audio_url):
             redir = 2
 
         if redir == 2:
-            range_header = request.headers.get("range")
-            return stream_from_url(audio_url, range_header)
+            return stream_from_url(audio_url, request.headers.get("range"))
 
         if redir == 1:
             return RedirectResponse(url=audio_url, status_code=307)
@@ -44,8 +49,7 @@ def play_song(request: Request, id: str = Query(...), redir: int = Query(2)):
 def prefetch_songs(payload: dict = Body(...)):
     if not WARM_ENABLED:
         return {"ok": True, "scheduled": 0}
-    raw_ids = payload.get("ids", []) or []
-    ids = [str(i).strip() for i in raw_ids if i][:60]
+    ids = _extract_and_limit_ids(payload.get("ids") or [], 60)
     schedule_warm(ids)
     return {"ok": True, "scheduled": min(len(ids), get_warm_burst())}
 
@@ -53,7 +57,7 @@ def prefetch_songs(payload: dict = Body(...)):
 def warm_ids(payload: dict = Body(...)):
     if not WARM_ENABLED:
         return {"ok": True, "scheduled": 0}
-    ids = [str(i).strip() for i in (payload.get("ids") or []) if i]
     limit = int(payload.get("limit") or get_warm_burst())
-    schedule_warm(ids[:limit])
-    return {"ok": True, "scheduled": min(len(ids), limit)}
+    ids = _extract_and_limit_ids(payload.get("ids") or [], limit)
+    schedule_warm(ids)
+    return {"ok": True, "scheduled": len(ids)}

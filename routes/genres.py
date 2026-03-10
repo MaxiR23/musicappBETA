@@ -1,10 +1,11 @@
-# routes/genres.py
 from __future__ import annotations
-
-from fastapi import APIRouter
-from fastapi.responses import JSONResponse
 from typing import Optional
 
+from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
+
+from core.dependencies import get_db
+from services.db_protocol import DBClient
 from services.genre_repo import (
     get_all_genres,
     get_genre_by_slug,
@@ -13,74 +14,64 @@ from services.genre_repo import (
     get_playlist_tracks,
     get_genre_categories,
 )
-from services.cache_service import cached
-from services.cache_config import CacheType
 
 router = APIRouter(tags=["genres"])
+playlists_router = APIRouter(prefix="/playlists", tags=["playlists"])
 
+# ── GENRES ───────────────────────────────────────────────
 @router.get("/", summary="Lista todos los géneros")
-async def list_genres():
+async def list_genres(db: DBClient = Depends(get_db)):
     try:
-        genres = get_all_genres()
-        return {"ok": True, "genres": genres}
+        return {"ok": True, "genres": get_all_genres(db)}
     except Exception as e:
         print(f"[genres][list][ERROR] {e}")
         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
 
-
 @router.get("/{slug}/playlists", summary="Playlists de un género")
 async def list_genre_playlists(
     slug: str,
-    category: Optional[str] = None
+    category: Optional[str] = None,
+    db: DBClient = Depends(get_db),
 ):
     try:
-        genre = get_genre_by_slug(slug)
+        genre = get_genre_by_slug(db, slug)
         if not genre:
-            return JSONResponse(status_code=404, content={"ok": False, "error": "Genre not found"})
-        playlists = get_playlists_by_genre(genre["id"], category=category)
-        return {"ok": True, "genre": genre, "playlists": playlists}
+            return JSONResponse(status_code=404, content={"ok": False, "error": "genre_not_found"})
+        return {"ok": True, "genre": genre, "playlists": get_playlists_by_genre(db, genre["id"], category=category)}
     except Exception as e:
         print(f"[genres][playlists][ERROR] {e}")
         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
 
-
 @router.get("/{slug}/categories", summary="Categorías disponibles de un género")
-async def get_categories(slug: str):
+async def get_categories(slug: str, db: DBClient = Depends(get_db)):
     try:
-        genre = get_genre_by_slug(slug)
+        genre = get_genre_by_slug(db, slug)
         if not genre:
-            return JSONResponse(status_code=404, content={"ok": False, "error": "Genre not found"})
-        categories = get_genre_categories(genre["id"])
-        return {"ok": True, "genre": genre, "categories": categories}
+            return JSONResponse(status_code=404, content={"ok": False, "error": "genre_not_found"})
+        return {"ok": True, "genre": genre, "categories": get_genre_categories(db, genre["id"])}
     except Exception as e:
         print(f"[genres][categories][ERROR] {e}")
         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
 
-
-# ============================================================================
-# PLAYLISTS (ruta separada para independencia)
-# ============================================================================
-
-playlists_router = APIRouter(prefix="/playlists", tags=["playlists"])
-
+# ── PLAYLISTS ─────────────────────────────────────────────
 @playlists_router.get("/{playlist_id}/tracks", summary="Tracks de una playlist")
 async def get_tracks(
     playlist_id: str,
-    limit: Optional[int] = 100
+    limit: Optional[int] = 100,
+    db: DBClient = Depends(get_db),
 ):
     try:
-        playlist = get_playlist_by_id(playlist_id)
+        playlist = get_playlist_by_id(db, playlist_id)
         if not playlist:
-            return JSONResponse(status_code=404, content={"ok": False, "error": "Playlist not found"})
-        tracks = get_playlist_tracks(playlist_id, limit=limit)
+            return JSONResponse(status_code=404, content={"ok": False, "error": "playlist_not_found"})
         return {
             "ok": True,
             "playlist": {
                 "id": playlist["id"],
                 "title": playlist["title"],
-                "track_count": playlist["track_count"]
+                "track_count": playlist["track_count"],
             },
-            "tracks": tracks
+            "tracks": get_playlist_tracks(db, playlist_id, limit=limit),
         }
     except Exception as e:
         print(f"[genres][playlist-tracks][ERROR] {e}")

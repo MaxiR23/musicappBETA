@@ -1,4 +1,3 @@
-# services/search_service.py
 """
 Lógica de negocio para búsquedas.
 Funciones puras para builds, orquestación para fetches.
@@ -13,14 +12,11 @@ from utils.search_parser import (
     parse_search_albums_and_songs,
 )
 
-def build_search_payload(
-    query: str,
-    artist: dict | None,
-    artist_songs: list,
-    artist_albums: list,
-    general: dict,
-) -> dict:
-    """Pura. Construye el payload final de búsqueda."""
+def build_cache_key(query: str) -> str:
+    return query.lower()[:100]
+
+def build_search_payload(query: str, artist: dict | None, artist_songs: list, artist_albums: list, general: dict) -> dict:
+    """Construye el payload final de búsqueda."""
     return {
         "query": query,
         "artist": artist,
@@ -29,25 +25,39 @@ def build_search_payload(
         "search": general,
     }
 
-def get_warm_ids(result: dict) -> list[str]:
+def build_error_payload(query: str, error: str = "service_unavailable") -> dict:
+    return {"query": query, "error": error}
+
+def has_valid_data(result: dict) -> bool:
+    """Verifica si el resultado tiene datos útiles."""
+    return bool(
+        result.get("artist")
+        or result.get("artist_songs")
+        or result.get("artist_albums")
+        or (result.get("search") or {}).get("songs")
+        or (result.get("search") or {}).get("albums")
+    )
+
+def get_warm_ids(result: dict) -> list:
     """Extrae video_ids para warming."""
     artist_ids = [
-        s.get("video_id") 
-        for s in (result.get("artist_songs") or []) 
+        s.get("video_id")
+        for s in (result.get("artist_songs") or [])
         if s.get("video_id")
     ]
     general_ids = []
     if not result.get("artist"):
         general_ids = [
-            s.get("video_id") 
-            for s in (result.get("search", {}).get("songs") or []) 
+            s.get("video_id")
+            for s in (result.get("search", {}).get("songs") or [])
             if s.get("video_id")
         ]
     return list(dict.fromkeys(artist_ids + general_ids))[:24]
 
+# ── IO ───────────────────────────────────────────────────
 def search(query: str, use_cache: bool = True) -> dict:
-    cache_key = query.lower()[:100]
-    
+    cache_key = build_cache_key(query)
+
     if use_cache:
         cached = get_cached(CacheType.SEARCH, suffix=cache_key)
         if cached:
@@ -58,52 +68,41 @@ def search(query: str, use_cache: bool = True) -> dict:
         yt_api = _ytmusic_client()
         response = yt.search(query)
 
-        # Sin respuesta válida no se cachea
         if not response:
-            print(f"[search_service][search][WARN] {query}: respuesta vacía, no se cachea")
-            return {"query": query, "error": "service_unavailable"}
+            print(f"[search_service][WARN] {query}: respuesta vacía")
+            return build_error_payload(query)
 
         artist = parse_artist_card_info(response)
         artist_songs = parse_artist_card_songs(
-            response, 
-            strict_atv=True, 
-            yt_innertube=yt, 
-            yt_api=yt_api, 
+            response,
+            strict_atv=True,
+            yt_innertube=yt,
+            yt_api=yt_api,
             enrich_metadata=True
         )
         artist_albums = parse_artist_card_albums(response)
 
         if artist:
-            general = parse_search_albums_and_songs(
-                response, song_limit=0, album_limit=10
-            )
+            general = parse_search_albums_and_songs(response, song_limit=0, album_limit=10)
         else:
             general = parse_search_albums_and_songs(
-                response, 
-                song_limit=10, 
-                album_limit=10, 
-                yt_innertube=yt, 
-                yt_api=yt_api, 
+                response,
+                song_limit=10,
+                album_limit=10,
+                yt_innertube=yt,
+                yt_api=yt_api,
                 enrich_metadata=True
             )
 
         result = build_search_payload(query, artist, artist_songs, artist_albums, general)
 
-        # Validar que haya algo útil antes de cachear
-        has_data = (
-            result.get("artist")
-            or result.get("artist_songs")
-            or result.get("artist_albums")
-            or (result.get("search") or {}).get("songs")
-            or (result.get("search") or {}).get("albums")
-        )
-        if not has_data:
-            print(f"[search_service][search][WARN] {query}: resultado vacío, no se cachea")
-            return {"query": query, "error": "service_unavailable"}
+        if not has_valid_data(result):
+            print(f"[search_service][WARN] {query}: resultado vacío")
+            return build_error_payload(query)
 
         set_cached(CacheType.SEARCH, result, suffix=cache_key)
         return result
-    
+
     except Exception as e:
-        print(f"[search_service][search][ERR] {query}: {e}")
-        return {"query": query, "error": "service_unavailable"}
+        print(f"[search_service][ERR] {query}: {e}")
+        return build_error_payload(query)

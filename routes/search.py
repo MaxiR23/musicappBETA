@@ -1,7 +1,8 @@
-# routes/search.py
-"""Endpoint de búsqueda."""
+from __future__ import annotations
+
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
+
 from services.search_service import search, get_warm_ids
 from services.audio_service import schedule_warm
 
@@ -11,8 +12,7 @@ router = APIRouter()
 def search_music(q: str = Query(..., description="Texto a buscar")):
     try:
         result = search(q)
-        ids = get_warm_ids(result)
-        schedule_warm(ids)
+        schedule_warm(get_warm_ids(result))
         return result
     except Exception as e:
         print(f"[search][ERROR] {e}")

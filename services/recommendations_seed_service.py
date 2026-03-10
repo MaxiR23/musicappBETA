@@ -1,47 +1,100 @@
-# services/recommendations_seed_service.py
 from __future__ import annotations
-from typing import Any, Dict, List, Optional
 
 from shared.clients import _ytm
+from services.db_protocol import DBClient
 from services.cache_service import get_cached_legacy, set_cached_legacy
 from services.activity_repo import recent_seeds_from_activity
 from utils.artist_parser import parse_related_artists, pick_related_artists_section
 from utils.album_parser import parse_album_releases_for_you
 
-_RECO_TTL = 20 * 60  # 20 minutos
+_RECO_TTL = 20 * 60
 
-def _seed_artist_info(seed: Dict[str, Any], yt) -> Dict[str, Optional[str]]:
+def _extract_header_info(resp: dict) -> dict:
+    """Extrae name y thumbnail del header de artista."""
+    header = resp.get("header", {}).get("musicImmersiveHeaderRenderer", {})
+    runs = (header.get("title", {}) or {}).get("runs", []) or [{}]
+    name = runs[0].get("text")
+    thumbs = (
+        header.get("thumbnail", {})
+        .get("musicThumbnailRenderer", {})
+        .get("thumbnail", {})
+        .get("thumbnails", []) or []
+    )
+    thumb = (thumbs[-1] or {}).get("url") if thumbs else None
+    return {"name": name, "thumb": thumb}
+
+def _extract_contents(resp: dict) -> list:
+    """Extrae contents del browse response."""
+    try:
+        return (
+            resp.get("contents", {})
+            .get("singleColumnBrowseResultsRenderer", {})
+            .get("tabs", [])[0]
+            .get("tabRenderer", {})
+            .get("content", {})
+            .get("sectionListRenderer", {})
+            .get("contents", [])
+        )
+    except (IndexError, KeyError):
+        return []
+
+def _build_seed_info(seed: dict) -> dict:
+    """Construye info básica de un seed desde metadata."""
     aid = (seed or {}).get("id") or ""
-    md  = (seed or {}).get("metadata") or {}
-    name = md.get("display_name")
-    thumb = md.get("thumbnail_url")
+    md = (seed or {}).get("metadata") or {}
+    return {
+        "id": aid,
+        "name": md.get("display_name"),
+        "thumbnail": md.get("thumbnail_url"),
+    }
 
-    if name and thumb:
-        return {"id": aid, "name": name, "thumbnail": thumb}
+def _dedupe_items(items: list, seen: set, id_key: str = "id") -> list:
+    """Filtra items ya vistos."""
+    out = []
+    for it in items:
+        rid = (it.get(id_key) or it.get("browse_id") or "").strip()
+        if not rid or rid in seen:
+            continue
+        seen.add(rid)
+        out.append(it)
+    return out
+
+def _build_result(seeds: dict, artists_out: list, albums_out: list) -> dict:
+    return {
+        "ok": True,
+        "seed": {
+            "artists": seeds.get("artists", []),
+            "albums": seeds.get("albums", []),
+        },
+        "recommend": {
+            "related_artists": artists_out,
+            "related_albums": albums_out,
+        },
+    }
+
+# ── IO ───────────────────────────────────────────────────
+def _seed_artist_info(seed: dict, yt) -> dict:
+    """Obtiene info del artista seed (con cache)."""
+    info = _build_seed_info(seed)
+    if info.get("name") and info.get("thumbnail"):
+        return info
+
+    aid = info.get("id") or ""
+    ckey = f"artist:header:{aid}"
+    cached = get_cached_legacy(ckey)
+    if cached:
+        return {"id": aid, "name": cached.get("name"), "thumbnail": cached.get("thumb")}
 
     try:
-        ckey = f"artist:header:{aid}"
-        cached = get_cached_legacy(ckey)
-        if cached:
-            return {"id": aid, "name": cached.get("name"), "thumbnail": cached.get("thumb")}
-
         resp = yt.browse(aid) or {}
-        header = resp.get("header", {}).get("musicImmersiveHeaderRenderer", {})
-        runs = (header.get("title", {}) or {}).get("runs", []) or [{}]
-        h_name = runs[0].get("text")
-        thumbs = (
-            header.get("thumbnail", {})
-                  .get("musicThumbnailRenderer", {})
-                  .get("thumbnail", {})
-                  .get("thumbnails", []) or []
-        )
-        h_thumb = (thumbs[-1] or {}).get("url") if thumbs else None
-        set_cached_legacy(ckey, {"name": h_name, "thumb": h_thumb}, 30 * 60)
-        return {"id": aid, "name": h_name, "thumbnail": h_thumb}
+        header_info = _extract_header_info(resp)
+        set_cached_legacy(ckey, header_info, 30 * 60)
+        return {"id": aid, "name": header_info.get("name"), "thumbnail": header_info.get("thumb")}
     except Exception:
-        return {"id": aid, "name": name or None, "thumbnail": thumb or None}
+        return info
 
-def _browse_artist_related(yt, artist_id: str, limit_each: int = 5) -> List[Dict[str, Any]]:
+def _browse_artist_related(yt, artist_id: str, limit_each: int = 5) -> list:
+    """Obtiene artistas relacionados (con cache)."""
     ckey = f"artist:related:{artist_id}"
     cached = get_cached_legacy(ckey)
     if cached is not None:
@@ -49,15 +102,7 @@ def _browse_artist_related(yt, artist_id: str, limit_each: int = 5) -> List[Dict
 
     try:
         resp = yt.browse(artist_id) or {}
-        contents = (
-            resp.get("contents", {})
-                .get("singleColumnBrowseResultsRenderer", {})
-                .get("tabs", [])[0]
-                .get("tabRenderer", {})
-                .get("content", {})
-                .get("sectionListRenderer", {})
-                .get("contents", [])
-        )
+        contents = _extract_contents(resp)
         rel_sec = pick_related_artists_section(contents)
         out = parse_related_artists(rel_sec)[:limit_each] if rel_sec else []
         set_cached_legacy(ckey, out, _RECO_TTL)
@@ -66,7 +111,8 @@ def _browse_artist_related(yt, artist_id: str, limit_each: int = 5) -> List[Dict
         print(f"[reco] browse artist {artist_id} falló: {e}, skipping")
         return []
 
-def _browse_album_related(yt, album_id: str, limit_each: int = 5) -> List[Dict[str, Any]]:
+def _browse_album_related(yt, album_id: str, limit_each: int = 5) -> list:
+    """Obtiene albums relacionados (con cache)."""
     ckey = f"album:recos:{album_id}"
     cached = get_cached_legacy(ckey)
     if cached is not None:
@@ -82,56 +128,34 @@ def _browse_album_related(yt, album_id: str, limit_each: int = 5) -> List[Dict[s
         print(f"[reco] browse album {album_id} falló: {e}, skipping")
         return []
 
-def build_seed_recommendations(
-    user_id: str,
-    per_seed: int = 5,
-    per_type: int = 2,
-    lookback: int = 400,
-) -> Dict[str, Any]:
-    seeds = recent_seeds_from_activity(user_id=user_id, per_type=per_type, lookback=lookback)
+def build_seed_recommendations(db: DBClient, user_id: str, per_seed: int = 5, per_type: int = 2) -> dict:
+    """Construye recomendaciones basadas en actividad reciente."""
+    seeds = recent_seeds_from_activity(db, user_id=user_id, per_type=per_type)
     yt = _ytm()
 
-    artists_out: List[Dict[str, Any]] = []
-    a_seen: set[str] = set()
+    # Artistas relacionados
+    artists_out = []
+    a_seen: set = set()
     for seed_artist in seeds.get("artists", []):
         aid = seed_artist.get("id")
         if not aid:
             continue
         similar_to = _seed_artist_info(seed_artist, yt)
         rel = _browse_artist_related(yt, aid, limit_each=per_seed)
-        for it in rel:
-            rid = (it.get("id") or it.get("browse_id") or "").strip()
-            if not rid or rid in a_seen:
-                continue
-            a_seen.add(rid)
-            enriched = dict(it)
-            enriched["similar_to"] = similar_to
-            artists_out.append(enriched)
-    artists_out = artists_out[: per_type * per_seed]
+        for it in _dedupe_items(rel, a_seen):
+            it["similar_to"] = similar_to
+            artists_out.append(it)
+    artists_out = artists_out[:per_type * per_seed]
 
-    albums_out: List[Dict[str, Any]] = []
-    al_seen: set[str] = set()
+    # Albums relacionados
+    albums_out = []
+    al_seen: set = set()
     for al in seeds.get("albums", []):
         bid = al.get("id")
         if not bid:
             continue
         rel = _browse_album_related(yt, bid, limit_each=per_seed)
-        for it in rel:
-            rid = (it.get("id") or it.get("browse_id") or "").strip()
-            if not rid or rid in al_seen:
-                continue
-            al_seen.add(rid)
-            albums_out.append(it)
-    albums_out = albums_out[: per_type * per_seed]
+        albums_out.extend(_dedupe_items(rel, al_seen))
+    albums_out = albums_out[:per_type * per_seed]
 
-    return {
-        "ok": True,
-        "seed": {
-            "artists": seeds.get("artists", []),
-            "albums":  seeds.get("albums", []),
-        },
-        "recommend": {
-            "related_artists": artists_out,
-            "related_albums":  albums_out,
-        },
-    }
+    return _build_result(seeds, artists_out, albums_out)
