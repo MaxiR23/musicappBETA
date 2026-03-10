@@ -26,29 +26,69 @@ async def get_cache_versions():
 
 
 @router.get("/most-played", summary="Feed (DB) most_played albums & tracks")
-@cached(CacheType.TOP_ALBUMS)
 async def get_feed_db(limit: Optional[int] = 25):
-    albums = list_feed("most_played", "album", limit or 25)
-    tracks = list_feed("most_played", "track", limit or 25)
-    return {"ok": True, "albums": albums, "tracks": tracks}
+    cached_data = get_cached(CacheType.TOP_ALBUMS)
+    if cached_data is not None:
+        return cached_data
+    try:
+        albums = list_feed("most_played", "album", limit or 25)
+        tracks = list_feed("most_played", "track", limit or 25)
+        if not albums and not tracks:
+            return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
+        result = {"ok": True, "albums": albums, "tracks": tracks}
+        set_cached(CacheType.TOP_ALBUMS, result)
+        return result
+    except Exception as e:
+        print(f"[feed][most-played][ERROR] {e}")
+        return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
 
 @router.get("/db/new-releases", summary="Feed (DB) new releases")
-@cached(CacheType.NEW_RELEASES)
 async def get_new_releases_db(limit: Optional[int] = 25):
-    albums = list_feed("new_releases", "album", limit or 25)
-    return {"ok": True, "new_releases": albums}
+    cached_data = get_cached(CacheType.NEW_RELEASES)
+    if cached_data is not None:
+        return cached_data
+    try:
+        albums = list_feed("new_releases", "album", limit or 25)
+        if not albums:
+            return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
+        result = {"ok": True, "new_releases": albums}
+        set_cached(CacheType.NEW_RELEASES, result)
+        return result
+    except Exception as e:
+        print(f"[feed][new-releases][ERROR] {e}")
+        return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
 
 @router.get("/db/new-singles", summary="Feed (DB) singles nuevos")
-@cached(CacheType.NEW_SINGLES, ttl=43200)
 async def get_new_singles_db(limit: Optional[int] = 25):
-    tracks = list_feed("new_singles", "track", limit or 25)
-    return {"ok": True, "tracks": tracks}
+    cached_data = get_cached(CacheType.NEW_SINGLES)
+    if cached_data is not None:
+        return cached_data
+    try:
+        tracks = list_feed("new_singles", "track", limit or 25)
+        if not tracks:
+            return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
+        result = {"ok": True, "tracks": tracks}
+        set_cached(CacheType.NEW_SINGLES, result, ttl=43200)
+        return result
+    except Exception as e:
+        print(f"[feed][new-singles][ERROR] {e}")
+        return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
 
 @router.get("/db/seed-tracks", summary="Feed (DB) seed tracks")
-@cached(CacheType.SEED_TRACKS)
 async def get_seed_tracks_db(limit: Optional[int] = 25):
-    tracks = list_feed("seed_tracks", "track", limit or 25)
-    return {"ok": True, "tracks": tracks}
+    cached_data = get_cached(CacheType.SEED_TRACKS)
+    if cached_data is not None:
+        return cached_data
+    try:
+        tracks = list_feed("seed_tracks", "track", limit or 25)
+        if not tracks:
+            return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
+        result = {"ok": True, "tracks": tracks}
+        set_cached(CacheType.SEED_TRACKS, result)
+        return result
+    except Exception as e:
+        print(f"[feed][seed-tracks][ERROR] {e}")
+        return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
 
 @router.get("/recommendations/me", summary="User recommendations (Bearer auth)")
 async def get_user_recommendations_me(
@@ -70,12 +110,16 @@ async def get_user_recommendations_me(
     if cached_data is not None:
         return cached_data
 
-    rows = list_user_recommendations(
-        user_id=user_id,
-        bucket=bucket,
-        item_type=None,
-        limit=500,
-    )
+    try:
+        rows = list_user_recommendations(
+            user_id=user_id,
+            bucket=bucket,
+            item_type=None,
+            limit=500,
+        )
+    except Exception as e:
+        print(f"[feed][recommendations/me][ERROR] {e}")
+        return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
 
     artists: List[Dict[str, Any]] = []
     albums:  List[Dict[str, Any]] = []
@@ -125,12 +169,16 @@ async def get_user_recommendations_db(
     if cached_data is not None:
         return cached_data
 
-    rows = list_user_recommendations(
-        user_id=user_id,
-        bucket=bucket,
-        item_type=None,
-        limit=500,
-    ) or []
+    try:
+        rows = list_user_recommendations(
+            user_id=user_id,
+            bucket=bucket,
+            item_type=None,
+            limit=500,
+        ) or []
+    except Exception as e:
+        print(f"[feed][recommendations][ERROR] {e}")
+        return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
 
     artists: List[Dict[str, Any]] = []
     albums:  List[Dict[str, Any]] = []

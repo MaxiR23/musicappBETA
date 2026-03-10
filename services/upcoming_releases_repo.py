@@ -15,8 +15,12 @@ def _get_feed_releases_set() -> Set[Tuple[str, str]]:
     Obtiene TODOS los releases en feed_current como un set de tuplas (artist, album).
     Esto permite hacer una sola query y luego filtrar en memoria.
     """
-    res = sb.table(FEED_TABLE).select("artist, album, title").execute()
-    rows = getattr(res, "data", None) or []
+    try:
+        res = sb.table(FEED_TABLE).select("artist, album, title").execute()
+        rows = getattr(res, "data", None) or []
+    except Exception as e:
+        print(f"[upcoming_repo][_get_feed_releases_set][ERROR] {e}")
+        return set()
     
     feed_set = set()
     for row in rows:
@@ -73,14 +77,18 @@ def list_upcoming_releases(
     # Traemos más de lo necesario porque algunos se filtrarán
     fetch_limit = limit * 2 if filter_feed else limit
     
-    q = sb.table(TABLE).select("*")
-    if include_tba:
-        q = q.or_(f"release_date.gte.{today},is_tba.eq.true")
-    else:
-        q = q.gte("release_date", today)
-    q = q.order("is_tba", desc=False).order("release_date", desc=False).limit(fetch_limit)
-    res = q.execute()
-    releases = getattr(res, "data", None) or []
+    try:
+        q = sb.table(TABLE).select("*")
+        if include_tba:
+            q = q.or_(f"release_date.gte.{today},is_tba.eq.true")
+        else:
+            q = q.gte("release_date", today)
+        q = q.order("is_tba", desc=False).order("release_date", desc=False).limit(fetch_limit)
+        res = q.execute()
+        releases = getattr(res, "data", None) or []
+    except Exception as e:
+        print(f"[upcoming_repo][list_upcoming_releases][ERROR] {e}")
+        return []
     
     # Filtrar los que ya están en feed_current (1 sola query)
     if filter_feed and releases:
@@ -95,13 +103,17 @@ def count_upcoming_releases(filter_feed: bool = True) -> int:
     Si filter_feed=True, excluye los que ya están en feed_current.
     """
     today = date.today().isoformat()
-    res = (
-        sb.table(TABLE)
-        .select("*")
-        .or_(f"release_date.gte.{today},is_tba.eq.true")
-        .execute()
-    )
-    releases = getattr(res, "data", None) or []
+    try:
+        res = (
+            sb.table(TABLE)
+            .select("*")
+            .or_(f"release_date.gte.{today},is_tba.eq.true")
+            .execute()
+        )
+        releases = getattr(res, "data", None) or []
+    except Exception as e:
+        print(f"[upcoming_repo][count_upcoming_releases][ERROR] {e}")
+        return 0
     
     if filter_feed and releases:
         releases = _filter_releases_not_in_feed(releases)
@@ -114,15 +126,20 @@ def get_next_release_date(filter_feed: bool = True) -> date | None:
     Devuelve None si no hay más releases.
     """
     today = date.today()
-    res = (
-        sb.table(TABLE)
-        .select("*")
-        .gte("release_date", today.isoformat())
-        .order("release_date", desc=False)
-        .limit(20)  # Traemos varios por si algunos están en feed
-        .execute()
-    )
-    rows = getattr(res, "data", []) or []
+    try:
+        res = (
+            sb.table(TABLE)
+            .select("*")
+            .gte("release_date", today.isoformat())
+            .order("release_date", desc=False)
+            .limit(20)  # Traemos varios por si algunos están en feed
+            .execute()
+        )
+        rows = getattr(res, "data", []) or []
+    except Exception as e:
+        print(f"[upcoming_repo][get_next_release_date][ERROR] {e}")
+        return None
+    
     if not rows:
         return None
     
@@ -177,17 +194,22 @@ def get_upcoming_by_artist_id(artist_id: str, filter_feed: bool = True) -> Optio
     Si filter_feed=True, excluye los que ya están en feed_current.
     """
     today = date.today().isoformat()
-    q = (
-        sb.table(TABLE)
-        .select("release_date, artist_name, album_name, label, thumbnail_url, track_count, artist_id")
-        .eq("artist_id", artist_id)
-        .gte("release_date", today)
-        .or_("is_tba.is.false,is_tba.is.null")
-        .order("release_date", desc=False)
-        .limit(10)  # Traemos más por si hay algunos en feed
-    )
-    res = q.execute()
-    rows = getattr(res, "data", None) or []
+    try:
+        q = (
+            sb.table(TABLE)
+            .select("release_date, artist_name, album_name, label, thumbnail_url, track_count, artist_id")
+            .eq("artist_id", artist_id)
+            .gte("release_date", today)
+            .or_("is_tba.is.false,is_tba.is.null")
+            .order("release_date", desc=False)
+            .limit(10)  # Traemos más por si hay algunos en feed
+        )
+        res = q.execute()
+        rows = getattr(res, "data", None) or []
+    except Exception as e:
+        print(f"[upcoming_repo][get_upcoming_by_artist_id][ERROR] {e}")
+        return None
+    
     if not rows:
         return None
     
@@ -196,9 +218,8 @@ def get_upcoming_by_artist_id(artist_id: str, filter_feed: bool = True) -> Optio
         rows = _filter_releases_not_in_feed(rows)
         if not rows:
             return None
-        r = rows[0]
-    else:
-        r = rows[0]
+    
+    r = rows[0]
     
     return {
         "release_date": r.get("release_date"),

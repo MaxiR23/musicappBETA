@@ -46,7 +46,6 @@ def get_warm_ids(result: dict) -> list[str]:
     return list(dict.fromkeys(artist_ids + general_ids))[:24]
 
 def search(query: str, use_cache: bool = True) -> dict:
-    """Orquesta: cache -> fetch -> parse -> cache."""
     cache_key = query.lower()[:100]
     
     if use_cache:
@@ -58,6 +57,11 @@ def search(query: str, use_cache: bool = True) -> dict:
         yt = _ytm()
         yt_api = _ytmusic_client()
         response = yt.search(query)
+
+        # Sin respuesta válida no se cachea
+        if not response:
+            print(f"[search_service][search][WARN] {query}: respuesta vacía, no se cachea")
+            return {"query": query, "error": "service_unavailable"}
 
         artist = parse_artist_card_info(response)
         artist_songs = parse_artist_card_songs(
@@ -84,9 +88,22 @@ def search(query: str, use_cache: bool = True) -> dict:
             )
 
         result = build_search_payload(query, artist, artist_songs, artist_albums, general)
+
+        # Validar que haya algo útil antes de cachear
+        has_data = (
+            result.get("artist")
+            or result.get("artist_songs")
+            or result.get("artist_albums")
+            or (result.get("search") or {}).get("songs")
+            or (result.get("search") or {}).get("albums")
+        )
+        if not has_data:
+            print(f"[search_service][search][WARN] {query}: resultado vacío, no se cachea")
+            return {"query": query, "error": "service_unavailable"}
+
         set_cached(CacheType.SEARCH, result, suffix=cache_key)
         return result
     
     except Exception as e:
         print(f"[search_service][search][ERR] {query}: {e}")
-        return {"query": query, "error": str(e)}
+        return {"query": query, "error": "service_unavailable"}

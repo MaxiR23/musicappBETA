@@ -9,7 +9,6 @@ def _get_week_start(d: date = None) -> date:
     return current_monday - timedelta(days=7)
 
 def get_weekly_stats(db, user_id: str, entity_type: str, limit: int = None) -> list:
-    """Base: trae stats de la semana actual para un entity_type."""
     cache_suffix = f"{user_id}:{entity_type}"
     
     cached = get_cached(CacheType.WEEKLY_STATS, suffix=cache_suffix)
@@ -18,18 +17,22 @@ def get_weekly_stats(db, user_id: str, entity_type: str, limit: int = None) -> l
 
     week = _get_week_start()
     
-    resp = db.table("user_weekly_stats") \
-        .select("stats") \
-        .eq("user_id", user_id) \
-        .eq("entity_type", entity_type) \
-        .eq("week_start", week.isoformat()) \
-        .maybe_single() \
-        .execute()
+    try:
+        resp = db.table("user_weekly_stats") \
+            .select("stats") \
+            .eq("user_id", user_id) \
+            .eq("entity_type", entity_type) \
+            .eq("week_start", week.isoformat()) \
+            .maybe_single() \
+            .execute()
 
-    stats = (resp.data or {}).get("stats") or [] if resp else []
-    set_cached(CacheType.WEEKLY_STATS, stats, suffix=cache_suffix)
-    
-    return stats[:limit] if limit else stats
+        stats = (resp.data or {}).get("stats") or [] if resp else []
+        set_cached(CacheType.WEEKLY_STATS, stats, suffix=cache_suffix)
+
+        return stats[:limit] if limit else stats
+    except Exception as e:
+        print(f"[weekly_stats][ERROR] {entity_type} for {user_id}: {e}")
+        return []
 
 def get_weekly_artists(db, user_id: str, limit: int = None) -> list:
     return get_weekly_stats(db, user_id, "artist", limit=limit)

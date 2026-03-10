@@ -29,6 +29,7 @@ class CacheType(str, Enum):
     ALBUM = "album"
     ARTIST_ALBUMS = "artist-albums"
     ARTIST_SINGLES = "artist-singles"
+    PRESENTING = "presenting"
     SEARCH = "search"
     EVENTS = "events"
     
@@ -71,6 +72,7 @@ CACHE_SCHEDULE: Dict[CacheType, CacheSchedule] = {
     CacheType.ALBUM: CacheSchedule.MANUAL,
     CacheType.ARTIST_ALBUMS: CacheSchedule.TWICE_WEEKLY,
     CacheType.ARTIST_SINGLES: CacheSchedule.TWICE_WEEKLY,
+    CacheType.PRESENTING: CacheSchedule.DAILY,
     CacheType.SEARCH: CacheSchedule.DAILY,   
     CacheType.EVENTS: CacheSchedule.MANUAL,
     
@@ -98,6 +100,7 @@ DEFAULT_TTL: Dict[CacheType, int] = {
     CacheType.ALBUM: 2592000,
     CacheType.ARTIST_ALBUMS: 86400,
     CacheType.ARTIST_SINGLES: 86400,
+    CacheType.PRESENTING: 86400,
     CacheType.SEARCH: 3600,
     CacheType.EVENTS: 86400,
     

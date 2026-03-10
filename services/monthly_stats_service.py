@@ -15,18 +15,22 @@ def _get_monthly_stats(db, user_id: str, entity_type: str, limit: int = None) ->
 
     month = _get_last_month_start()
 
-    resp = db.table("user_monthly_stats") \
-        .select("stats") \
-        .eq("user_id", user_id) \
-        .eq("entity_type", entity_type) \
-        .eq("month", month.isoformat()) \
-        .maybe_single() \
-        .execute()
+    try:
+        resp = db.table("user_monthly_stats") \
+            .select("stats") \
+            .eq("user_id", user_id) \
+            .eq("entity_type", entity_type) \
+            .eq("month", month.isoformat()) \
+            .maybe_single() \
+            .execute()
 
-    stats = (resp.data or {}).get("stats") or [] if resp else []
-    set_cached(CacheType.MONTHLY_STATS, stats, suffix=cache_suffix)
+        stats = (resp.data or {}).get("stats") or [] if resp else []
+        set_cached(CacheType.MONTHLY_STATS, stats, suffix=cache_suffix)
 
-    return stats[:limit] if limit else stats
+        return stats[:limit] if limit else stats
+    except Exception as e:
+        print(f"[monthly_stats][ERROR] {entity_type} for {user_id}: {e}")
+        return []
 
 def get_monthly_artists(db, user_id: str, limit: int = None) -> list:
     return _get_monthly_stats(db, user_id, "artist", limit=limit)

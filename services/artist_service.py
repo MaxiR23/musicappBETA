@@ -15,6 +15,8 @@ from utils.artist_parser import (
     pick_related_artists_section,
 )
 
+from shared.clients import _ytmusic_client
+
 from services.events_service import get_events_cached_only, schedule_events_refresh
 from services.feed_repo import list_new_releases_for_artist
 
@@ -81,7 +83,6 @@ def find_singles_section(contents: list) -> dict | None:
 def get_top_songs(artist_id: str) -> list:
     """Trae top songs de un artista."""
     artist_data = music_client.get_artist(artist_id)
-    from shared.clients import _ytmusic_client
     return parse_top_songs_v2(artist_data, _ytmusic_client())
 
 def get_albums(artist_id: str, limit: int = 10) -> list:
@@ -128,6 +129,7 @@ def build_artist_payload(
     has_more: dict,
     events: list | None = None,
     new_releases: list | None = None,
+    presenting_id: str | None = None,
 ) -> dict:
     """Pura. Construye el payload final del artista."""
     payload = {
@@ -147,17 +149,17 @@ def build_artist_payload(
         payload.pop("singles_eps", None)
     if not top_songs:
         payload.pop("top_songs", None)
+    if presenting_id:
+        payload["presenting"] = {"playlistId": presenting_id}    
     return payload
 
 def get_artist(artist_id: str, use_cache: bool = True) -> dict:
-    """Orquesta: cache -> fetch -> build -> cache."""
     if use_cache:
         cached = get_cached(CacheType.ARTIST, suffix=artist_id)
         if cached:
             return cached
 
     try:
-        # Fetch browse y artist_data en paralelo
         results = gather({
             "raw": lambda: music_client.browse(artist_id),
             "artist_data": lambda: music_client.get_artist(artist_id),
@@ -167,11 +169,18 @@ def get_artist(artist_id: str, use_cache: bool = True) -> dict:
         artist_data = results["artist_data"] or {}
         
         if not raw:
-            return {"id": artist_id, "error": "not_found"}
+            return {"id": artist_id, "error": "fetch_failed"}
         
         header = parse_header(raw)
+
+        # Sin datos válidos no se cachea
+        if not header.get("name"):
+            print(f"[artist_service][get_artist][WARN] {artist_id}: header vacío, no se cachea")
+            return {"id": artist_id, "error": "service_unavailable"}
+
         contents = parse_contents(raw)
-        
+
+        artist_name = header.get("name") or ""
         albums_sec = find_albums_section(contents)
         singles_sec = find_singles_section(contents)
         rel_sec = pick_related_artists_section(contents)
@@ -180,7 +189,6 @@ def get_artist(artist_id: str, use_cache: bool = True) -> dict:
         singles = parse_singles_eps(singles_sec)[:10] if singles_sec else []
         related = parse_related_artists(rel_sec) if rel_sec else []
         
-        from shared.clients import _ytmusic_client
         top_songs = parse_top_songs_v2(artist_data, _ytmusic_client())
         
         albums_section = artist_data.get("albums", {})
@@ -190,15 +198,12 @@ def get_artist(artist_id: str, use_cache: bool = True) -> dict:
             "singles": singles_section.get("browseId") is not None and len(singles_section.get("results", [])) >= 10,
         }
         
-        # Events
-        artist_name = header.get("name")
         events = []
         if artist_name:
             events = get_events_cached_only(artist_name, limit=10)
             if not events:
                 schedule_events_refresh(artist_name)
         
-        # New releases
         new_releases = []
         try:
             new_releases = list_new_releases_for_artist(artist_id, limit=8)
@@ -215,7 +220,7 @@ def get_artist(artist_id: str, use_cache: bool = True) -> dict:
     
     except Exception as e:
         print(f"[artist_service][get_artist][ERR] {artist_id}: {e}")
-        return {"id": artist_id, "error": str(e)}
+        return {"id": artist_id, "error": "service_unavailable"}
     
 def get_all_albums(artist_id: str, use_cache: bool = True) -> dict:
     """Trae TODOS los albums del artista."""

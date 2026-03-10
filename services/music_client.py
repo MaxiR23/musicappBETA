@@ -17,3 +17,9 @@ def get_artist_albums(browse_id: str, params: str = None) -> list:
 
 def get_album(album_id: str) -> dict:
     return _ytmusic_client().get_album(album_id)
+
+def get_playlist(playlist_id: str, limit: int = 50) -> dict:
+    return _ytmusic_client().get_playlist(playlist_id, limit)    
+
+def search(query: str, filter: str = None, limit: int = 10) -> list:
+    return _ytmusic_client().search(query, filter=filter, limit=limit)

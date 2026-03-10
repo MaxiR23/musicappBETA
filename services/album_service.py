@@ -88,15 +88,19 @@ def get_album(album_id: str, use_cache: bool = True) -> dict:
     try:
         raw = music_client.browse(album_id)
         if not raw:
-            return {"id": album_id, "error": "not_found"}
+            return {"id": album_id, "error": "fetch_failed"}
         
         info = parse_album_info(raw) or {}
+
+        # Sin título no hay datos válidos, no cachear
+        if not info.get("title"):
+            print(f"[album_service][get_album][WARN] {album_id}: info vacía, no se cachea")
+            return {"id": album_id, "error": "service_unavailable"}
 
         artist_id = info.get("artist_id")
         artist_name = extract_artist_name(info)
         audio_playlist_id = info.get("audio_playlist_id")
 
-        # Fetch tracks y more_from_artist en paralelo
         results = gather({
             "tracks": lambda: get_album_tracks(audio_playlist_id),
             "more_from": lambda: get_more_from_artist(artist_id, exclude_album_id=album_id) if artist_id else [],
@@ -113,9 +117,14 @@ def get_album(album_id: str, use_cache: bool = True) -> dict:
                 schedule_events_refresh(artist_name)
 
         payload = build_album_payload(album_id, raw, info, tracks=tracks, more_from_artist=more_from, events=events)
+
+        if not tracks:
+            print(f"[album_service][get_album][WARN] {album_id}: sin tracks, no se cachea")
+            return payload
+        
         set_cached(CacheType.ALBUM, payload, suffix=album_id)
         return payload
     
     except Exception as e:
         print(f"[album_service][get_album][ERR] {album_id}: {e}")
-        return {"id": album_id, "error": str(e)}
+        return {"id": album_id, "error": "service_unavailable"}

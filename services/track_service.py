@@ -17,7 +17,6 @@ EXCLUDED_RELATED_SECTIONS = {
 }
 
 def duration_to_seconds(d: str | None) -> int | None:
-    """Convierte duración string (mm:ss o hh:mm:ss) a segundos."""
     if not d or not isinstance(d, str):
         return None
     s = d.strip()
@@ -27,7 +26,6 @@ def duration_to_seconds(d: str | None) -> int | None:
         parts = [int(p) for p in s.split(":")]
     except Exception:
         return None
-
     if len(parts) == 1:
         return parts[0]
     if len(parts) == 2:
@@ -41,27 +39,21 @@ def duration_to_seconds(d: str | None) -> int | None:
 def ensure_duration_seconds(track_id: str, duration_seconds=None) -> int | None:
     if duration_seconds:
         return duration_seconds
-
     if not track_id:
         return None
-
     try:
         yt = _ytmusic_client()
         song_raw = yt.get_song(track_id) or {}
         seconds = (song_raw.get("videoDetails") or {}).get("lengthSeconds")
-
         if isinstance(seconds, int):
             return seconds
-
         if isinstance(seconds, str) and seconds.strip().isdigit():
             return int(seconds.strip())
-
         return None
     except Exception:
         return None
 
 def best_thumb_url(track: dict) -> str | None:
-    """Extrae la mejor URL de thumbnail."""
     thumbs = track.get("thumbnail") or track.get("thumbnails") or []
     if isinstance(thumbs, str):
         return thumbs.strip() or None
@@ -78,7 +70,6 @@ def best_thumb_url(track: dict) -> str | None:
     return None
 
 def normalize_track_item(track: dict) -> dict:
-    """Normaliza un track a formato consistente."""
     if not isinstance(track, dict):
         track = {}
 
@@ -124,7 +115,7 @@ def normalize_track_item(track: dict) -> dict:
     album_name = track.get("album_name") or album.get("name")
 
     duration = track.get("duration") or track.get("length")
-    length_seconds = track.get("lengthSeconds") or track.get("duration_seconds") or track.get("duration_seconds")
+    length_seconds = track.get("lengthSeconds") or track.get("duration_seconds")
 
     duration_seconds = None
     if isinstance(length_seconds, int):
@@ -149,7 +140,6 @@ def normalize_track_item(track: dict) -> dict:
     }
 
 def get_lyrics(video_id: str) -> dict:
-    """Obtiene lyrics de un track."""
     ck = f"lyrics:{video_id}"
     cached = get_cached_legacy(ck)
     if cached is not None:
@@ -159,7 +149,7 @@ def get_lyrics(video_id: str) -> dict:
         yt = _ytmusic_client()
         wp = yt.get_watch_playlist(videoId=video_id) or {}
         lyr_field = wp.get("lyrics")
-        
+
         browse_id = None
         if isinstance(lyr_field, dict):
             browse_id = lyr_field.get("browseId") or (lyr_field.get("browseEndpoint") or {}).get("browseId")
@@ -167,25 +157,22 @@ def get_lyrics(video_id: str) -> dict:
             browse_id = lyr_field.strip() or None
 
         if not browse_id:
+            # La canción genuinamente no tiene lyrics — cachear para no volver a buscar
             out = {"ok": False, "reason": "no_lyrics"}
             set_cached_legacy(ck, out, 5 * 60)
             return out
 
         data = yt.get_lyrics(browse_id) or {}
-        out = {
-            "ok": True,
-            "lyrics": data.get("lyrics"),
-            "source": data.get("source"),
-        }
+        out = {"ok": True, "lyrics": data.get("lyrics"), "source": data.get("source")}
         set_cached_legacy(ck, out, LYRICS_TTL)
         return out
 
     except Exception as e:
         print(f"[track_service][get_lyrics][ERR] {video_id}: {e}")
+        # Error del servicio — no cachear
         return {"ok": False, "reason": "error", "detail": str(e)}
 
 def get_related(video_id: str) -> dict:
-    """Obtiene tracks relacionados."""
     ck = f"related:{video_id}"
     cached = get_cached_legacy(ck)
     if cached is not None:
@@ -194,22 +181,19 @@ def get_related(video_id: str) -> dict:
     try:
         yt = _ytmusic_client()
         watch = yt.get_watch_playlist(videoId=video_id)
-        
+
         if not watch:
-            out = {"ok": False, "reason": "no_watch_playlist"}
-            set_cached_legacy(ck, out, 5 * 60)
-            return out
+            # No cachear — puede ser falla del servicio
+            return {"ok": False, "reason": "no_watch_playlist"}
 
         rb = watch.get("related")
         browse_id = rb.get("browseId") if isinstance(rb, dict) else rb
 
         if not browse_id:
-            out = {"ok": False, "reason": "no_browse_id"}
-            set_cached_legacy(ck, out, 5 * 60)
-            return out
+            # No cachear — puede ser falla del servicio
+            return {"ok": False, "reason": "no_browse_id"}
 
         related_data = yt.get_song_related(browse_id)
-
         if isinstance(related_data, list):
             related_data = [
                 section for section in related_data
@@ -222,16 +206,15 @@ def get_related(video_id: str) -> dict:
         return out
 
     except Exception as e:
-        out = {"ok": False, "reason": "error", "detail": str(e)}
-        set_cached_legacy(ck, out, 1 * 60)
-        return out
+        print(f"[track_service][get_related][ERR] {video_id}: {e}")
+        # Error del servicio — no cachear
+        return {"ok": False, "reason": "error", "detail": str(e)}
 
 def get_related_raw(video_id: str) -> dict:
-    """Obtiene related sin filtros (debug)."""
     try:
         yt = _ytmusic_client()
         watch = yt.get_watch_playlist(videoId=video_id)
-        
+
         if not watch:
             return {"ok": False, "reason": "no_watch_playlist", "watch": watch}
 
@@ -247,7 +230,6 @@ def get_related_raw(video_id: str) -> dict:
             }
 
         related_data = yt.get_song_related(browse_id)
-
         return {
             "ok": True,
             "track_id": video_id,
@@ -260,7 +242,6 @@ def get_related_raw(video_id: str) -> dict:
         return {"ok": False, "reason": "error", "detail": str(e)}
 
 def get_up_next(video_id: str) -> dict:
-    """Obtiene la cola de reproducción."""
     ck = f"up_next:{video_id}"
     cached = get_cached_legacy(ck)
     if cached is not None:
@@ -275,9 +256,8 @@ def get_up_next(video_id: str) -> dict:
         tracks = watch.get("tracks") or []
 
         if not tracks:
-            out = {"ok": False, "reason": "no_tracks"}
-            set_cached_legacy(ck, out, 5 * 60)
-            return out
+            # No cachear — puede ser falla del servicio
+            return {"ok": False, "reason": "no_tracks"}
 
         current_raw = {
             "videoId": video_details.get("videoId") or video_id,
@@ -286,7 +266,6 @@ def get_up_next(video_id: str) -> dict:
             "lengthSeconds": video_details.get("lengthSeconds"),
         }
         current = normalize_track_item(current_raw)
-
         up_next = [normalize_track_item(t) for t in tracks if isinstance(t, dict)]
 
         out = {
@@ -299,6 +278,6 @@ def get_up_next(video_id: str) -> dict:
         return out
 
     except Exception as e:
-        out = {"ok": False, "reason": "error", "detail": str(e)}
-        set_cached_legacy(ck, out, 1 * 60)
-        return out
+        print(f"[track_service][get_up_next][ERR] {video_id}: {e}")
+        # Error del servicio — no cachear
+        return {"ok": False, "reason": "error", "detail": str(e)}

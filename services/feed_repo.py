@@ -75,30 +75,42 @@ def replace_feed(kind: str, media_type: str, items: Iterable[Dict[str, Any]]) ->
     print(f"[feed_repo] {kind}/{media_type}: {len(rows)} items → {len(unique_rows)} únicos")
     
     # 4) UPSERT
-    if unique_rows:
-        sb.table(TABLE).upsert(
-            unique_rows,
-            on_conflict="kind,type,id"
-        ).execute()
+    try:
+        if unique_rows:
+            sb.table(TABLE).upsert(
+                unique_rows,
+                on_conflict="kind,type,id"
+            ).execute()
+    except Exception as e:
+        print(f"[feed_repo][UPSERT][ERROR] {kind}/{media_type}: {e}")
+        return deleted, 0
 
     return deleted, len(unique_rows)
 
 def list_feed(kind: str, media_type: str, limit: int = 25) -> List[Dict[str, Any]]:
-    q = sb.table(TABLE).select("*").eq("kind", kind).eq("type", media_type)
-    if media_type == "album" and kind == "new_releases":
-        q = q.order("release_date", desc=True)
-    else:
-        q = q.order("id", desc=False)
-    q = q.limit(limit)
-    res = q.execute()
-    return (getattr(res, "data", None) or [])
+    try:
+        q = sb.table(TABLE).select("*").eq("kind", kind).eq("type", media_type)
+        if media_type == "album" and kind == "new_releases":
+            q = q.order("release_date", desc=True)
+        else:
+            q = q.order("id", desc=False)
+        q = q.limit(limit)
+        res = q.execute()
+        return (getattr(res, "data", None) or [])
+    except Exception as e:
+        print(f"[feed_repo][list_feed][ERROR] {kind}/{media_type}: {e}")
+        return []
 
 def list_new_releases_for_artist(artist_id: str, limit: int = 8) -> List[Dict[str, Any]]:
-    q = sb.table(TABLE).select("*") \
-        .eq("kind", "new_releases") \
-        .eq("type", "album") \
-        .eq("artist_id", artist_id) \
-        .order("release_date", desc=True) \
-        .limit(limit)
-    res = q.execute()
-    return getattr(res, "data", None) or []
+    try:
+        q = sb.table(TABLE).select("*") \
+            .eq("kind", "new_releases") \
+            .eq("type", "album") \
+            .eq("artist_id", artist_id) \
+            .order("release_date", desc=True) \
+            .limit(limit)
+        res = q.execute()
+        return getattr(res, "data", None) or []
+    except Exception as e:
+        print(f"[feed_repo][new_releases_for_artist][ERROR] {artist_id}: {e}")
+        return []

@@ -1,5 +1,5 @@
 # routes/playlists.py
-from fastapi import APIRouter, Request, Body, Path
+from fastapi import APIRouter, Request, Body, Path, Query
 from fastapi.responses import JSONResponse
 from services.supabase_service import db_as_user, supabase_service
 from services.cache_service import get_cached, set_cached, invalidate

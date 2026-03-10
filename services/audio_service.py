@@ -124,7 +124,7 @@ def _extract_best_url(video_id: str):
         if stream and stream.url:
             return {"title": yt.title}, stream.url, "pytubefix"
     except Exception as e:
-        print(f"[extract] pytubefix FAILED, trying yt-dlp: {type(e).__name__}")
+        print(f"[extract] pytubefix FAILED, trying yt-dlp: {type(e).__name__}: {e}")
 
     ydl = _ydl_global()
     info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False, process=True)

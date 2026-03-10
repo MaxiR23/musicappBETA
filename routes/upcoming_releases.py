@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from fastapi import APIRouter, Query
-from fastapi.responses import ORJSONResponse
+from fastapi.responses import ORJSONResponse, JSONResponse
 from services.upcoming_releases_repo import list_upcoming_releases_cached
 
 router = APIRouter()
@@ -15,22 +15,17 @@ async def get_upcoming_releases(
 ) -> Dict[str, Any]:
     """
     GET /upcoming-releases
-    
+
     Retorna releases futuros (desde hoy en adelante).
     El caché expira automáticamente cuando hay un nuevo release.
     """
     try:
-        # Traer data del repo (cacheada con TTL inteligente)
         releases = list_upcoming_releases_cached(include_tba=include_tba, limit=limit)
-        
         return {
             "ok": True,
             "count": len(releases),
             "releases": releases
         }
-        
     except Exception as e:
-        return {
-            "ok": False,
-            "error": str(e)
-        }
+        print(f"[upcoming_releases][ERROR] {e}")
+        return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})

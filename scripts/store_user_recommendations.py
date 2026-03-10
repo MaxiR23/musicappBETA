@@ -174,7 +174,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         except Exception as e:
             print(f"{user_id}: ERROR - {e}")
 
-    set_manual_version(CacheType.USER_RECOMMENDATIONS)
+    set_manual_version(CacheType.USER_RECOMMENDATIONS, version=bucket)
     print("[recommendations] cache invalidado: USER_RECOMMENDATIONS")        
 
     return 0
