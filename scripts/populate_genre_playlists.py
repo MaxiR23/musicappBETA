@@ -1,16 +1,5 @@
-# scripts/populate_genre_playlists.py
 """
 Popula las playlists curadas por género desde YT Music a la base de datos.
-Este script:
-1. Lee la estructura de data/genre_playlists.py
-2. Extrae tracks de cada playlist usando YT Music
-3. Mapea cada track a su versión ATV limpia
-4. Persiste en la DB: genres → genre_playlists → tracks → genre_playlist_tracks
-
-Uso:
-    python -m scripts.populate_genre_playlists
-    python -m scripts.populate_genre_playlists --limit 50  # Limita tracks por playlist
-    python -m scripts.populate_genre_playlists --genre "Hip Hop"  # Solo un género
 """
 from __future__ import annotations
 
@@ -21,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from data.genre_playlists import GENRE_PLAYLISTS
 from shared.clients import _ytmusic_client
+from services.supabase_service import supabase_service as sb
 from services.genre_repo import (
     upsert_genre,
     upsert_genre_playlist,
@@ -34,21 +24,8 @@ def process_playlist(
     limit: int = 100,
     micro_pause: float = 0.3,
 ) -> List[Dict[str, Any]]:
-    """
-    Extrae y mapea tracks de una playlist.
-    
-    Args:
-        playlist_id: ID de la playlist de YT Music
-        playlist_title: Título de la playlist (para logs)
-        limit: Máximo de tracks a extraer
-        micro_pause: Pausa entre llamadas a map_track
-    
-    Returns:
-        Lista de tracks mapeados (versión ATV limpia)
-    """
     print(f"Extrayendo '{playlist_title}'...")
     
-    # 1. Extraer pares (artist, title) de la playlist
     try:
         raw = _ytmusic_client().get_watch_playlist(playlistId=playlist_id, limit=limit) or {}
         tracks = raw.get("tracks") or []
@@ -68,7 +45,6 @@ def process_playlist(
     if not pairs:
         return []
     
-    # 2. Mapear cada track a versión ATV limpia
     mapped_tracks: List[Dict[str, Any]] = []
     seen_ids: set[str] = set()
     
@@ -80,7 +56,6 @@ def process_playlist(
             continue
         
         try:
-            # map_track busca la versión ATV limpia
             track = map_track(artist, title)
             
             if track and (track_id := track.get("id")) and track_id not in seen_ids:
@@ -94,7 +69,6 @@ def process_playlist(
             print(f"Error mapeando '{artist} - {title}': {e}")
             continue
         
-        # Micro pausa cada 3 tracks
         if micro_pause and i % 3 == 0:
             time.sleep(micro_pause)
     
@@ -106,14 +80,6 @@ def populate_genre_entry(
     limit_per_playlist: int = 100,
     wait_between_playlists: int = 10,
 ) -> None:
-    """
-    Procesa una entrada completa de género (puede tener múltiples playlists).
-    
-    Args:
-        entry: Entrada de GENRE_PLAYLISTS
-        limit_per_playlist: Máximo de tracks por playlist
-        wait_between_playlists: Segundos de espera entre playlists
-    """
     genre_name = entry.get("genre")
     genre_slug = entry.get("slug")
     sort_order = entry.get("sort_order", 0)
@@ -125,9 +91,9 @@ def populate_genre_entry(
     print(f"Género: {genre_name}{category_str}")
     print(f"{'=' * 70}")
     
-    # 1. Upsert género
     try:
         genre_id = upsert_genre(
+            db=sb,
             name=genre_name,
             slug=genre_slug,
             sort_order=sort_order,
@@ -137,7 +103,6 @@ def populate_genre_entry(
         print(f"Error insertando género: {e}")
         return
     
-    # 2. Procesar cada playlist
     total_playlists = len(playlists)
     
     for idx, playlist_data in enumerate(playlists, 1):
@@ -147,7 +112,6 @@ def populate_genre_entry(
         print(f"\n[{idx}/{total_playlists}] {playlist_title}")
         print(f"ID: {playlist_id}")
         
-        # 2.1 Extraer y mapear tracks
         tracks = process_playlist(
             playlist_id=playlist_id,
             playlist_title=playlist_title,
@@ -158,9 +122,9 @@ def populate_genre_entry(
             print(f"No se obtuvieron tracks, saltando...")
             continue
         
-        # 2.2 Upsert playlist en DB
         try:
             db_playlist_id = upsert_genre_playlist(
+                db=sb,
                 genre_id=genre_id,
                 title=playlist_title,
                 category=category,
@@ -171,24 +135,19 @@ def populate_genre_entry(
             print(f"Error creando playlist en DB: {e}")
             continue
         
-        # 2.3 Insertar tracks en DB
         try:
-            inserted = insert_genre_playlist_tracks(db_playlist_id, tracks)
+            inserted = insert_genre_playlist_tracks(db=sb, playlist_id=db_playlist_id, tracks=tracks)
             print(f"{inserted} tracks insertados en DB")
         except Exception as e:
             print(f"Error insertando tracks: {e}")
             continue
         
-        # 2.4 Rate limiting: esperar entre playlists
         if idx < total_playlists:
             print(f"Esperando {wait_between_playlists}s antes de la próxima playlist...")
             time.sleep(wait_between_playlists)
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    """
-    Punto de entrada principal del script.
-    """
     parser = argparse.ArgumentParser(
         description="Popula playlists curadas por género desde YT Music"
     )
@@ -223,7 +182,6 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f" - Filtro género: {args.genre}")
     print()
     
-    # Filtrar entries si se especificó un género
     entries_to_process = GENRE_PLAYLISTS
     
     if args.genre:
@@ -238,7 +196,6 @@ def main(argv: Optional[List[str]] = None) -> int:
     
     print(f"Total de entradas a procesar: {len(entries_to_process)}")
     
-    # Procesar cada entrada
     for entry in entries_to_process:
         try:
             populate_genre_entry(
