@@ -19,11 +19,9 @@ class QueryBuilder(Protocol):
     def single(self) -> "QueryBuilder": ...
 
     def execute(self) -> Any: ...
-
 class RpcBuilder(Protocol):
     """Representa el resultado de .rpc() de Supabase."""
     def execute(self) -> Any: ...
-
 @runtime_checkable
 class DBClient(Protocol):
     """
