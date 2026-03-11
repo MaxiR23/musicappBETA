@@ -36,7 +36,6 @@ def gather_until(
     want_artists: int,
     want_albums: int,
     per_seed: int,
-    lookback: int,
     start_per_type: int = 2,
     max_per_type: int = 14,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -48,7 +47,8 @@ def gather_until(
     per_type = start_per_type
     while (len(artists) < want_artists or len(albums) < want_albums) and per_type <= max_per_type:
         res = build_seed_recommendations(
-            user_id=user_id, per_seed=per_seed, per_type=per_type, lookback=lookback
+            db=sb,
+            user_id=user_id, per_seed=per_seed, per_type=per_type
         )
         a_batch = (res.get("recommend") or {}).get("related_artists") or []
         al_batch = (res.get("recommend") or {}).get("related_albums") or []
@@ -132,14 +132,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--want-artists", type=int, default=10)
     p.add_argument("--want-albums",  type=int, default=10)
     p.add_argument("--per-seed",     type=int, default=5)
-    p.add_argument("--lookback",     type=int, default=800)
     p.add_argument("--max-per-type", type=int, default=14)
     p.add_argument("--valid-days",   type=int, default=7)
     p.add_argument("--source",       default="seed_recos_v1")
     args = p.parse_args(argv)
 
     if args.all_users:
-        user_ids = get_all_user_ids()
+        user_ids = get_all_user_ids(db=sb)
     elif args.user_id:
         user_ids = [args.user_id]
     else:
@@ -164,12 +163,11 @@ def main(argv: Optional[List[str]] = None) -> int:
                 want_artists=max(0, args.want_artists),
                 want_albums=max(0, args.want_albums),
                 per_seed=max(1, args.per_seed),
-                lookback=max(1, args.lookback),
                 start_per_type=2,
                 max_per_type=max(2, args.max_per_type),
             )
             items = to_items_for_db(artists, albums, source=args.source, valid_until=valid_until)
-            res = replace_user_recommendations(user_id=user_id, bucket=bucket, items=items)
+            res = replace_user_recommendations(db=sb, user_id=user_id, bucket=bucket, items=items)
             print(f"{user_id}: {res.get('inserted')} inserted")
         except Exception as e:
             print(f"{user_id}: ERROR - {e}")
