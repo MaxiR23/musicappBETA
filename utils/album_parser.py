@@ -544,9 +544,9 @@ def parse_album_other_versions(album_response: dict) -> list[dict]:
 
             out.append({
                 "title": title,
-                "browse_id": bid,
+                "id": bid,
                 "params": params,
-                "type": type_txt,           # p.ej. "Album", "EP", "Single"
+                "type": type_txt, # p.ej. "Album", "EP", "Single"
                 "artist_name": artist_name,  # p.ej. "Justin Bieber"
                 "thumbnails": _thumbs(row),
             })
@@ -620,7 +620,7 @@ def parse_album_releases_for_you(album_response: dict) -> list[dict]:
 
             out.append({
                 "title": title,
-                "browse_id": bid,
+                "id": bid,
                 "params": params,
                 "type": type_txt,           # "Album" | "Single" | "EP"
                 "artist_name": artist_name,  # p.ej. "Reggie Becton"

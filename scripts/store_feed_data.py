@@ -1,178 +1,214 @@
+"""
+Fetch, map y persiste feed data en public.feed_items.
+
+Uso:
+    python scripts/store_feed_data.py                          # todos los feeds
+    python scripts/store_feed_data.py --only-new-releases      # solo new_releases
+    python scripts/store_feed_data.py --only-new-singles --store AR --limit 26
+"""
 from __future__ import annotations
+
 import argparse
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from services.cache_config import set_manual_version, CacheType
-from services.recommendations_seed_service import build_seed_recommendations
-from services.recommendations_repo import replace_user_recommendations
-from services.users_repo import get_all_user_ids
+from services.feed_source import (
+    CFG,
+    fetch_most_played_raw,
+    fetch_new_releases_pairs,
+    fetch_new_singles_tracks,
+    fetch_seed_tracks,
+)
+from services.feed_repo import replace_feed
 from services.supabase_service import supabase_service as sb
-from utils.recommendation_utils import (
-    calc_valid_until, id_any, thumbnails, artist_name, album_title
+from utils.feed_utils import (
+    map_album as _map_album,
+    map_albums_until,
+    map_track as _map_track,
+    norm as _norm,
 )
 
-def generate_weekly_bucket() -> str:
-    """Genera bucket automático: weekly_2025w44"""
-    now = datetime.now()
-    year = now.year
-    week = now.isocalendar()[1]
-    return f"weekly_{year}w{week:02d}"
-
-def cleanup_old_buckets(user_id: str, keep_bucket: str):
-    """Borra todos los buckets del usuario EXCEPTO el actual"""
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+def _date_sort_key(date_str: str) -> Tuple[int, int, int]:
+    """Parsea YYYY-MM-DD, YYYY-MM o YYYY a tupla ordenable."""
     try:
-        sb.table("user_recommendations") \
-          .delete() \
-          .eq("user_id", user_id) \
-          .neq("bucket", keep_bucket) \
-          .execute()
-    except Exception as e:
-        print(f"  Warning: cleanup failed for {user_id} - {e}")
+        parts = date_str.split("-")
+        y = int(parts[0])
+        m = int(parts[1]) if len(parts) > 1 else 1
+        d = int(parts[2]) if len(parts) > 2 else 1
+        return (y, m, d)
+    except Exception:
+        return (0, 0, 0)
 
-def gather_until(
-    user_id: str,
-    want_artists: int,
-    want_albums: int,
-    per_seed: int,
-    start_per_type: int = 2,
-    max_per_type: int = 14,
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    """Amplía per_type (2→4→6…) hasta cumplir objetivos; dedup simple por id."""
-    artists: List[Dict[str, Any]] = []
-    albums:  List[Dict[str, Any]] = []
-    seen_a, seen_al = set(), set()
+# ---------------------------------------------------------------------------
+# Builders
+# ---------------------------------------------------------------------------
+def build_most_played() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Construye listas de albums y tracks mas reproducidos."""
+    albums_raw, songs_raw = fetch_most_played_raw()
 
-    per_type = start_per_type
-    while (len(artists) < want_artists or len(albums) < want_albums) and per_type <= max_per_type:
-        res = build_seed_recommendations(
-            user_id=user_id, per_seed=per_seed, per_type=per_type
-        )
-        a_batch = (res.get("recommend") or {}).get("related_artists") or []
-        al_batch = (res.get("recommend") or {}).get("related_albums") or []
+    albums: List[Dict[str, Any]] = []
+    for it in albums_raw:
+        artist = (it.get("artistName") or "").strip()
+        title = (it.get("name") or "").strip()
+        if not artist or not title:
+            continue
+        mapped = _map_album(artist, title)
+        if mapped:
+            albums.append(dict(mapped))
 
-        for it in a_batch:
-            rid = id_any(it)
-            if rid and rid not in seen_a and len(artists) < want_artists:
-                seen_a.add(rid); artists.append(it)
+    tracks: List[Dict[str, Any]] = []
+    for it in songs_raw:
+        artist = (it.get("artistName") or "").strip()
+        title = (it.get("name") or "").strip()
+        if not artist or not title:
+            continue
+        mapped = _map_track(artist, title)
+        if mapped:
+            tracks.append(mapped)
 
-        for it in al_batch:
-            rid = id_any(it)
-            if rid and rid not in seen_al and len(albums) < want_albums:
-                seen_al.add(rid); albums.append(it)
+    return albums, tracks
 
-        per_type += 2
-
-    return artists[:want_artists], albums[:want_albums]
-
-def to_items_for_db(
-    artists: List[Dict[str, Any]],
-    albums: List[Dict[str, Any]],
-    source: str,
-    valid_until: Optional[str],
+def build_new_releases(
+    store: Optional[str] = None,
+    limit: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
-    """Mapea a filas de public.user_recommendations (artistas con similar_to, álbum sin)."""
-    out: List[Dict[str, Any]] = []
-    rank = 1
+    """Construye lista de nuevos lanzamientos (albums)."""
+    want = limit or CFG.limit
 
-    for it in artists:
-        rid = id_any(it)
-        if not rid:
+    pairs, release_by_key, _ = fetch_new_releases_pairs(store=store, limit=limit)
+
+    mapped = map_albums_until(
+        [{"artist": a, "title": t} for (a, t) in pairs[:60]],
+        want=want,
+        micro_pause=0.3,
+    )
+
+    albums: List[Dict[str, Any]] = []
+    seen_ids: set[str] = set()
+
+    for m in mapped:
+        bid = (m.get("id") or "").strip()
+        artist = (m.get("artist") or "").strip()
+        title = (m.get("title") or "").strip()
+
+        if not artist or not title:
             continue
-        st = it.get("similar_to") or {}
-        out.append({
-            "item_type": "artist",
-            "item_id": rid,
-            "rank": rank,
-            "payload": {
-                "name": artist_name(it),
-                "subtitle": it.get("subtitle"),
-                "thumbnails": thumbnails(it),
-            },
-            "source": source,
-            "valid_until": valid_until,
-            "seed_type": "artist" if st.get("id") else None,
-            "seed_id": st.get("id"),
-            "seed_name": st.get("name"),
-            "seed_thumb": st.get("thumbnail"),
-        })
-        rank += 1
-
-    for it in albums:
-        rid = id_any(it)
-        if not rid:
+        if bid and bid in seen_ids:
             continue
-        out.append({
-            "item_type": "album",
-            "item_id": rid,
-            "rank": rank,
-            "payload": {
-                "title": album_title(it),
-                "artist_name": it.get("artist_name") or it.get("artist"),
-                "thumbnails": thumbnails(it),
-                "type": it.get("type"),
-                "year": it.get("year"),
-                "track_count": it.get("track_count"),
-                "release_date": it.get("release_date"),
-            },
-            "source": source,
-            "valid_until": valid_until,
-        })
-        rank += 1
 
-    return out
+        out = dict(m)
+        key = _norm(artist) + "|" + _norm(title)
 
+        rd = release_by_key.get(key, "")
+        if rd:
+            out["release_date"] = rd
+
+        albums.append(out)
+        if bid:
+            seen_ids.add(bid)
+
+    albums.sort(key=lambda a: _date_sort_key(a.get("release_date", "")), reverse=True)
+    return albums[:want]
+
+
+def build_new_singles(
+    store: Optional[str] = None,
+    limit: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """Construye lista de nuevos singles (tracks)."""
+    want = limit or CFG.limit
+    return fetch_new_singles_tracks(store=store, want=want)
+
+def build_seed_tracks(want: int) -> List[Dict[str, Any]]:
+    """Construye lista de seed tracks para recomendaciones."""
+    return fetch_seed_tracks(limit_pairs=max(100, want * 3), want=want)
+
+# ---------------------------------------------------------------------------
+# Persist + invalidate
+# ---------------------------------------------------------------------------
+def persist_most_played(albums: List[Dict[str, Any]], tracks: List[Dict[str, Any]]) -> None:
+    """Persiste most_played e invalida caches."""
+    replace_feed(db=sb, kind="most_played", media_type="album", items=albums)
+    replace_feed(db=sb, kind="most_played", media_type="track", items=tracks)
+    set_manual_version(CacheType.TOP_ALBUMS)
+    set_manual_version(CacheType.TOP_TRACKS)
+    print("  cache invalidado: TOP_ALBUMS, TOP_TRACKS")
+
+
+def persist_new_releases(albums: List[Dict[str, Any]]) -> None:
+    """Persiste new_releases e invalida caches."""
+    replace_feed(db=sb, kind="new_releases", media_type="album", items=albums)
+    set_manual_version(CacheType.NEW_RELEASES)
+    set_manual_version(CacheType.ARTIST_ALBUMS)
+    set_manual_version(CacheType.ARTIST_SINGLES)
+    print("  cache invalidado: NEW_RELEASES, ARTIST_ALBUMS, ARTIST_SINGLES")
+
+def persist_new_singles(tracks: List[Dict[str, Any]]) -> None:
+    """Persiste new_singles e invalida cache."""
+    replace_feed(db=sb, kind="new_singles", media_type="track", items=tracks)
+    set_manual_version(CacheType.NEW_SINGLES)
+    print("  cache invalidado: NEW_SINGLES")
+
+def persist_seed_tracks(tracks: List[Dict[str, Any]]) -> None:
+    """Persiste seed_tracks e invalida cache."""
+    replace_feed(db=sb, kind="seed_tracks", media_type="track", items=tracks)
+    set_manual_version(CacheType.SEED_TRACKS)
+    print("  cache invalidado: SEED_TRACKS")
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 def main(argv: Optional[List[str]] = None) -> int:
-    p = argparse.ArgumentParser(description="Persiste recomendaciones por usuario en public.user_recommendations")
-    p.add_argument("--user-id")
-    p.add_argument("--all-users", action="store_true")
-    p.add_argument("--bucket")
-    p.add_argument("--want-artists", type=int, default=10)
-    p.add_argument("--want-albums",  type=int, default=10)
-    p.add_argument("--per-seed",     type=int, default=5)
-    p.add_argument("--max-per-type", type=int, default=14)
-    p.add_argument("--valid-days",   type=int, default=7)
-    p.add_argument("--source",       default="seed_recos_v1")
+    p = argparse.ArgumentParser(
+        description="Fetch, map y persiste feed data en public.feed_items"
+    )
+    p.add_argument("--store", help="Store/country code (e.g., AR, US)")
+    p.add_argument("--limit", type=int, help="Max items por feed")
+    p.add_argument("--only-most-played", action="store_true")
+    p.add_argument("--only-new-releases", action="store_true")
+    p.add_argument("--only-new-singles", action="store_true")
+    p.add_argument("--only-seed-tracks", action="store_true")
     args = p.parse_args(argv)
 
-    if args.all_users:
-        user_ids = get_all_user_ids(db=sb)
-    elif args.user_id:
-        user_ids = [args.user_id]
-    else:
-        print("Error: specify --user-id or --all-users")
-        return 1
+    run_all = not any([
+        args.only_most_played,
+        args.only_new_releases,
+        args.only_new_singles,
+        args.only_seed_tracks,
+    ])
 
-    bucket = args.bucket or generate_weekly_bucket()
-    valid_until = calc_valid_until(args.valid_days)
-    
-    print(f"Using bucket: {bucket}")
-    print(f"Cleaning old buckets...")
-    
-    for user_id in user_ids:
-        cleanup_old_buckets(user_id, bucket)
-    
-    print(f"Processing {len(user_ids)} users...")
-    
-    for user_id in user_ids:
-        try:
-            artists, albums = gather_until(
-                user_id=user_id,
-                want_artists=max(0, args.want_artists),
-                want_albums=max(0, args.want_albums),
-                per_seed=max(1, args.per_seed),
-                start_per_type=2,
-                max_per_type=max(2, args.max_per_type),
-            )
-            items = to_items_for_db(artists, albums, source=args.source, valid_until=valid_until)
-            res = replace_user_recommendations(db=sb, user_id=user_id, bucket=bucket, items=items)
-            print(f"{user_id}: {res.get('inserted')} inserted")
-        except Exception as e:
-            print(f"{user_id}: ERROR - {e}")
+    # --- most_played ---
+    if run_all or args.only_most_played:
+        print("[feed] building most_played...")
+        mp_albums, mp_tracks = build_most_played()
+        print(f"  albums={len(mp_albums)} tracks={len(mp_tracks)}")
+        persist_most_played(mp_albums, mp_tracks)
 
-    set_manual_version(CacheType.USER_RECOMMENDATIONS, version=bucket)
-    print("[recommendations] cache invalidado: USER_RECOMMENDATIONS")        
+    # --- new_releases ---
+    if run_all or args.only_new_releases:
+        print("[feed] building new_releases...")
+        nr_albums = build_new_releases(store=args.store, limit=args.limit)
+        print(f"  albums={len(nr_albums)}")
+        persist_new_releases(nr_albums)
 
+    # --- new_singles ---
+    if run_all or args.only_new_singles:
+        print("[feed] building new_singles...")
+        ns_tracks = build_new_singles(store=args.store, limit=args.limit)
+        print(f"  tracks={len(ns_tracks)}")
+        persist_new_singles(ns_tracks)
+
+    # --- seed_tracks ---
+    if run_all or args.only_seed_tracks:
+        print("[feed] building seed_tracks...")
+        seed = build_seed_tracks(want=(args.limit or CFG.limit))
+        print(f"  tracks={len(seed)}")
+        persist_seed_tracks(seed)
+
+    print("[feed] done.")
     return 0
 
 if __name__ == "__main__":
