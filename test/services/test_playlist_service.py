@@ -212,47 +212,30 @@ class TestGetPlaylistById:
 # ════════════════════════════════════════════════════════
 class TestDeletePlaylist:
     def test_returns_deleted_data(self):
-        db, table, _ = make_db()
-        tracks_res = MagicMock()
-        tracks_res.data = []
-        pl_res = MagicMock()
-        pl_res.data = [{"id": "pl1"}]
-        table.execute.side_effect = [tracks_res, pl_res]
+        db, table, res = make_db()
+        res.data = [{"id": "pl1"}]
         with patch("services.playlist_service.invalidate"):
             result = delete_playlist(db, "user-1", "pl1")
         assert result == [{"id": "pl1"}]
 
-    def test_deletes_tracks_before_playlist(self):
-        db, table, _ = make_db()
-        tracks_res = MagicMock()
-        tracks_res.data = []
-        pl_res = MagicMock()
-        pl_res.data = []
-        table.execute.side_effect = [tracks_res, pl_res]
+    def test_deletes_only_playlist(self):
+        db, table, res = make_db()
+        res.data = []
         with patch("services.playlist_service.invalidate"):
             delete_playlist(db, "user-1", "pl1")
         calls = [c[0][0] for c in db.table.call_args_list]
-        assert calls[0] == "playlist_tracks"
-        assert calls[1] == "playlists"
+        assert calls == ["playlists"]
 
     def test_invalidates_cache(self):
-        db, table, _ = make_db()
-        tracks_res = MagicMock()
-        tracks_res.data = []
-        pl_res = MagicMock()
-        pl_res.data = []
-        table.execute.side_effect = [tracks_res, pl_res]
+        db, table, res = make_db()
+        res.data = []
         with patch("services.playlist_service.invalidate") as mock_inv:
             delete_playlist(db, "user-1", "pl1")
         assert mock_inv.call_count == 2
 
     def test_returns_empty_list_when_no_data(self):
-        db, table, _ = make_db()
-        tracks_res = MagicMock()
-        tracks_res.data = []
-        pl_res = MagicMock()
-        pl_res.data = None
-        table.execute.side_effect = [tracks_res, pl_res]
+        db, table, res = make_db()
+        res.data = None
         with patch("services.playlist_service.invalidate"):
             result = delete_playlist(db, "user-1", "pl1")
         assert result == []

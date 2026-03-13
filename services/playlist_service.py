@@ -67,7 +67,6 @@ def get_playlist_by_id(db: DBClient, user_id: str, playlist_id: str) -> dict | N
     return payload
 
 def delete_playlist(db: DBClient, user_id: str, playlist_id: str) -> list:
-    db.table("playlist_tracks").delete().eq("playlist_id", playlist_id).execute()
     resp = db.table("playlists").delete().eq("id", playlist_id).eq("owner_id", user_id).execute()
     _invalidate_playlist_cache(user_id, playlist_id)
     return resp.data or []
