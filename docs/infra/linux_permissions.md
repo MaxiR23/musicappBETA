@@ -1,4 +1,4 @@
-# Linux — Permisos y Usuarios (Cheatsheet)
+# Linux — Permisos y Usuarios (MINICheatsheet)
 
 ## Conceptos clave
 
@@ -125,10 +125,39 @@ groups stephencurrygt30
 
 ---
 
+## Editor nano — comandos esenciales
+
+```bash
+# Abrir un archivo
+nano archivo.txt
+
+# Abrir con número de línea
+nano +42 archivo.txt
+```
+
+| Acción | Atajo |
+|---|---|
+| Guardar | `Ctrl+O` → Enter |
+| Salir | `Ctrl+X` |
+| Guardar y salir | `Ctrl+O` → Enter → `Ctrl+X` |
+| Buscar | `Ctrl+W` |
+| Buscar siguiente | `Ctrl+W` → Enter |
+| Cortar línea | `Ctrl+K` |
+| Pegar línea | `Ctrl+U` |
+| Ir a línea N | `Ctrl+_` → escribir número |
+| Deshacer | `Alt+U` |
+| Rehacer | `Alt+E` |
+| Seleccionar todo | `Alt+A` |
+
+> En nano el cursor se mueve con las flechas del teclado. No hay modo inserción como en vim — escribís directo.
+
+---
+
 ## Referencias para estudiar
 
 | Tema | Link |
 |---|---|
+| nano — guía oficial | https://www.nano-editor.org/dist/latest/nano.html |
 | Permisos en Linux — guía completa | https://www.linux.org/threads/file-permissions.4214 |
 | sudo — documentación | https://www.sudo.ws/docs/man/sudo.man |
 | chmod — referencia | https://man7.org/linux/man-pages/man1/chmod.1.html |
