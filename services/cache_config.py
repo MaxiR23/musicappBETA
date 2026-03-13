@@ -40,6 +40,9 @@ class CacheType(str, Enum):
     UPCOMING_RELEASES = "upcoming-releases"
     UPCOMING_ARTIST = "upcoming-artist"
 
+    # Repeat
+    REPLAY = "replay"
+
     # Stats
     WEEKLY_STATS = "weekly-stats"
     MONTHLY_STATS = "monthly-stats"
@@ -81,6 +84,8 @@ CACHE_SCHEDULE: Dict[CacheType, CacheSchedule] = {
     CacheType.UPCOMING_RELEASES: CacheSchedule.MANUAL,
     CacheType.UPCOMING_ARTIST: CacheSchedule.MANUAL,
 
+    CacheType.REPLAY: CacheSchedule.FRIDAY,
+
     CacheType.WEEKLY_STATS: CacheSchedule.MONDAY,
     CacheType.MONTHLY_STATS: CacheSchedule.MANUAL,
 }
@@ -108,6 +113,8 @@ DEFAULT_TTL: Dict[CacheType, int] = {
     
     CacheType.UPCOMING_RELEASES: 86400,
     CacheType.UPCOMING_ARTIST: 86400,
+
+    CacheType.REPLAY: 604800,
 
     CacheType.WEEKLY_STATS: 604800,
 }

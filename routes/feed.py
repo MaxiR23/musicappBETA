@@ -12,6 +12,7 @@ from services.recommendations_repo import list_user_recommendations
 from services.cache_service import get_cached, set_cached
 from services.cache_config import CacheType, get_all_versions
 from scripts.store_user_recommendations import generate_weekly_bucket
+from services.replay_service import get_replay_songs
 
 router = APIRouter(tags=["feed"])
 
@@ -154,3 +155,11 @@ async def get_user_recommendations_db(user_id: str, bucket: Optional[str] = None
     result = _build_recommendations_result(rows, bucket)
     set_cached(CacheType.USER_RECOMMENDATIONS, result, suffix=user_id)
     return result
+
+@router.get("/replay")
+def replay(user_id: str = Depends(get_current_user_id), db: DBClient = Depends(get_db)):
+    try:
+        return get_replay_songs(db=db, user_id=user_id)
+    except Exception as e:
+        print(f"[replay][ERROR] {e}")
+        return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})

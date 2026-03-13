@@ -11,6 +11,7 @@
 # GET /db/seed-tracks           → feed seed tracks
 # GET /recommendations/me       → recomendaciones por bearer
 # GET /recommendations          → recomendaciones por user_id
+# GET /replay                   → playlist autogenerada por reproducciones
 #
 
 import pytest
@@ -29,7 +30,7 @@ def client():
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[get_db] = lambda: MagicMock()
-    app.dependency_overrides[get_current_user_id] = lambda: "user-test"
+    app.dependency_overrides[get_current_user_id] = lambda request=None: "user-test"
     return TestClient(app)
 
 # ════════════════════════════════════════════════════════
@@ -323,3 +324,31 @@ class TestGetUserRecommendationsDb:
              patch("routes.feed.generate_weekly_bucket", return_value="b1"):
             r = client.get("/recommendations?user_id=u1")
         assert r.status_code == 502
+
+# ════════════════════════════════════════════════════════
+# GET /replay
+# ════════════════════════════════════════════════════════
+class TestReplay:
+    def test_returns_songs_when_service_succeeds(self, client):
+        songs = [{"track_id": "abc", "play_count": 5}]
+        with patch("routes.feed.get_replay_songs", return_value=songs):
+            r = client.get("/replay")
+        assert r.status_code == 200
+        assert r.json() == songs
+
+    def test_returns_empty_list_when_no_songs(self, client):
+        with patch("routes.feed.get_replay_songs", return_value=[]):
+            r = client.get("/replay")
+        assert r.status_code == 200
+        assert r.json() == []
+
+    def test_returns_502_on_exception(self, client):
+        with patch("routes.feed.get_replay_songs", side_effect=Exception("fail")):
+            r = client.get("/replay")
+        assert r.status_code == 502
+        assert r.json()["ok"] is False
+
+    def test_delegates_to_service(self, client):
+        with patch("routes.feed.get_replay_songs", return_value=[]) as mock_service:
+            client.get("/replay")
+        mock_service.assert_called_once()

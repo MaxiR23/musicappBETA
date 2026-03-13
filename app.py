@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, ORJSONResponse
-from routes import cache, index, tracks, playlists, feed, debug, genres, upcoming_releases, search, activity, album, artists, audio, stats
+from routes import cache, health, tracks, playlists, feed, debug, genres, upcoming_releases, search, activity, album, artists, audio, stats
 from middlewares.supa_auth import supa_auth
 from middlewares.cors_headers import add_cors_middleware
 
@@ -79,7 +79,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 # Rutas principales
-app.include_router(index.router, prefix="/api")
+app.include_router(health.router, prefix="/api")
 app.include_router(tracks.router, prefix="/api/music")
 app.include_router(search.router, prefix="/api/music")
 app.include_router(activity.router, prefix="/api/music")
