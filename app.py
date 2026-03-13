@@ -8,6 +8,11 @@ from routes import cache, index, tracks, playlists, feed, debug, genres, upcomin
 from middlewares.supa_auth import supa_auth
 from middlewares.cors_headers import add_cors_middleware
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
 # Lifespan: pre-warm en startup (sin deprecations)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -39,14 +44,20 @@ async def lifespan(app: FastAPI):
     except Exception as e:
          print(f"[lifespan][shutdown][WARN] {e}")
 
-# Crear la app (único cambio: se pasa lifespan)
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+# Crear la app (se pasa lifespan)
 app = FastAPI(
     lifespan=lifespan,
-    default_response_class=ORJSONResponse  # ← usa orjson para TODAS las respuestas JSON
+    default_response_class=ORJSONResponse  # <- usa orjson para TODAS las respuestas JSON
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS siempre primero (usa el de middlewares/cors_headers.py)
 add_cors_middleware(app)
+
+app.add_middleware(SlowAPIMiddleware)
 
 # Middleware de auth siempre activo (para debug)
 ENV = os.getenv("ENVIRONMENT", "development")
