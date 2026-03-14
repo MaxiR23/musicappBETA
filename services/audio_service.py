@@ -24,7 +24,7 @@ URL_TTL = 1800
 _WARM_BURST = 20
 _WARM_DEDUP_TTL = 45
 
-_IT_GLOBAL = InnerTube("ANDROID_VR")
+_IT_GLOBAL = InnerTube("ANDROID_VR", use_po_token=True)
 
 POSSIBLE_COOKIE_PATHS = [
     "/root/musicappbackend/cookies.txt",
@@ -151,7 +151,7 @@ def _extract_best_url(video_id: str) -> Tuple[dict, str, str]:
         print(f"[extract] InnerTube FAILED ({type(e).__name__}: {e}), trying pytubefix...")
 
     try:
-        yt     = PytubeYouTube.from_id(video_id)
+        yt = PytubeYouTube.from_id(video_id, use_po_token=True)
         stream = yt.streams.filter(only_audio=True).order_by("abr").desc().first()
         if stream and stream.url:
             return {}, stream.url, "pytubefix"
