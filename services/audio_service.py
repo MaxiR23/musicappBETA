@@ -14,7 +14,6 @@ from fastapi.responses import StreamingResponse
 from pytubefix import YouTube as PytubeYouTube
 
 from shared.clients import _ydl_global
-from pytubefix.innertube import InnerTube
 
 # ── CONFIG ───────────────────────────────────────────────
 MAX_WORKERS = 8
@@ -23,8 +22,6 @@ WARM_ENABLED = False
 URL_TTL = 1800
 _WARM_BURST = 20
 _WARM_DEDUP_TTL = 45
-
-_IT_GLOBAL = InnerTube("ANDROID_VR", use_po_token=True)
 
 POSSIBLE_COOKIE_PATHS = [
     "/root/musicappbackend/cookies.txt",
@@ -132,33 +129,18 @@ def build_cache_entry(info: dict, url: str, client: str, now: float) -> dict:
 
 def _extract_best_url(video_id: str) -> Tuple[dict, str, str]:
     try:
-        data = _IT_GLOBAL.player(video_id)
-        # Verificar que la respuesta sea válida ANTES de procesar
-        status = data.get("playabilityStatus", {}).get("status", "")
-        if status not in ("OK", ""):
-            raise ValueError(f"playabilityStatus: {status}")
-        streaming = data.get("streamingData")
-        if not streaming:
-            raise ValueError("sin streamingData")
-        fmts  = streaming.get("adaptiveFormats", [])
-        audio = [f for f in fmts if f.get("mimeType","").startswith("audio")]
-        if not audio:
-            raise ValueError("sin formatos de audio")
-        opus = [f for f in audio if "opus" in f.get("mimeType","")]
-        url = sorted(opus if opus else audio, key=lambda x: x.get("bitrate", 0))[-1]["url"]
-        return {}, url, "innertube"
-    except Exception as e:
-        print(f"[extract] InnerTube FAILED ({type(e).__name__}: {e}), trying pytubefix...")
-
-    try:
-        yt = PytubeYouTube.from_id(video_id, use_po_token=True)
-        stream = yt.streams.filter(only_audio=True).order_by("abr").desc().first()
+        yt = PytubeYouTube(
+            f"https://www.youtube.com/watch?v={video_id}",
+            client="ANDROID_VR"
+        )
+        stream = yt.streams.filter(only_audio=True).order_by("abr").last()
         if stream and stream.url:
             return {}, stream.url, "pytubefix"
+        raise ValueError("no audio stream")
     except Exception as e:
         print(f"[extract] pytubefix FAILED ({type(e).__name__}: {e}), trying yt-dlp...")
 
-    ydl  = _ydl_global()
+    ydl = _ydl_global()
     info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False, process=True)
     url, best_fmt, diag = pick_best_audio(info)
     if not url:
