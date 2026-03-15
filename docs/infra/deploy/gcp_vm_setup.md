@@ -84,14 +84,19 @@ https://console.cloud.google.com
 
 ```yaml
 Name: beatly-api
-Region: southamerica-east1
-Zone: Any
-Machine type: e2-medium
+Region: us-central1 (Iowa)
+Zone: us-central1-a
+Machine type: e2-standard-2
 OS: Debian GNU/Linux 12
 
 Networking:
-  - Allow HTTP traffic: ✅
-  - Allow HTTPS traffic: ✅
+  - Allow HTTP traffic: [x]
+  - Allow HTTPS traffic: [x]
+  - Firewall rule allow-39477: [x]
+
+Pending:
+  - Static IP: [ ]
+  - Disable OS Login: [ ]
 ```
 
 ### 3. Configurar Firewall
@@ -135,7 +140,7 @@ source venv/bin/activate
 pip install --use-deprecated=legacy-resolver -r requirements.txt
 ```
 
-> Se usa `--use-deprecated=legacy-resolver` para evitar conflictos entre `httpx`, `gotrue` e `innertube`.
+> Se usa `--use-deprecated=legacy-resolver` para evitar conflictos entre `httpx`, `gotrue` etc
 
 ### 8. Configurar variables de entorno
 

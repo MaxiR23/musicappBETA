@@ -25,8 +25,7 @@ Configuramos acceso SSH desde Windows a la VM de GCP (Beatly API) usando un **pa
 
 ## Cómo se configuró
 
-### 1. Generar el par de claves (en PowerShell)
-
+### 1. Generar el par de claves (en PowerShell o terminal de VSCode)
 ```powershell
 ssh-keygen -t ed25519 -C "nombre-descriptivo"
 ```
@@ -34,32 +33,48 @@ ssh-keygen -t ed25519 -C "nombre-descriptivo"
 - Ruta: dejar la que sugiere por defecto → Enter
 - Passphrase: vacío → Enter
 
-### 2. Copiar la clave pública al servidor
-
-Desde la consola web de GCP (una sola vez):
-
-```bash
-mkdir -p ~/.ssh && echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHj7mK2pQnVxLsT9eRuWdYoF3bZcXgNiAqPvOkMwE ejemplo-inventado"
-# ^ clave de ejemplo inventada — reemplazar con el contenido real de tu id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && chmod 700 ~/.ssh
+### 2. Obtener la clave pública
+```powershell
+Get-Content C:\Users\{usuario}\.ssh\id_ed25519.pub
 ```
 
-> El contenido de `id_ed25519.pub` se obtiene con:
-> ```powershell
-> Get-Content C:\Users\{usuario}\.ssh\id_ed25519.pub
-> ```
+Copiá el output completo — es una sola línea que empieza con `ssh-ed25519`.
 
-### 3. Conectarse
+### 3. Agregar la clave pública al servidor
 
+Desde la consola web de GCP, conectarse a la VM y correr:
+```bash
+echo "PEGAR_CLAVE_PUBLICA_ACA" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && chmod 700 ~/.ssh
+```
+
+### 4. Configurar la clave del servidor en GitHub (para clonar repos privados)
+
+Desde la VM, generar un par de claves separado para GitHub:
+```bash
+ssh-keygen -t ed25519 -C "nombre-descriptivo"
+cat ~/.ssh/id_ed25519.pub
+```
+
+Ir a GitHub → Settings → SSH and GPG keys → New SSH key → título descriptivo → tipo **Authentication Key** → pegar la clave pública.
+
+Verificar conexión:
+```bash
+ssh -T git@github.com
+```
+
+Output esperado: `Hi {usuario}! You've successfully authenticated`
+
+### 5. Conectarse desde la PC
 ```powershell
-ssh -i ~/.ssh/id_ed25519 usuario@IP_DE_LA_VM
+ssh {usuario-servidor}@IP_DE_LA_VM
 ```
 
 ---
 
 ## Importante
 
-- Si la VM se **reinicia**, el archivo `~/.ssh/authorized_keys` puede borrarse (comportamiento de GCP con OS Login activo). Hay que repetir el paso 2.
-- Este problema se resuelve de forma permanente en el ítem **#6 — IP estática + desactivar OS Login** (pendiente).
+- Si la VM se **reinicia**, el archivo `~/.ssh/authorized_keys` puede borrarse (comportamiento de GCP con OS Login activo). Hay que repetir el paso 3.
+- Este problema se resuelve de forma permanente desactivando OS Login y fijando una IP estática (pendiente).
 - `~/.ssh/` en Windows a veces no resuelve correctamente. Si falla, usar la ruta completa: `C:\Users\{usuario}\.ssh\id_ed25519`
 
 ---
@@ -80,6 +95,9 @@ ssh -i ~/.ssh/id_ed25519 usuario@IP_DE_LA_VM
 
 | Item | Estado |
 |---|---|
-| Par de claves ed25519 generado | OK |
-| Clave pública en el servidor | OK |
-| Conexión desde PowerShell validada | OK |
+| Par de claves ed25519 generado en PC local | OK |
+| Clave pública local agregada al servidor | OK |
+| Clave ed25519 del servidor agregada a GitHub | OK |
+| Conexión desde VSCode/PowerShell validada | OK |
+| IP estática configurada | Pendiente |
+| OS Login desactivado | Pendiente |
