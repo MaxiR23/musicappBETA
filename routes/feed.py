@@ -127,13 +127,14 @@ async def get_seed_tracks_db(limit: Optional[int] = 25, db: DBClient = Depends(g
 async def get_user_recommendations_me(
     bucket: Optional[str] = None,
     user_id: str = Depends(get_current_user_id),
+    db: DBClient = Depends(get_db),
 ):
     bucket = bucket or generate_weekly_bucket()
     cached_data = get_cached(CacheType.USER_RECOMMENDATIONS, suffix=user_id)
     if cached_data is not None:
         return cached_data
     try:
-        rows = list_user_recommendations(user_id=user_id, bucket=bucket, item_type=None, limit=500) or []
+        rows = list_user_recommendations(db=db, user_id=user_id, bucket=bucket, item_type=None, limit=500) or []
     except Exception as e:
         print(f"[feed][recommendations/me][ERROR] {e}")
         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
@@ -142,13 +143,13 @@ async def get_user_recommendations_me(
     return result
 
 @router.get("/recommendations", summary="User recommendations (by user_id)")
-async def get_user_recommendations_db(user_id: str, bucket: Optional[str] = None):
+async def get_user_recommendations_db(user_id: str, bucket: Optional[str] = None, db: DBClient = Depends(get_db)):
     bucket = bucket or generate_weekly_bucket()
     cached_data = get_cached(CacheType.USER_RECOMMENDATIONS, suffix=user_id)
     if cached_data is not None:
         return cached_data
     try:
-        rows = list_user_recommendations(user_id=user_id, bucket=bucket, item_type=None, limit=500) or []
+        rows = list_user_recommendations(db=db, user_id=user_id, bucket=bucket, item_type=None, limit=500) or []
     except Exception as e:
         print(f"[feed][recommendations][ERROR] {e}")
         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
