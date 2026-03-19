@@ -1,6 +1,6 @@
 """
-Lógica de albums.
-Funciones puras para builds, orquestación para fetches.
+Logica de albums.
+Funciones puras para builds, orquestacion para fetches.
 """
 from services import music_client
 from services.cache_service import get_cached, set_cached
@@ -11,7 +11,6 @@ from services.executor import gather
 from utils.album_parser import (
     parse_album_info,
     parse_album_other_versions,
-    parse_album_releases_for_you,
     parse_tracks_from_audio_playlist,
 )
 
@@ -26,12 +25,12 @@ def extract_artist_name(info: dict) -> str | None:
         or info.get("artist")
         or info.get("subtitle")
     )
-    if isinstance(name, str) and " • " in name:
-        name = name.split(" • ", 1)[0].strip()
+    if isinstance(name, str) and " \u2022 " in name:
+        name = name.split(" \u2022 ", 1)[0].strip()
     return name
 
 def enrich_album_tracks(tracks: list[dict] | None, album_id: str, info: dict | None = None) -> list[dict]:
-    """Agrega contexto de álbum a cada track."""
+    """Agrega contexto de album a cada track."""
     if not tracks:
         return []
     info = info or {}
@@ -45,6 +44,7 @@ def build_album_payload(
     tracks: list | None = None,
     more_from_artist: list | None = None,
     events: list | None = None,
+    related_recommendations: list | None = None,
 ) -> dict:
     """Transforma datos crudos en payload final."""
     return {
@@ -54,21 +54,29 @@ def build_album_payload(
         "other_versions": parse_album_other_versions(raw) or [],
         "more_from_artist": more_from_artist or [],
         "upcoming_events": events or [],
-        "releases_for_you": parse_album_releases_for_you(raw) or [],
+        "related_recommendations": related_recommendations or [],
     }
 
 def build_error_payload(album_id: str, error: str = "service_unavailable") -> dict:
     return {"id": album_id, "error": error}
 
 def should_cache_album(info: dict, tracks: list) -> bool:
-    """Decide si el album es válido para cachear."""
+    """Decide si el album es valido para cachear."""
     return bool(info.get("title") and tracks)
 
 def get_album_tracks(audio_playlist_id: str) -> list:
-    """Trae tracks de un álbum por su audio_playlist_id."""
+    """Trae tracks de un album por su audio_playlist_id."""
     if not audio_playlist_id:
         return []
     return parse_tracks_from_audio_playlist(audio_playlist_id)
+
+def fetch_related_recommendations(album_id: str) -> list[dict]:
+    """Trae related_recommendations via ytmusicapi get_album."""
+    try:
+        parsed = music_client.get_album(album_id)
+        return parsed.get("related_recommendations", [])
+    except Exception:
+        return []
 
 def get_album(album_id: str, use_cache: bool = True) -> dict:
     """Orquesta: cache -> fetch -> build -> cache."""
@@ -83,7 +91,7 @@ def get_album(album_id: str, use_cache: bool = True) -> dict:
 
         info = parse_album_info(raw) or {}
         if not info.get("title"):
-            print(f"[album_service][WARN] {album_id}: info vacía")
+            print(f"[album_service][WARN] {album_id}: info vacia")
             return build_error_payload(album_id)
 
         artist_id = info.get("artist_id")
@@ -93,10 +101,12 @@ def get_album(album_id: str, use_cache: bool = True) -> dict:
         results = gather({
             "tracks": lambda: get_album_tracks(audio_playlist_id),
             "more_from": lambda: get_more_from_artist(artist_id, exclude_album_id=album_id) if artist_id else [],
+            "related": lambda: fetch_related_recommendations(album_id),
         })
 
         tracks = enrich_album_tracks(results["tracks"], album_id=album_id, info=info)
         more_from = results["more_from"] or []
+        related = results["related"] or []
 
         events = []
         if artist_name:
@@ -104,7 +114,13 @@ def get_album(album_id: str, use_cache: bool = True) -> dict:
             if not events:
                 schedule_events_refresh(artist_name)
 
-        payload = build_album_payload(album_id, raw, info, tracks=tracks, more_from_artist=more_from, events=events)
+        payload = build_album_payload(
+            album_id, raw, info,
+            tracks=tracks,
+            more_from_artist=more_from,
+            events=events,
+            related_recommendations=related,
+        )
 
         if should_cache_album(info, tracks):
             set_cached(CacheType.ALBUM, payload, suffix=album_id)
@@ -115,3 +131,8 @@ def get_album(album_id: str, use_cache: bool = True) -> dict:
     except Exception as e:
         print(f"[album_service][ERR] {album_id}: {e}")
         return build_error_payload(album_id)
+
+def get_album_recommendations(album_id: str) -> list[dict]:
+    """Albums recomendados para un album. Uso desde cualquier lado."""
+    payload = get_album(album_id)
+    return payload.get("related_recommendations", [])
