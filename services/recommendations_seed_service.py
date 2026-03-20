@@ -1,50 +1,11 @@
 from __future__ import annotations
 
-from shared.clients import _ytm
 from services import music_client
 from services.db_protocol import DBClient
 from services.cache_service import get_cached_legacy, set_cached_legacy
 from services.activity_repo import recent_seeds_from_activity
-from utils.artist_parser import parse_related_artists, pick_related_artists_section
 
 _RECO_TTL = 20 * 60
-
-def _extract_header_info(resp: dict) -> dict:
-    header = resp.get("header", {}).get("musicImmersiveHeaderRenderer", {})
-    runs = (header.get("title", {}) or {}).get("runs", []) or [{}]
-    name = runs[0].get("text")
-    thumbs = (
-        header.get("thumbnail", {})
-        .get("musicThumbnailRenderer", {})
-        .get("thumbnail", {})
-        .get("thumbnails", []) or []
-    )
-    thumb = (thumbs[-1] or {}).get("url") if thumbs else None
-    return {"name": name, "thumb": thumb}
-
-
-def _extract_contents(resp: dict) -> list:
-    try:
-        return (
-            resp.get("contents", {})
-            .get("singleColumnBrowseResultsRenderer", {})
-            .get("tabs", [])[0]
-            .get("tabRenderer", {})
-            .get("content", {})
-            .get("sectionListRenderer", {})
-            .get("contents", [])
-        )
-    except (IndexError, KeyError):
-        return []
-
-def _build_seed_info(seed: dict) -> dict:
-    aid = (seed or {}).get("id") or ""
-    md = (seed or {}).get("metadata") or {}
-    return {
-        "id": aid,
-        "name": md.get("display_name"),
-        "thumbnail": md.get("thumbnail_url"),
-    }
 
 def _dedupe_items(items: list, seen: set, id_key: str = "id") -> list:
     out = []
@@ -69,42 +30,32 @@ def _build_result(seeds: dict, artists_out: list, albums_out: list) -> dict:
         },
     }
 
+def _upgrade_artist_thumb(url: str | None, size: int = 300) -> str | None:
+    if not url or "lh3.googleusercontent.com" not in url:
+        return url
+    return f"{url.split('=')[0]}=w{size}-h{size}-l90-rj"
+
 # -- IO ---------------------------------------------------
-def _seed_artist_info(seed: dict, yt) -> dict:
-    info = _build_seed_info(seed)
-    if info.get("name") and info.get("thumbnail"):
-        return info
-
-    aid = info.get("id") or ""
-    ckey = f"artist:header:{aid}"
-    cached = get_cached_legacy(ckey)
-    if cached:
-        return {"id": aid, "name": cached.get("name"), "thumbnail": cached.get("thumb")}
-
-    try:
-        resp = yt.browse(aid) or {}
-        header_info = _extract_header_info(resp)
-        set_cached_legacy(ckey, header_info, 30 * 60)
-        return {"id": aid, "name": header_info.get("name"), "thumbnail": header_info.get("thumb")}
-    except Exception:
-        return info
-
-
-def _browse_artist_related(yt, artist_id: str, limit_each: int = 5) -> list:
-    ckey = f"artist:related:{artist_id}"
+def _get_artist_data(artist_id: str, per_seed: int = 5) -> tuple[dict, list]:
+    """Devuelve (seed_info, related_artists) usando ytmusicapi."""
+    ckey = f"artist:data:{artist_id}"
     cached = get_cached_legacy(ckey)
     if cached is not None:
-        return (cached or [])[:limit_each]
+        return cached["info"], (cached.get("related") or [])[:per_seed]
 
     try:
-        resp = yt.browse(artist_id) or {}
-        contents = _extract_contents(resp)
-        rel_sec = pick_related_artists_section(contents)
-        out = parse_related_artists(rel_sec)[:limit_each] if rel_sec else []
-        set_cached_legacy(ckey, out, _RECO_TTL)
-        return out
+        artist = music_client.get_artist(artist_id)
+        thumbs = artist.get("thumbnails") or []
+        info = {
+            "id": artist_id,
+            "name": artist.get("name"),
+            "thumbnail": _upgrade_artist_thumb(thumbs[-1]["url"]) if thumbs else None,
+        }
+        related = (artist.get("related", {}).get("results") or [])[:per_seed]
+        set_cached_legacy(ckey, {"info": info, "related": related}, _RECO_TTL)
+        return info, related
     except Exception:
-        return []
+        return {"id": artist_id, "name": None, "thumbnail": None}, []
 
 def _get_album_recs(album_id: str, limit: int = 5) -> list:
     """related_recommendations de ytmusicapi, con fallback por artista."""
@@ -140,7 +91,6 @@ def _get_album_recs(album_id: str, limit: int = 5) -> list:
 
 def build_seed_recommendations(db: DBClient, user_id: str, per_seed: int = 5, per_type: int = 2) -> dict:
     seeds = recent_seeds_from_activity(db, user_id=user_id, per_type=per_type)
-    yt = _ytm()
 
     # Artistas relacionados
     artists_out = []
@@ -149,9 +99,8 @@ def build_seed_recommendations(db: DBClient, user_id: str, per_seed: int = 5, pe
         aid = seed_artist.get("id")
         if not aid:
             continue
-        similar_to = _seed_artist_info(seed_artist, yt)
-        rel = _browse_artist_related(yt, aid, limit_each=per_seed)
-        for it in _dedupe_items(rel, a_seen):
+        similar_to, rel = _get_artist_data(aid, per_seed=per_seed)
+        for it in _dedupe_items(rel, a_seen, id_key="browseId"):
             it["similar_to"] = similar_to
             artists_out.append(it)
     artists_out = artists_out[:per_type * per_seed]
