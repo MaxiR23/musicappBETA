@@ -232,7 +232,11 @@ def parse_artist_card_info(resp: dict) -> dict | None:
     if not tab: return None
     sections = _dig(tab, ["content","sectionListRenderer","contents"], []) or []
     if not sections: return None
-    card = sections[0].get("musicCardShelfRenderer")
+    card = None
+    for sec in sections:
+        if "musicCardShelfRenderer" in sec:
+            card = sec["musicCardShelfRenderer"]
+            break
     if not card: return None
 
     title_runs = _dig(card, ["title","runs"], []) or []
@@ -268,7 +272,11 @@ def parse_artist_card_songs(resp: dict, strict_atv: bool = True, limit: int | No
     if not tab: return out
     sections = _dig(tab, ["content","sectionListRenderer","contents"], []) or []
     if not sections: return out
-    card = sections[0].get("musicCardShelfRenderer")
+    card = None
+    for sec in sections:
+        if "musicCardShelfRenderer" in sec:
+            card = sec["musicCardShelfRenderer"]
+            break
     if not card: return out
 
     title_runs = _dig(card, ["title","runs"], []) or []
@@ -381,7 +389,11 @@ def parse_artist_card_albums(resp: dict, limit: int | None = None) -> list[dict]
     if not tab: return out
     sections = _dig(tab, ["content","sectionListRenderer","contents"], []) or []
     if not sections: return out
-    card = sections[0].get("musicCardShelfRenderer")
+    card = None
+    for sec in sections:
+        if "musicCardShelfRenderer" in sec:
+            card = sec["musicCardShelfRenderer"]
+            break
     if not card: return out
 
     title_runs = _dig(card, ["title","runs"], []) or []
