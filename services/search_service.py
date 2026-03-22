@@ -82,6 +82,8 @@ def search(query: str, use_cache: bool = True) -> dict:
         )
         artist_albums = parse_artist_card_albums(response)
 
+        general = {"songs": [], "albums": []}
+
         if artist:
             if len(artist_songs) < 5:
                 general = parse_search_albums_and_songs(
@@ -104,20 +106,20 @@ def search(query: str, use_cache: bool = True) -> dict:
                 enrich_metadata=True
             )
 
-            if artist:
-                artist_name_lower = (artist.get("name") or "").strip().lower()
-                if artist_name_lower:
-                    def _is_by_artist(song):
-                        for a in song.get("artists", []):
-                            if (a.get("name") or "").strip().lower() == artist_name_lower:
-                                return True
-                        return False
+        if artist:
+            artist_name_lower = (artist.get("name") or "").strip().lower()
+            if artist_name_lower:
+                def _is_by_artist(song):
+                    for a in song.get("artists", []):
+                        if (a.get("name") or "").strip().lower() == artist_name_lower:
+                            return True
+                    return False
 
-                    if general.get("songs"):
-                        general["songs"] = [s for s in general["songs"] if _is_by_artist(s)]
-                    artist_songs = [s for s in artist_songs if _is_by_artist(s)]
+                if general.get("songs"):
+                    general["songs"] = [s for s in general["songs"] if _is_by_artist(s)]
+                artist_songs = [s for s in artist_songs if _is_by_artist(s)]
 
-            result = build_search_payload(query, artist, artist_songs, artist_albums, general)
+        result = build_search_payload(query, artist, artist_songs, artist_albums, general)
 
         if not has_valid_data(result):
             print(f"[search_service][WARN] {query}: resultado vacío")
