@@ -13,6 +13,7 @@ from services.cache_service import get_cached, set_cached
 from services.cache_config import CacheType, get_all_versions
 from scripts.store_user_recommendations import generate_weekly_bucket
 from services.replay_service import get_replay_songs
+from services.listen_again_service import get_listen_again_cached
 
 router = APIRouter(tags=["feed"])
 
@@ -163,4 +164,13 @@ def replay(user_id: str = Depends(get_current_user_id), db: DBClient = Depends(g
         return get_replay_songs(db=db, user_id=user_id)
     except Exception as e:
         print(f"[replay][ERROR] {e}")
+        return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
+    
+@router.get("/listen-again")
+def listen_again(user_id: str = Depends(get_current_user_id), db: DBClient = Depends(get_db)):
+    try:
+        result = get_listen_again_cached(db=db, user_id=user_id)
+        return {"ok": True, "album": result}
+    except Exception as e:
+        print(f"[listen-again][ERROR] {e}")
         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
