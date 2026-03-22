@@ -78,7 +78,9 @@ def _get_album_recs(album_id: str, limit: int = 5) -> list:
                         continue
                     try:
                         rel_artist = music_client.get_artist(rid)
+                        rel_name = rel_artist.get("name")
                         for a in (rel_artist.get("albums", {}).get("results", []) or [])[:2]:
+                            a["artist_name"] = rel_name
                             recs.append(a)
                     except Exception:
                         continue

@@ -4,6 +4,10 @@ import argparse
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from services.cache_config import set_manual_version, CacheType
 from services.recommendations_seed_service import build_seed_recommendations
 from services.recommendations_repo import replace_user_recommendations
