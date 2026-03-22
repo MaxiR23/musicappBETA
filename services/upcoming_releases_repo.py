@@ -218,3 +218,54 @@ def get_upcoming_by_artist_id_cached(db: DBClient, artist_id: str, filter_feed: 
 
     set_cached(CacheType.UPCOMING_ARTIST, upcoming, suffix=cache_key, ttl=ttl)
     return upcoming
+
+def list_this_month_releases(db: DBClient, filter_feed: bool = True) -> list:
+    """
+    Trae los releases del mes actual que todavía no pasaron.
+    - release_date >= hoy
+    - release_date <= último día del mes actual
+    - Ordenado por fecha ASC
+    """
+    from calendar import monthrange
+
+    today      = date.today()
+    month_end  = date(today.year, today.month, monthrange(today.year, today.month)[1])
+
+    try:
+        res = (
+            db.table(TABLE)
+            .select("*")
+            .gte("release_date", today.isoformat())
+            .lte("release_date", month_end.isoformat())
+            .order("release_date", desc=False)
+            .execute()
+        )
+        releases = getattr(res, "data", None) or []
+    except Exception as e:
+        print(f"[upcoming_repo][list_this_month_releases][ERROR] {e}")
+        return []
+
+    if filter_feed and releases:
+        releases = _filter_releases_not_in_feed(db, releases)
+
+    return releases
+
+
+def list_this_month_releases_cached(db: DBClient, filter_feed: bool = True) -> list:
+    """Versión cacheada. TTL = segundos hasta medianoche del día siguiente."""
+    from datetime import datetime as dt
+
+    cache_key = f"this_month:feed={filter_feed}"
+    cached = get_cached(CacheType.UPCOMING_RELEASES, suffix=cache_key)
+    if cached is not None:
+        return cached
+
+    releases = list_this_month_releases(db, filter_feed)
+
+    # TTL: expira a medianoche para que el release de hoy desaparezca mañana
+    now            = dt.now()
+    midnight       = dt(now.year, now.month, now.day, 23, 59, 59)
+    ttl            = max(int((midnight - now).total_seconds()), 300)
+
+    set_cached(CacheType.UPCOMING_RELEASES, releases, suffix=cache_key, ttl=ttl)
+    return releases

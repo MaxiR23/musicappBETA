@@ -19,8 +19,11 @@
     "release_date": "2026-01-02",
     "artist": "Paleface Swiss",
     "album": "The Wilted EP",
+    "genre": "Beatdown hardcore,nu metalcore,deathcore",
     "label": "Blood Blast Distribution",
-    "artist_id": "UCwy_FDBO2DLmAfRZKshBkeA"
+    "artist_id": "UCwy_FDBO2DLmAfRZKshBkeA",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/38/6f/94/386f947c-9b90-ea73-703e-9a33f075d72a/cover.jpg/1200x1200bb.jpg",
+    "track_count": 5
   },
   {
     "release_date": "2026-01-05",
@@ -34,10 +37,10 @@
   },
   {
     "release_date": "2026-01-05",
-    "artist": "Cxmmxns (Ben FieldingandReuben Morgan)",
+    "artist": "Cxmmxns (Ben Fielding and Reuben Morgan)",
     "album": "The Commons Chapel: Where Two or Three Are Gathered",
     "genre": "Worship",
-    "artist_id": "UCu8VtsyqNX0h0WX1W9eo9yQ"
+    "artist_id": "UCgzO9WRNUJXJCWNsJkUaF3A"
   },
   {
     "release_date": "2026-01-05",
@@ -57,9 +60,12 @@
   },
   {
     "release_date": "2026-01-07",
-    "artist": "Euphoria Again andDogwood Tales",
+    "artist": "Euphoria Again and Dogwood Tales",
     "album": "Destination Heaven",
-    "label": "Born Loser Records"
+    "label": "Born Loser Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/12/43/9f/12439f2e-4f49-cb58-85d0-5504a5ce5b7e/117834.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCPgjIU5_Xr1G8NKNiDrQ3rw"
   },
   {
     "release_date": "2026-01-07",
@@ -110,9 +116,12 @@
   },
   {
     "release_date": "2026-01-09",
-    "artist": "French MontanaandMax B",
+    "artist": "French Montana and Max B",
     "album": "Coke Wave 3.5: Narcos",
-    "label": "Coke Boys Records"
+    "label": "Coke Boys Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/2a/a8/7f/2aa87fc7-2836-6c60-8e96-8276f3103ede/656465471093_cover.jpg/1200x1200bb.jpg",
+    "track_count": 22,
+    "artist_id": "UC_Ar3vrFTEyPnJmyoqJ7EMg"
   },
   {
     "release_date": "2026-01-09",
@@ -178,6 +187,15 @@
     "artist_id": "UCDr1mmxEnGcGwnkEzLZVn-A"
   },
   {
+    "release_date": "2026-01-12",
+    "artist": "Alpha Drive One",
+    "album": "Euphoria",
+    "label": "WakeOne",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/0b/ee/72/0bee7212-4433-e9d4-2976-38b8c0982a6a/198704899249_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 6,
+    "artist_id": "UCrI4q79ktsCUg4BZ74F0a8g"
+  },
+  {
     "release_date": "2026-01-14",
     "artist": "Evilgiane",
     "album": "Giane 2",
@@ -222,8 +240,20 @@
   },
   {
     "release_date": "2026-01-15",
-    "artist": "Tyler RamseyandCarl Broemel",
-    "album": "Celestun"
+    "artist": "Tyler Ramsey and Carl Broemel",
+    "album": "Celestun",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/08/63/b6/0863b67b-291e-4b35-755b-e44098ae33ed/859716026862_cover.jpg/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UCfpbLrRH6oY1vaDD_gEpKCw"
+  },
+  {
+    "release_date": "2026-01-16",
+    "artist": "Alice Merton",
+    "album": "Visions",
+    "label": "Paper Plane",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/dc/ed/e4/dcede43a-79bd-8c6b-e65e-0e3614834de1/4251917101113.png/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCBDBSgLL1WpDTB7pfhDHtbg"
   },
   {
     "release_date": "2026-01-16",
@@ -236,6 +266,7 @@
     "release_date": "2026-01-16",
     "artist": "Cavetown",
     "album": "Running with Scissors",
+    "genre": "Hyperpop,bedroom pop,dream pop",
     "label": "Futures Music Group",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/29/92/ce/2992ce3a-a3a6-7664-862e-ebab79cf6f49/198704681097_Cover.jpg/1200x1200bb.jpg",
     "track_count": 13,
@@ -273,7 +304,9 @@
     "artist": "Enhypen",
     "album": "The Sin: Vanish",
     "label": "Belift Lab",
-    "artist_id": "UC5bxTdrcWXji987o_LlcNNA"
+    "artist_id": "UC5bxTdrcWXji987o_LlcNNA",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/4e/48/e2/4e48e2e1-6713-c1de-db25-7a8d27f6979e/198704914287_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 11
   },
   {
     "release_date": "2026-01-16",
@@ -304,15 +337,29 @@
   },
   {
     "release_date": "2026-01-16",
-    "artist": "Jon Hopkinsand Biggi Hilmars",
+    "artist": "Jon Hopkins and Biggi Hilmars",
     "album": "Wilding (Original Soundtrack)",
-    "label": "Domino Soundtracks"
+    "label": "Domino Soundtracks",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/76/db/c1/76dbc113-6fa5-bd79-5949-5bcb561f2605/192152001261.png/1200x1200bb.jpg",
+    "track_count": 13
   },
   {
     "release_date": "2026-01-16",
-    "artist": "Julianna BarwickandMary Lattimore",
+    "artist": "Julianna Barwick and Mary Lattimore",
     "album": "Tragic Magic",
-    "label": "inFiné"
+    "label": "inFiné",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/0f/32/e9/0f32e9c7-6d78-e1c1-f89c-f9a46fe157d7/3663729405982_cover.jpg/1200x1200bb.jpg",
+    "track_count": 7,
+    "artist_id": "UCfcrJsde3NHlZEYpFN9FXjA"
+  },
+  {
+    "release_date": "2026-01-16",
+    "artist": "Kid Kapichi",
+    "album": "Fearless Nature",
+    "label": "Spinefarm",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/28/6a/af/286aaf82-0e62-e240-afc6-c4db7c562258/5401148010206_cover.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCIsjXvCs5iKGmlZ4w_L8MVg"
   },
   {
     "release_date": "2026-01-16",
@@ -344,6 +391,7 @@
     "release_date": "2026-01-16",
     "artist": "Madison Beer",
     "album": "Locket",
+    "genre": "Pop,R&B",
     "label": "Epic",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/27/ac/5d/27ac5dc4-f074-fa31-f044-0157577d7df0/196874028452.jpg/1200x1200bb.jpg",
     "track_count": 13,
@@ -360,7 +408,9 @@
     "artist": "My Ruin",
     "album": "Declaration of Resistance",
     "label": "Magick Room",
-    "artist_id": "UCOp9fwDer_sWmuMKIlc98Sw"
+    "artist_id": "UCOp9fwDer_sWmuMKIlc98Sw",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/83/58/59/8358592b-7d7e-57fd-2c60-a23a2438ab7a/859728691348_cover.jpg/1200x1200bb.jpg",
+    "track_count": 11
   },
   {
     "release_date": "2026-01-16",
@@ -400,6 +450,16 @@
   },
   {
     "release_date": "2026-01-16",
+    "artist": "Richard Marx",
+    "album": "After Hours",
+    "genre": "Jazz",
+    "label": "Richard Marx Inc.",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/9c/5f/8a/9c5f8a5b-706c-ccc7-0d0e-c3cd59d4d8eb/5026854157863.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UC7_uP7b1jjNWMynJGYCUlIg"
+  },
+  {
+    "release_date": "2026-01-16",
     "artist": "Sassy 009",
     "album": "Dreamer+",
     "label": "Heaven-Sent,PIAS",
@@ -418,8 +478,11 @@
   },
   {
     "release_date": "2026-01-16",
-    "artist": "SmileyandBaka Not Nice",
-    "album": "Heartless"
+    "artist": "Smiley and Baka Not Nice",
+    "album": "Heartless",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/99/ce/f3/99cef3f2-a01c-33a9-b402-ce292a5f9f3b/61317.jpg/1200x1200bb.jpg",
+    "track_count": 3,
+    "artist_id": "UCxnAS4E0MAwBefONC05U1rQ"
   },
   {
     "release_date": "2026-01-16",
@@ -469,6 +532,7 @@
     "release_date": "2026-01-16",
     "artist": "YoungBoy Never Broke Again",
     "album": "Slime Cry",
+    "genre": "Hip-hop,trap",
     "label": "Never Broke Again,Motown",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c7/3e/bb/c73ebb27-88f6-f5bd-a351-aa3adffc1ef3/25UM1IM66731.rgb.jpg/1200x1200bb.jpg",
     "track_count": 30,
@@ -485,14 +549,6 @@
     "artist_id": "UCEUX9tUYqTFfPQdAgVNsKTA"
   },
   {
-    "release_date": "2026-01-20",
-    "artist": "The Band of Heathens",
-    "album": "Country Sides",
-    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/b0/d9/19/b0d919c3-7bab-f1c3-4d7f-69be112ed2a3/199806292761.jpg/1200x1200bb.jpg",
-    "track_count": 11,
-    "artist_id": "UCJDL9obhNYv7x1pvRQlTd6w"
-  },
-  {
     "release_date": "2026-01-21",
     "artist": "Artio",
     "album": "Soul Rot",
@@ -503,9 +559,10 @@
   },
   {
     "release_date": "2026-01-21",
-    "artist": "EarthandBlack Noise",
+    "artist": "Earth and Black Noise",
     "album": "Geometry of Murder: Extra Capsular Extraction Inversions",
-    "label": "Fire"
+    "label": "Fire",
+    "artist_id": "UCyfzggiXvfMdKlK7YdH_GIA"
   },
   {
     "release_date": "2026-01-23",
@@ -536,6 +593,7 @@
     "release_date": "2026-01-23",
     "artist": "Ari Lennox",
     "album": "Vacancy",
+    "genre": "R&B,soul",
     "label": "Interscope",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c4/55/79/c45579c8-4e06-06a9-f1b7-93c906dc177f/25UM1IM61567.rgb.jpg/1200x1200bb.jpg",
     "track_count": 15,
@@ -551,8 +609,18 @@
   },
   {
     "release_date": "2026-01-23",
+    "artist": "Craven Faults",
+    "album": "Sidings",
+    "label": "The Leaf Label",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/0f/15/3a/0f153a0f-1d19-cb5b-28d3-a98a2b9666ea/117996.jpg/1200x1200bb.jpg",
+    "track_count": 8,
+    "artist_id": "UCM9ahnJvAx9UShD1DUndrDg"
+  },
+  {
+    "release_date": "2026-01-23",
     "artist": "Crystal Lake",
     "album": "The Weight of Sound",
+    "genre": "Metalcore,deathcore",
     "label": "Century Media",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/db/2f/1b/db2f1ba7-94a1-deff-dedf-4f2372bd6c8b/196872923155.jpg/1200x1200bb.jpg",
     "track_count": 11,
@@ -569,6 +637,7 @@
     "release_date": "2026-01-23",
     "artist": "The Damned",
     "album": "Not Like Everybody Else",
+    "genre": "Rock",
     "label": "earMusic",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/cd/2a/0f/cd2a0fa3-e58b-a274-0341-293470cc41b1/4029759212003.jpg/1200x1200bb.jpg",
     "track_count": 10,
@@ -582,6 +651,15 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/b6/09/55/b6095540-c391-e816-a8e9-8922b63e7fd3/00198704737619_Cover.jpg/1200x1200bb.jpg",
     "track_count": 11,
     "artist_id": "UCApenTl0hQb9f4Zc-r77SNA"
+  },
+  {
+    "release_date": "2026-01-23",
+    "artist": "Gesaffelstein",
+    "album": "Enter the Gamma",
+    "label": "Columbia",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/43/b0/3a/43b03a74-8dfd-e699-8419-fbdc1520e13b/196873911601.jpg/1200x1200bb.jpg",
+    "track_count": 14,
+    "artist_id": "UCq7VAQmXDurV-9VN2bSFXvw"
   },
   {
     "release_date": "2026-01-23",
@@ -629,7 +707,17 @@
   },
   {
     "release_date": "2026-01-23",
-    "artist": "Lil GotitandLil Keed",
+    "artist": "Julian Lage",
+    "album": "Scenes from Above",
+    "genre": "Jazz",
+    "label": "Blue Note",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/40/79/2e/40792e1e-9d5c-62e0-16d6-21c7635de89c/25UM1IM48541.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UCyLOcAaj_zgWQH99Y2aELVw"
+  },
+  {
+    "release_date": "2026-01-23",
+    "artist": "Lil Gotit and Lil Keed",
     "album": "Fraternal: Gotit Edition",
     "artist_id": "UCXqJbxWdT5TPac1HmfNMUoQ"
   },
@@ -681,8 +769,18 @@
   },
   {
     "release_date": "2026-01-23",
+    "artist": "Pelican",
+    "album": "Ascending",
+    "label": "Run for Cover",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d3/57/bb/d357bb0c-bb4e-c71c-cee0-31e8b8fe290c/60272.jpg/1200x1200bb.jpg",
+    "track_count": 4,
+    "artist_id": "UCTWUa-nIZgN8rlN1qxgZBew"
+  },
+  {
+    "release_date": "2026-01-23",
     "artist": "Poppy",
     "album": "Empty Hands",
+    "genre": "Metalcore,alternative metal,industrial metal",
     "label": "Sumerian",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/10/83/27/10832750-4df6-9ae1-5636-d01dae9c25e0/198704839702_Cover.jpg/1200x1200bb.jpg",
     "track_count": 13,
@@ -718,6 +816,8 @@
     "release_date": "2026-01-23",
     "artist": "Textures",
     "album": "Genotype",
+    "genre": "Progressive metalcore,djent",
+    "label": "Kscope",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d8/9f/3d/d89f3ddc-4f96-c2b5-de60-5e05b5c2e3af/802644451169.jpg/1200x1200bb.jpg",
     "track_count": 8,
     "artist_id": "UC9aKjoyieApO_VvRdTarSVw"
@@ -726,9 +826,20 @@
     "release_date": "2026-01-23",
     "artist": "Van Morrison",
     "album": "Somebody Tried to Sell Me a Bridge",
+    "genre": "Blues",
+    "label": "Orangefield Records",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/38/dd/50/38dd502c-caf1-16bb-b7f5-a68fd5462935/5061030862223.jpg/1200x1200bb.jpg",
     "track_count": 20,
     "artist_id": "UCCiTDgyKWFNs6GXxMVR2ZbQ"
+  },
+  {
+    "release_date": "2026-01-26",
+    "artist": "KiiiKiii",
+    "album": "Delulu Pack",
+    "label": "Starship",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/1c/b4/81/1cb481b3-9b5b-83bf-e047-41e3089b0653/199806885123.jpg/1200x1200bb.jpg",
+    "track_count": 6,
+    "artist_id": "UCfCiP0obFQZOB6fJqN-eF8A"
   },
   {
     "release_date": "2026-01-28",
@@ -746,10 +857,27 @@
   },
   {
     "release_date": "2026-01-29",
+    "artist": "Beck",
+    "album": "Everybody's Gotta Learn Sometime",
+    "label": "Iliad Records,Capitol",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/13/76/02/1376023a-8ac6-b041-f16b-6670008124f5/ticket.crmdtmqc.jpg/1200x1200bb.jpg",
+    "track_count": 8,
+    "artist_id": "UC8fxkahdLdfHk8pF1fRYD-w"
+  },
+  {
+    "release_date": "2026-01-29",
     "artist": "Fakemink",
     "album": "The Boy Who Cried Terrified",
     "label": "EtnaVeraVela",
-    "artist_id": "UCh3InrfxPGYYE5zPwclqpfA"
+    "artist_id": "UCh3InrfxPGYYE5zPwclqpfA",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/eb/8e/50/eb8e5087-51ff-38d1-f2f8-4c2fc49b4a1f/840471814047.png/1200x1200bb.jpg",
+    "track_count": 7
+  },
+  {
+    "release_date": "2026-01-29",
+    "artist": "My Morning Jacket",
+    "album": "Peacelands",
+    "artist_id": "UCFxLZ526P3vA1zQX0S-Kr5w"
   },
   {
     "release_date": "2026-01-30",
@@ -772,6 +900,7 @@
     "release_date": "2026-01-30",
     "artist": "Buzzcocks",
     "album": "Attitude Adjustment",
+    "genre": "Power pop,punk rock",
     "label": "Cherry Red",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c7/59/76/c75976d3-febd-75ec-e10a-7652cd715232/885890733234.jpg/1200x1200bb.jpg",
     "track_count": 14,
@@ -781,7 +910,8 @@
     "release_date": "2026-01-30",
     "artist": "By Storm",
     "album": "My Ghosts Go Ghost",
-    "label": "DeadAir",
+    "genre": "Experimental hip-hop",
+    "label": "DeadAir, By(e) Storm",
     "artist_id": "UCD39gI6FxKHjWBqfAj8A4LQ"
   },
   {
@@ -813,6 +943,7 @@
     "release_date": "2026-01-30",
     "artist": "Don Toliver",
     "album": "Octane",
+    "genre": "Alternative hip-hop,trap",
     "label": "Donnway & Co,Cactus Jack,Atlantic",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e8/e5/c6/e8e5c690-a958-622e-eb62-0dce6059300e/075679599360.jpg/1200x1200bb.jpg",
     "track_count": 18,
@@ -840,7 +971,19 @@
     "release_date": "2026-01-30",
     "artist": "James Walsh",
     "album": "It's All Happening",
-    "artist_id": "UCiryU4MF5I9ju9IHSzF02YQ"
+    "artist_id": "UCiryU4MF5I9ju9IHSzF02YQ",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d7/4a/83/d74a83ba-a4fd-fb49-435b-e75782e3e714/044317699595.png/1200x1200bb.jpg",
+    "track_count": 11
+  },
+  {
+    "release_date": "2026-01-30",
+    "artist": "Joel Ross",
+    "album": "Gospel Music",
+    "genre": "Jazz",
+    "label": "Blue Note",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/a9/5a/1b/a95a1b17-754a-106f-20af-8c1d2d2dbca1/25UM1IM74542.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 17,
+    "artist_id": "UCzM0qQx0mfxQviYRgKvXaDw"
   },
   {
     "release_date": "2026-01-30",
@@ -896,6 +1039,31 @@
   },
   {
     "release_date": "2026-01-30",
+    "artist": "Nafe Smallz",
+    "album": "It's Not You, It's Me",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/c9/96/c9/c996c918-9885-da26-10a9-2342d5cc7a59/5026854425306.jpg/1200x1200bb.jpg",
+    "track_count": 19,
+    "artist_id": "UCkEnylf9-JuvFh45FQlS6mA"
+  },
+  {
+    "release_date": "2026-01-30",
+    "artist": "Radium Dolls",
+    "album": "Wound Up",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/ae/14/63/ae14635f-0df4-af2e-5f33-367af42a99f5/199806383018.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UC0jB7cbuDiVvZBunecmjjMA"
+  },
+  {
+    "release_date": "2026-01-30",
+    "artist": "Robin Trower",
+    "album": "One Moment in Time: Live in the USA",
+    "label": "Artone,Provogue",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/94/be/69/94be69f5-fbdd-27e7-2c49-56d878cb69ae/8712725752134.png/1200x1200bb.jpg",
+    "track_count": 14,
+    "artist_id": "UCISGGSdSHof-yfZvOvHzUZA"
+  },
+  {
+    "release_date": "2026-01-30",
     "artist": "Sébastien Tellier",
     "album": "Kiss the Beast",
     "label": "Because",
@@ -923,6 +1091,14 @@
   },
   {
     "release_date": "2026-01-30",
+    "artist": "Terrace Martin",
+    "album": "Passion",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/47/2a/f9/472af953-7cb7-068f-e4e6-e4203dca609d/199316437409_cover.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCN5vXTdu4G2NyDoWS5MnRSA"
+  },
+  {
+    "release_date": "2026-01-30",
     "artist": "The Soft Pink Truth",
     "album": "Can Such Delightful Times Go on Forever?",
     "label": "Thrill Jockey",
@@ -935,7 +1111,9 @@
     "artist": "Therion",
     "album": "Con Orquesta",
     "label": "Napalm",
-    "artist_id": "UC40sQHbLVaMscosV6caWS0Q"
+    "artist_id": "UC40sQHbLVaMscosV6caWS0Q",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/b4/93/47/b493476e-bdc0-01b1-7a1c-fac90a949c43/199066040270.jpg/1200x1200bb.jpg",
+    "track_count": 20
   },
   {
     "release_date": "2026-01-30",
@@ -957,15 +1135,6 @@
   },
   {
     "release_date": "2026-01-30",
-    "artist": "Ye",
-    "album": "Bully",
-    "label": "YZY",
-    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/71/17/c2/7117c27d-cefe-f8ae-d840-82a371ace562/0692788748467_cover.jpg/1200x1200bb.jpg",
-    "track_count": 13,
-    "artist_id": "UCWnCIGml93obHBTwlxb2N8g"
-  },
-  {
-    "release_date": "2026-01-30",
     "artist": "Yumi Zouma",
     "album": "No Love Lost to Kindness",
     "label": "Nettwerk",
@@ -983,9 +1152,28 @@
   },
   {
     "release_date": "2026-02-04",
-    "artist": "C.Y.M. andAbby Sage",
+    "artist": "Asher White",
+    "album": "Jessica Pratt",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/9f/89/4b/9f894bd7-a534-ad7a-04d5-0bd4970f8e28/61282.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCv4kpJCmyZon4KIZgSy6ODg"
+  },
+  {
+    "release_date": "2026-02-04",
+    "artist": "C.Y.M. and Abby Sage",
     "album": "My Whole World",
-    "label": "Roma Recordings"
+    "label": "Roma Recordings",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c7/0d/41/c70d4191-657a-b6e2-0593-88133632f6e4/5026854525785.jpg/1200x1200bb.jpg",
+    "track_count": 3
+  },
+  {
+    "release_date": "2026-02-04",
+    "artist": "Freya Skye",
+    "album": "Stardust",
+    "label": "Hollywood",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/16/11/8f/16118fbe-e6aa-2658-1d06-23cdc177753f/26UMGIM11814.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 5,
+    "artist_id": "UCYpKqcw-V5bHbD_r5mfA35A"
   },
   {
     "release_date": "2026-02-04",
@@ -1010,7 +1198,9 @@
     "artist": "Eugene Mirman",
     "album": "Here Comes the Whimsy",
     "label": "Pretty Good Friends Records",
-    "artist_id": "UCBvxKKneDymUpZ74_n0Ig8g"
+    "artist_id": "UCBvxKKneDymUpZ74_n0Ig8g",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c0/3f/bc/c03fbc39-00f0-99f2-24c9-ad8dcc2b4193/098787608366.png/1200x1200bb.jpg",
+    "track_count": 17
   },
   {
     "release_date": "2026-02-06",
@@ -1032,6 +1222,29 @@
   },
   {
     "release_date": "2026-02-06",
+    "artist": "Charlotte Day Wilson",
+    "album": "Patchwork",
+    "label": "Stone Woman Records,XL",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/cb/58/e6/cb58e633-c0d6-51bf-9dd5-2fa5d0ec30b2/191404165256.png/1200x1200bb.jpg",
+    "track_count": 7,
+    "artist_id": "UCc3r6NdHqBYTjrAGAvVGicA"
+  },
+  {
+    "release_date": "2026-02-06",
+    "artist": "Chuquimamani-Condori",
+    "album": "Luzmila Edits"
+  },
+  {
+    "release_date": "2026-02-06",
+    "artist": "Daphni",
+    "album": "Butterfly",
+    "label": "Jiaolong",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/41/31/d1/4131d161-43c9-7892-1212-6fd867245bda/3663729409041_cover.jpg/1200x1200bb.jpg",
+    "track_count": 16,
+    "artist_id": "UCfk1G9VN3pt5bfjbxFFEytQ"
+  },
+  {
+    "release_date": "2026-02-06",
     "artist": "Dream Nails",
     "album": "You Wish",
     "label": "Marshall Records",
@@ -1041,12 +1254,31 @@
   },
   {
     "release_date": "2026-02-06",
+    "artist": "Dirt Buyer",
+    "album": "Dirt Buyer III",
+    "label": "Bayonet Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/47/b3/8f/47b38f3b-7030-9921-108a-442f3d73bf67/59400.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCb1TO2NLaGkw71Cw9Uxv50A"
+  },
+  {
+    "release_date": "2026-02-06",
     "artist": "Ella Mai",
     "album": "Do You Still Love Me?",
+    "genre": "R&B",
     "label": "10Summers Records,Interscope",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/d7/c8/92/d7c892de-1bbb-e97d-bb5f-a67769b1ecf0/25UM1IM74003.rgb.jpg/1200x1200bb.jpg",
     "track_count": 14,
     "artist_id": "UC9olj0UlwlrE60pNZeTLWZw"
+  },
+  {
+    "release_date": "2026-02-06",
+    "artist": "Ellur",
+    "album": "At Home in My Mind",
+    "label": "Dance to the Radio",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/83/9c/72/839c7204-ac35-38c6-bcf5-3c7a1b0eac53/199538791501.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCukNYe3mnkXhiYhOBxH-Ajg"
   },
   {
     "release_date": "2026-02-06",
@@ -1070,8 +1302,11 @@
     "release_date": "2026-02-06",
     "artist": "J. Cole",
     "album": "The Fall-Off",
+    "genre": "Hip-hop",
     "label": "Dreamville,Interscope",
-    "artist_id": "UC0ajkOzj8xE3Gs3LHCE243A"
+    "artist_id": "UC0ajkOzj8xE3Gs3LHCE243A",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/de/94/4b/de944b82-ef5a-2f5b-4af7-e30c05ae1eac/26UMGIM15402.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 24
   },
   {
     "release_date": "2026-02-06",
@@ -1086,10 +1321,17 @@
     "release_date": "2026-02-06",
     "artist": "Joji",
     "album": "Piss in the Wind",
+    "genre": "Alternative R&B,trip hop",
     "label": "Palace Creek,VMG",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/4e/0a/94/4e0a946e-e2b9-d014-fa94-258e41624468/00198704944055_Cover.jpg/1200x1200bb.jpg",
     "track_count": 21,
     "artist_id": "UCXi-Rme73-wjVK5IE78a3SQ"
+  },
+  {
+    "release_date": "2026-02-06",
+    "artist": "Juice Crew",
+    "album": "Bobby Digital Presents: Juice Crew All Stars",
+    "artist_id": "UCTvy47cVuaS9KE2xeOj3ZcA"
   },
   {
     "release_date": "2026-02-06",
@@ -1133,7 +1375,9 @@
     "album": "Liturgy of Death",
     "genre": "Black metal",
     "label": "Century Media",
-    "artist_id": "UCdY8qetdfb9thg4F3jpD3pg"
+    "artist_id": "UCdY8qetdfb9thg4F3jpD3pg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/6b/45/93/6b459347-f4c5-586e-3549-41f1a7d72436/196873560830.jpg/1200x1200bb.jpg",
+    "track_count": 8
   },
   {
     "release_date": "2026-02-06",
@@ -1173,8 +1417,17 @@
   },
   {
     "release_date": "2026-02-06",
+    "artist": "Ron Carter and Ricky Dillard",
+    "album": "Sweet, Sweet Spirit",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/fb/a2/88/fba288f8-d3e5-ff9c-1460-a6580d075343/25UM1IM77260.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCTvj08e1IKbG4VuCYketOKw"
+  },
+  {
+    "release_date": "2026-02-06",
     "artist": "Silversun Pickups",
     "album": "Tenterhooks",
+    "genre": "Alternative rock,dream pop,indie rock",
     "label": "New Machine Recordings",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/a5/9b/e6/a59be6b7-c133-7944-a58a-2970ae3faed4/810183320303.png/1200x1200bb.jpg",
     "track_count": 10,
@@ -1190,11 +1443,29 @@
     "artist_id": "UCPxu7Gdu9LVb_RZb-YgNxDw"
   },
   {
+    "release_date": "2026-02-06",
+    "artist": "Wolverine",
+    "album": "Anomalies",
+    "label": "Music Theories Recordings",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/3a/d1/9d/3ad19d91-0a79-d84f-b421-c25226567c1e/8712725751670.png/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UCiCFg-KVi5e_JDFdh8yca6Q"
+  },
+  {
     "release_date": "2026-02-12",
     "artist": "Ray Stevens",
     "album": "Ray Stevens Favorites Old and New",
     "label": "Curb",
     "artist_id": "UCBXgYx-BpTGZfPPPyXqCYlw"
+  },
+  {
+    "release_date": "2026-02-12",
+    "artist": "Sahara Hotnights",
+    "album": "No One Ever Really Changes",
+    "label": "Polydor,Universal",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/a2/6a/7f/a26a7fb9-b20f-9351-0b88-b2a3be034886/25UM1IM71649.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCstHT2ZaKWXfZrMxRhKClWQ"
   },
   {
     "release_date": "2026-02-13",
@@ -1214,6 +1485,25 @@
   },
   {
     "release_date": "2026-02-13",
+    "artist": "August Ponthier",
+    "album": "Everywhere Isn't Texas",
+    "label": "Nowherel and Sounds",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/98/49/e7/9849e78b-921a-38b7-e2df-c1d788e1f15b/281933.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCqaZLeLg2Rws5q9vcGigQSQ"
+  },
+  {
+    "release_date": "2026-02-13",
+    "artist": "Brent Faiyaz",
+    "album": "Icon",
+    "genre": "R&B",
+    "label": "ISO Supremacy,UnitedMasters",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/89/83/6e/89836e4d-f67d-cc37-8ca9-b0e7c96f10ff/199976295487.png/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCRBHVPw68XPbJnsl2Cf_eUw"
+  },
+  {
+    "release_date": "2026-02-13",
     "artist": "Charli XCX",
     "album": "Wuthering Heights",
     "label": "Atlantic",
@@ -1223,8 +1513,17 @@
   },
   {
     "release_date": "2026-02-13",
+    "artist": "Claire Rosinkranz",
+    "album": "My Lover",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/ba/f2/be/baf2bec9-3d05-8112-096f-e6caa920886b/810129968774.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCj-1H9EuZGSgz4lnY1bKfmQ"
+  },
+  {
+    "release_date": "2026-02-13",
     "artist": "Converge",
     "album": "Love Is Not Enough",
+    "genre": "Hardcore punk,metalcore,sludge metal",
     "label": "Deathwish,Epitaph",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/30/c0/d2/30c0d2e8-c0b8-ee61-bcc4-b29809b67fd2/0045778813568.png/1200x1200bb.jpg",
     "track_count": 10,
@@ -1241,12 +1540,40 @@
   },
   {
     "release_date": "2026-02-13",
+    "artist": "Femtanyl",
+    "album": "Man Bites Dog",
+    "genre": "Digital hardcore",
+    "label": "Entitii Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/b4/a8/1b/b4a81b76-e433-7b4a-a796-38e3bdffdf99/cover_4062851256094.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCj5c28ez9-QD0ard5b0dgtQ"
+  },
+  {
+    "release_date": "2026-02-13",
+    "artist": "Feng",
+    "album": "Weekend Rockstar",
+    "label": "Regularisperfect",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/3b/36/c0/3b36c00b-8791-6104-a9c1-a6ec52ae5853/26UMGIM05237.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCOcGI28AX_KbD9nVJdtxFRg"
+  },
+  {
+    "release_date": "2026-02-13",
     "artist": "Gogol Bordello",
     "album": "We Mean It, Man!",
     "label": "Casa Gogol Records",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e6/c6/80/e6c6808e-25ad-c5ab-7853-64627d78dad5/199806144343.jpg/1200x1200bb.jpg",
     "track_count": 12,
     "artist_id": "UCvjY5F-rju0hQaYcYfGgbrw"
+  },
+  {
+    "release_date": "2026-02-13",
+    "artist": "Sir Spyro",
+    "album": "2nd SQ",
+    "label": "Deep Medi Musik",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/3f/c4/b5/3fc4b555-c69c-d58a-6adc-94eebb730b41/8721465174229.png/1200x1200bb.jpg",
+    "track_count": 4,
+    "artist_id": "UC0lITjLLd8Jha1YbyQFhTsQ"
   },
   {
     "release_date": "2026-02-13",
@@ -1275,6 +1602,14 @@
   },
   {
     "release_date": "2026-02-13",
+    "artist": "Ledbyher",
+    "album": "The Elephant",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/a6/44/cb/a644cb1f-c0aa-7d89-0c92-ad09eaa19c5c/26UMGIM00939.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCYLvOd753ouFRZ02UgA0O1g"
+  },
+  {
+    "release_date": "2026-02-13",
     "artist": "The Lone Bellow",
     "album": "What a Time to Be Alive",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/6b/1a/4f/6b1a4f78-c3c1-649d-5f38-c6e8ce19404c/199806155868.jpg/1200x1200bb.jpg",
@@ -1292,12 +1627,71 @@
   },
   {
     "release_date": "2026-02-13",
+    "artist": "Melissa Aldana",
+    "album": "Filin",
+    "label": "Blue Note",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/5d/06/7c/5d067c30-1f55-f529-dad9-fc4310514e06/25UM1IM95930.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 8,
+    "artist_id": "UCTuGg1AdaEikWnhn-yTLOUg"
+  },
+  {
+    "release_date": "2026-02-13",
+    "artist": "Ms Banks",
+    "album": "South Ldn Lover Girl",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/ce/23/13/ce23135d-55e6-c60a-b24b-e2c85bb61acf/cover.jpg/1200x1200bb.jpg",
+    "track_count": 14,
+    "artist_id": "UCCdjU_9WNTtPdoSyVAzSY4A"
+  },
+  {
+    "release_date": "2026-02-13",
+    "artist": "Neba Solo and Benego Diakité",
+    "album": "A Djinn and a Hunter Went Walking",
+    "label": "Nonesuch",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/38/1e/32/381e32e1-39d1-6c72-1212-42e0cbdcd70b/075597894325.jpg/1200x1200bb.jpg",
+    "track_count": 16,
+    "artist_id": "UCzM73W9ZQevmUlZn_9DWDJQ"
+  },
+  {
+    "release_date": "2026-02-13",
+    "artist": "Nina Badrić",
+    "album": "Moji ljudi",
+    "label": "Aquarius",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/04/95/70/04957073-6b74-c195-f9b7-d2ecef9ea4e1/cover.jpg/1200x1200bb.jpg",
+    "track_count": 15,
+    "artist_id": "UCBVdTIf81h8jGpGp8pIC-Kg"
+  },
+  {
+    "release_date": "2026-02-13",
+    "artist": "The Nude Party",
+    "album": "Look Who's Back",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/4a/32/59/4a325914-093b-e369-4156-fe95c4b5048b/1963623268471_cover.jpg/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UC6kPHsq54snp7ORdgfeklag"
+  },
+  {
+    "release_date": "2026-02-13",
+    "artist": "The Paranoid Style",
+    "album": "Known Associates",
+    "label": "Bar/None",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/d3/fe/67/d3fe6718-fc61-5a60-d9cf-137cb818ffd2/61498.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCjSqt74V17Kyvj4UUBS1fjA"
+  },
+  {
+    "release_date": "2026-02-13",
     "artist": "Remember Sports",
     "album": "The Refrigerator",
     "label": "Get Better",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/a3/3b/b9/a33bb934-d84e-58ea-df81-7ec7f3dca24b/117164.jpg/1200x1200bb.jpg",
     "track_count": 12,
     "artist_id": "UCxc6sm5s4xWxyIKRiK_XyKA"
+  },
+  {
+    "release_date": "2026-02-13",
+    "artist": "Rufige Kru",
+    "album": "Metal Giants",
+    "label": "London",
+    "artist_id": "UCN801LT0MtL9mcwpxq5_erA"
   },
   {
     "release_date": "2026-02-13",
@@ -1324,10 +1718,72 @@
     "artist_id": "UCbrgnaYnTKyYK0eJLr-y0Dw"
   },
   {
+    "release_date": "2026-02-13",
+    "artist": "Tiana Major9",
+    "album": "November Scorpio",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/38/02/e0/3802e070-818a-6803-74d2-1d357f071026/118398.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCs_MYkImYZr7fgcDrOrUMQQ"
+  },
+  {
+    "release_date": "2026-02-17",
+    "artist": "Willow",
+    "album": "Petal Rock Black",
+    "label": "Three Six Zero",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/41/2b/1c/412b1c4e-a1c6-ae64-918e-696d3eaf494b/810129963847.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCiDUvzBa7VmKKi2eXsKN39A"
+  },
+  {
+    "release_date": "2026-02-18",
+    "artist": "Lightning Strikes",
+    "album": "The King Is Victorious",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/1f/5e/ee/1f5eeea3-5a1b-74c4-2abd-2cf198ee0e8b/859725271123_cover.jpg/1200x1200bb.jpg",
+    "track_count": 7,
+    "artist_id": "UCl1wPbCZpcpWsb2g-om52DA"
+  },
+  {
     "release_date": "2026-02-18",
     "artist": "Lovebites",
     "album": "Outstanding Power",
-    "artist_id": "UCrI_5hlG6DOeIYgZ-gU1vbg"
+    "artist_id": "UCrI_5hlG6DOeIYgZ-gU1vbg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/20/1e/5b/201e5b21-a1de-bc09-59f5-225fcdf550b1/810185199266.jpg/1200x1200bb.jpg",
+    "track_count": 12
+  },
+  {
+    "release_date": "2026-02-18",
+    "artist": "U2",
+    "album": "Days of Ash",
+    "genre": "Rock",
+    "label": "Island",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d2/e4/a4/d2e4a48c-9440-10d1-0e42-b817bf59addc/26UMGIM16041.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 6,
+    "artist_id": "UCqIQRxCUGi7hyJisyzv9zYQ"
+  },
+  {
+    "release_date": "2026-02-20",
+    "artist": "Absolutely",
+    "album": "Paracosm",
+    "label": "Epic",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/53/41/78/534178a0-9985-ab4d-1613-b595b61b55c1/196873797250.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCLG5uyN5Gx3pZgLYl5iqe2Q"
+  },
+  {
+    "release_date": "2026-02-20",
+    "artist": "Baby Keem",
+    "album": "Casino",
+    "genre": "Hip-hop",
+    "label": "PGLang,Columbia",
+    "artist_id": "UCtWW-fcdt2gOE6mGHf-_dlw"
+  },
+  {
+    "release_date": "2026-01-20",
+    "artist": "The Band of Heathens",
+    "album": "Country Sides",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/b0/d9/19/b0d919c3-7bab-f1c3-4d7f-69be112ed2a3/199806292761.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCJDL9obhNYv7x1pvRQlTd6w"
   },
   {
     "release_date": "2026-02-20",
@@ -1357,12 +1813,28 @@
   },
   {
     "release_date": "2026-02-20",
+    "artist": "Larry June,Currensyandthe Alchemist",
+    "album": "Spiral Staircases",
+    "label": "Freeminded,Jet Life,Empire"
+  },
+  {
+    "release_date": "2026-02-20",
     "artist": "Leigh-Anne",
     "album": "My Ego Told Me To",
+    "genre": "Pop,R&B",
     "label": "Virgin Music",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/6f/bf/93/6fbf9359-61b7-7ed6-4364-08755cdfdca1/198704754166_Cover.jpg/1200x1200bb.jpg",
     "track_count": 15,
     "artist_id": "UCnMBhR9VvMwrwpmu3Vns_CA"
+  },
+  {
+    "release_date": "2026-02-20",
+    "artist": "May-a",
+    "album": "Goodbye (If You Call That Gone)",
+    "label": "Sony Australia",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/07/5e/4a/075e4a5e-c2c9-a2b8-0fbd-14524e12f4ca/196873658414.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCiTd8iz6HZ_VZfnRJgyllkw"
   },
   {
     "release_date": "2026-02-20",
@@ -1384,10 +1856,12 @@
   },
   {
     "release_date": "2026-02-20",
-    "artist": "The MesstheticsandJames Brandon Lewis",
+    "artist": "The Messthetics and James Brandon Lewis",
     "album": "Deface the Currency",
     "label": "Impulse!",
-    "artist_id": "UCzOC1CnFVvaVNoTbiG7UyZA"
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/19/50/92/1950928e-030c-5499-9a3a-7d820392fb02/25UM1IM96684.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 7,
+    "artist_id": "UCDMd31ljPIAZBorGP-cYiKw"
   },
   {
     "release_date": "2026-02-20",
@@ -1411,6 +1885,7 @@
     "release_date": "2026-02-20",
     "artist": "Moby",
     "album": "Future Quiet",
+    "genre": "Ambient",
     "label": "BMG",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/92/1a/e7/921ae708-4a41-e7ab-cb52-68c0e57526e6/5061041451522.jpg/1200x1200bb.jpg",
     "track_count": 14,
@@ -1436,6 +1911,15 @@
   },
   {
     "release_date": "2026-02-20",
+    "artist": "Naïka",
+    "album": "Eclesia",
+    "label": "AWAL",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/d4/04/47/d4044743-4a3f-0d8c-123e-0d97448a4672/199806442081.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCt1y5QDfs2nGjE3vQJg_jYg"
+  },
+  {
+    "release_date": "2026-02-20",
     "artist": "New Found Glory",
     "album": "Listen Up!",
     "label": "Pure Noise",
@@ -1454,6 +1938,15 @@
   },
   {
     "release_date": "2026-02-20",
+    "artist": "Squirtgun",
+    "album": "Ghostly Sunflowers",
+    "label": "Pirates Press",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/4e/56/8f/4e568f2a-b206-053d-162d-f80aedc1bc0b/656465365170_cover.jpg/1200x1200bb.jpg",
+    "track_count": 2,
+    "artist_id": "UCBJDl79QzSNH3IImcMIUHkQ"
+  },
+  {
+    "release_date": "2026-02-20",
     "artist": "Stone",
     "album": "Autonomy",
     "artist_id": "UC5CaZTUswBUazGI_7iewuyg"
@@ -1466,6 +1959,49 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/4e/77/a1/4e77a1c7-4e34-d688-3907-b24ed4f3a618/cover.jpg/1200x1200bb.jpg",
     "track_count": 11,
     "artist_id": "UCFgj6bS0arL6nrYb8PsMFIg"
+  },
+  {
+    "release_date": "2026-02-20",
+    "artist": "Tom Busby",
+    "album": "Rockhampton Hangover",
+    "label": "Tom Busby",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/c0/af/a1/c0afa19c-6dc5-d43d-d0d2-677b094f5076/384616.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCjKJTddZNizYG2VShCMqlcw"
+  },
+  {
+    "release_date": "2026-02-20",
+    "artist": "Toys That Kill",
+    "album": "Triple Sabotage",
+    "label": "Recess",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/ef/42/b0/ef42b0d7-fb6f-5335-a1c3-1e2816c712e6/1290.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCLCzt7jCumfeXdGGmJh1o7g"
+  },
+  {
+    "release_date": "2026-02-20",
+    "artist": "Yungblud",
+    "album": "Idols II",
+    "label": "Locomotion,Island",
+    "artist_id": "UCMrCoizKiBxqeg5pTpBXn1A"
+  },
+  {
+    "release_date": "2026-02-23",
+    "artist": "Ive",
+    "album": "Revive+",
+    "label": "Starship",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/9d/54/fd/9d54fd06-fc19-c30c-c9ec-3fcc20eab4a3/199806315972.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UC_4Y1QqJr60C5Z7-eQWy-mw"
+  },
+  {
+    "release_date": "2026-02-24",
+    "artist": "Ceremony",
+    "album": "Live at the Hollywood Palladium",
+    "label": "Relapse",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d3/36/42/d3364257-80d0-ac78-db56-7b8ae2a539ba/781676531516.jpg/1200x1200bb.jpg",
+    "track_count": 21,
+    "artist_id": "UCIVgkJtfnGB3zeUp0YWZfiQ"
   },
   {
     "release_date": "2026-02-27",
@@ -1583,6 +2119,15 @@
   },
   {
     "release_date": "2026-02-27",
+    "artist": "Erin LeCount",
+    "album": "Pareidolia",
+    "label": "Atlantic",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/6b/fe/64/6bfe6448-5c80-02e8-b6e5-1593fd196e2e/5026854619446.jpg/1200x1200bb.jpg",
+    "track_count": 6,
+    "artist_id": "UC6V3iKBW0l11K2bq3o9Hw7g"
+  },
+  {
+    "release_date": "2026-02-27",
     "artist": "Geese",
     "album": "Live at Third Man Records",
     "label": "Third Man",
@@ -1590,14 +2135,16 @@
   },
   {
     "release_date": "2026-02-27",
-    "artist": "Gena (Liv.eandKarriem Riggins)",
+    "artist": "Gena (Liv.e and Karriem Riggins)",
     "album": "The Pleasure Is Yours",
-    "label": "Lex"
+    "label": "Lex",
+    "artist_id": "UCBYU8gbUTW65sjVA8LMT1Gw"
   },
   {
     "release_date": "2026-02-27",
     "artist": "Gorillaz",
     "album": "The Mountain",
+    "genre": "World,synth-pop,psychedelia",
     "label": "Kong Records",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/d4/c8/35/d4c835c9-2cdc-4050-e06c-170b4c983899/199538459005.jpg/1200x1200bb.jpg",
     "track_count": 15,
@@ -1628,6 +2175,12 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/1c/65/59/1c6559a0-28e0-f732-bfaa-ff2e8585bd7d/098787170764.png/1200x1200bb.jpg",
     "track_count": 10,
     "artist_id": "UCbPM7GBZG0U7Fz5FsnoUIag"
+  },
+  {
+    "release_date": "2026-02-27",
+    "artist": "Kiss Facility (Mayah Alkhateri and Sega Bodega)",
+    "album": "Khazna",
+    "label": "Ambient Tweets"
   },
   {
     "release_date": "2026-02-27",
@@ -1691,6 +2244,14 @@
   },
   {
     "release_date": "2026-02-27",
+    "artist": "Ólafur Arnalds",
+    "album": "Sunrise Session III",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/3b/1e/b7/3b1eb714-29a7-ab2f-cd86-52a73c0042d5/26UMGIM12799.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 4,
+    "artist_id": "UCDQlvsMEM5j0k5cqmfHBzVA"
+  },
+  {
+    "release_date": "2026-02-27",
     "artist": "Paul Gilbert",
     "album": "Wroc",
     "label": "Music Theories Records",
@@ -1700,9 +2261,20 @@
   },
   {
     "release_date": "2026-02-27",
-    "artist": "RJD2andSupastition",
+    "artist": "Ritt Momney",
+    "album": "Base",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/dd/81/55/dd815514-3803-cb5c-d38c-c4609693bdb6/artwork.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCfoSsmFmYsJjFpF6yZr-VaA"
+  },
+  {
+    "release_date": "2026-02-27",
+    "artist": "RJD2 and Supastition",
     "album": "According To...",
-    "label": "Electrical Connections, Eavesdrop Music"
+    "label": "Electrical Connections, Eavesdrop Music",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/3c/c8/f4/3cc8f4a2-b25a-7b86-267c-61ca198cb23b/artwork.jpg/1200x1200bb.jpg",
+    "track_count": 1,
+    "artist_id": "UCkQQVdpUCYMBaZHlIhF2xag"
   },
   {
     "release_date": "2026-02-27",
@@ -1712,6 +2284,23 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e9/aa/45/e9aa45bf-e4fc-b1eb-4fd7-94c86fb4c166/cover.jpg/1200x1200bb.jpg",
     "track_count": 15,
     "artist_id": "UCgcoBtYryju2lCbaJmS62Cg"
+  },
+  {
+    "release_date": "2026-02-27",
+    "artist": "Ruoska",
+    "album": "Kade",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/1b/77/c2/1b77c206-c6a2-1ca8-2c4a-35b4167e1e89/cover.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCMcPGdIr2dNC3LaTGWmIuyQ"
+  },
+  {
+    "release_date": "2026-02-27",
+    "artist": "Slagmaur",
+    "album": "Hulders Ritual",
+    "label": "Prophecy Productions",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/cc/9d/97/cc9d9700-bd60-1db4-db85-68dd25bf1c8c/2767.jpg/1200x1200bb.jpg",
+    "track_count": 6,
+    "artist_id": "UC8wanKTFScDZ_muWLNADcmQ"
   },
   {
     "release_date": "2026-02-27",
@@ -1732,11 +2321,20 @@
   },
   {
     "release_date": "2026-02-27",
-    "artist": "A Thousand Horses",
+    "artist": "A Thous and Horses",
     "album": "White Flag Down",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/c0/f2/85/c0f2855e-a948-eca8-2cf3-81a1cdb4ae84/193436442619_THWhiteFlagDown.jpg/1200x1200bb.jpg",
     "track_count": 10,
     "artist_id": "UC9EUVXr2HVkMAhvQNO4pniw"
+  },
+  {
+    "release_date": "2026-02-27",
+    "artist": "Varials",
+    "album": "Where the Light Leaves",
+    "label": "Fearless",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/ae/35/85/ae35859c-c290-8b53-c0fd-cfbb13b0b7db/25CRGIM52194.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCErxcYeBKi9vNxzfdcTBRcA"
   },
   {
     "release_date": "2026-02-27",
@@ -1760,13 +2358,30 @@
     "artist": "A Wilhelm Scream",
     "album": "Cheap Heat",
     "label": "Creator-Destructor Records",
-    "artist_id": "UC_a_vNwDqrhD3Tsx-LbuJJw"
+    "artist_id": "UC_a_vNwDqrhD3Tsx-LbuJJw",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/77/8c/51/778c5183-3753-2753-07c9-3fd5f71cbc72/415687.jpg/1200x1200bb.jpg",
+    "track_count": 10
+  },
+  {
+    "release_date": "2026-02-28",
+    "artist": "Juliana Hatfield and Eric Payne",
+    "album": "Bets",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/5a/a2/15/5aa2152f-0a1a-0ec2-a0ad-99adad3d0ce3/artwork.jpg/1200x1200bb.jpg",
+    "track_count": 11
   },
   {
     "release_date": "2026-03-01",
     "artist": "Twin Peaks",
     "album": "Freezing in Chicago — Live at Thalia Hall, December 31st, 2017",
-    "artist_id": "UC-IEGAj8jq4i3em-6Pztp6w"
+    "artist_id": "UC-IEGAj8jq4i3em-6Pztp6w",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/e7/db/c7/e7dbc7c3-e2fb-6b4f-7946-ad6db3775d0b/859726379392_cover.jpg/1200x1200bb.jpg",
+    "track_count": 24
+  },
+  {
+    "release_date": "2026-03-02",
+    "artist": "Quelle Chris",
+    "album": "Happy Place",
+    "artist_id": "UCH5vjtL8pSijlYSEjMFSuaQ"
   },
   {
     "release_date": "2026-03-03",
@@ -1778,15 +2393,6 @@
     "artist_id": "UCqL0ZGlhtPz9ZxGwXy2nVlg"
   },
   {
-    "release_date": "2026-03-05",
-    "artist": "Morrissey",
-    "album": "Make-Up Is a Lie",
-    "label": "Sire,Warner",
-    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/eb/f9/3d/ebf93dd2-da8f-53b2-b938-4632bed0c4ee/093624829614.jpg/1200x1200bb.jpg",
-    "track_count": 12,
-    "artist_id": "UC_Lm9hIkUlRr4pURZg5nE3g"
-  },
-  {
     "release_date": "2026-03-06",
     "artist": "Aaron Hibell",
     "album": "Synchronicity",
@@ -1794,6 +2400,14 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/5c/b2/80/5cb280a1-e953-c675-0a83-9c72ddbd48a1/25UMGIM85264.rgb.jpg/1200x1200bb.jpg",
     "track_count": 11,
     "artist_id": "UCsEU-DGezgbgHGNvUWjGa2g"
+  },
+  {
+    "release_date": "2026-03-06",
+    "artist": "Blackbraid",
+    "album": "Nocturnal Womb",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/26/8c/e9/268ce97a-3f5f-3dd8-bbad-579cbe982402/820200408204.jpg/1200x1200bb.jpg",
+    "track_count": 3,
+    "artist_id": "UC3vA6f_tkt49hlT9R8F2W0g"
   },
   {
     "release_date": "2026-03-06",
@@ -1815,12 +2429,12 @@
   },
   {
     "release_date": "2026-03-06",
-    "artist": "Charlie Puth",
-    "album": "Whatever's Clever!",
+    "artist": "Cobrah",
+    "album": "Torn",
     "label": "Atlantic",
-    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/48/e0/a1/48e0a157-0f2a-28fc-a864-b274409703d8/075679599575.jpg/1200x1200bb.jpg",
-    "track_count": 12,
-    "artist_id": "UCQ-ygxSFSlq-O2zGnXxELXQ"
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/70/13/42/701342d0-cfe9-4d29-da75-c2b207a7a17f/075679588050.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCrz7Qt6oMLh5ciWJGl2GIpg"
   },
   {
     "release_date": "2026-03-06",
@@ -1833,9 +2447,31 @@
   },
   {
     "release_date": "2026-03-06",
-    "artist": "Denzel Curryand The Scythe",
-    "album": "Strictly 4 the Scythe",
-    "label": "Loma Vista"
+    "artist": "Erra",
+    "album": "Silence Outlives the Earth",
+    "genre": "Progressive metalcore,djent",
+    "label": "UNFD",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/40/b6/19/40b61963-a776-6383-0bde-ff0e3d1e3edf/8721465132007.png/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCyzj6TK-o3y9M9gB8vF26oA"
+  },
+  {
+    "release_date": "2026-03-06",
+    "artist": "Flying Lotus",
+    "album": "Big Mama",
+    "label": "Brainfeeder",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/da/de/42/dade42af-2ec6-495c-784d-b4dc4365d22b/5054429205497.png/1200x1200bb.jpg",
+    "track_count": 8,
+    "artist_id": "UCJvOvKwxPEL-4RtSvu_nWhQ"
+  },
+  {
+    "release_date": "2026-03-06",
+    "artist": "Gnarls Barkley",
+    "album": "Atlanta",
+    "label": "Atlantic,10K Projects",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/75/8c/7d/758c7da3-39ff-f358-8cce-9a1ea8d16569/810129965018.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCh3GPQJZRlA3p-j5TaPtmfQ"
   },
   {
     "release_date": "2026-03-06",
@@ -1845,6 +2481,15 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/52/4e/05/524e051a-9d8f-bca3-614c-455e23dbd88f/121639.jpg/1200x1200bb.jpg",
     "track_count": 14,
     "artist_id": "UC2fX3W1PQNkhYZGsrcGv8YQ"
+  },
+  {
+    "release_date": "2026-03-06",
+    "artist": "Gum",
+    "album": "Blue Gum Way",
+    "label": "p(doom)",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/34/6d/78/346d7843-7124-9c1d-fa9c-c05b6b880a43/198704905353_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UC4FKlRxemR7reIi_vmmPjhw"
   },
   {
     "release_date": "2026-03-06",
@@ -1879,22 +2524,30 @@
     "artist_id": "UCmmIOTNr-aEiHQNnM2yWoNw"
   },
   {
-    "release_date": "2026-03-06",
-    "artist": "Matt Corby",
-    "album": "Tragic Magic",
-    "label": "Island Australia",
-    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/dc/51/7f/dc517f1d-da93-29a1-a3a3-a05d2121e655/25UM1IM51446.rgb.jpg/1200x1200bb.jpg",
-    "track_count": 13,
-    "artist_id": "UCR2iuWSzShNMhtoRWaMFQdw"
+    "release_date": "2026-03-05",
+    "artist": "Morrissey",
+    "album": "Make-Up Is a Lie",
+    "label": "Sire,Warner",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/eb/f9/3d/ebf93dd2-da8f-53b2-b938-4632bed0c4ee/093624829614.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UC_Lm9hIkUlRr4pURZg5nE3g"
   },
   {
     "release_date": "2026-03-06",
-    "artist": "Pacific Avenue",
-    "album": "Lovesick Sentimental",
-    "label": "BMG",
-    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/98/43/30/984330a5-29f4-3828-6fdf-d1e09701857a/4099964216035.jpg/1200x1200bb.jpg",
-    "track_count": 11,
-    "artist_id": "UCVHi6r7S6qWxp9_9vYQhQLg"
+    "artist": "Nettspend",
+    "album": "Early Life Crisis",
+    "genre": "Rage,trap",
+    "label": "Grade A,Interscope",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/59/c6/0e/59c60e4c-4191-6b64-3a0e-40bd57c5eaf3/26UMGIM25582.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 17,
+    "artist_id": "UCRtdwyyvMUtKCUEkSldJfQA"
+  },
+  {
+    "release_date": "2026-03-06",
+    "artist": "Osees",
+    "album": "Cara Maluco",
+    "label": "Deathgod Corp",
+    "artist_id": "UCy-Gzb-aCE1vWkbwQZaoIXQ"
   },
   {
     "release_date": "2026-03-06",
@@ -1904,6 +2557,13 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/7b/0b/37/7b0b37c1-763e-1058-f22e-38ba14d1608f/4001617108970.jpg/1200x1200bb.jpg",
     "track_count": 14,
     "artist_id": "UC1G94SZZnqX19f-NvFOCifA"
+  },
+  {
+    "release_date": "2026-03-06",
+    "artist": "The Scythe",
+    "album": "Strictly 4 the Scythe",
+    "label": "Loma Vista",
+    "artist_id": "UCiwEZzGjBunyxVMUden9s2g"
   },
   {
     "release_date": "2026-03-06",
@@ -1967,6 +2627,40 @@
     "artist_id": "UCK7SNfwEZ1vbvHnGZ5niU8A"
   },
   {
+    "release_date": "2026-03-06",
+    "artist": "William Clark Green",
+    "album": "Watterson Hall",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/3a/d5/65/3ad56543-438d-eb64-dad4-621791517994/193436449076_WCGWattersonHallCOVERx.jpg/1200x1200bb.jpg",
+    "track_count": 14,
+    "artist_id": "UCulVQuoFk-TZUXKoK9lLyng"
+  },
+  {
+    "release_date": "2026-03-06",
+    "artist": "Yebba",
+    "album": "Jean",
+    "label": "RCA",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/16/79/87/16798773-68da-8a59-00d7-102f997da277/196874073162.jpg/1200x1200bb.jpg",
+    "track_count": 14,
+    "artist_id": "UCX6UGbNg_12TLfp7ysREBVg"
+  },
+  {
+    "release_date": "2026-03-12",
+    "artist": "Health",
+    "album": "R-Type II",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/89/1b/2d/891b2dd1-34d4-c233-a333-7e6c224a8349/26CRGIM53775.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 6,
+    "artist_id": "UCFhh9HNNzEpJ6rmJf9oiLJA"
+  },
+  {
+    "release_date": "2026-03-12",
+    "artist": "Moenia",
+    "album": "Temporal",
+    "label": "OCESA Seitrack, Promotodo México",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/1d/04/6c/1d046ce4-1430-5d05-3c6b-48e1446dda51/820200127051.jpg/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UC6G7SY8FN_71DHrfq8f0VZQ"
+  },
+  {
     "release_date": "2026-03-13",
     "artist": "Alexis Taylor",
     "album": "Paris in the Spring",
@@ -1995,8 +2689,36 @@
   },
   {
     "release_date": "2026-03-13",
+    "artist": "Asia",
+    "album": "Asia – Live in England",
+    "label": "Frontiers Music Srl",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/45/85/17/45851765-0804-5f43-1462-faa0cc14e0f0/199806521380.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCXt56qCf-jmccezAMooUVSw"
+  },
+  {
+    "release_date": "2026-03-13",
+    "artist": "Beccy Cole",
+    "album": "Through the Haze",
+    "label": "ABC Music",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/1f/94/87/1f948790-4035-539b-b2bd-4e4e488da642/820200000637.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCtCYnC-pmSfzt16_YBXnLSw"
+  },
+  {
+    "release_date": "2026-03-13",
+    "artist": "Bill Orcutt",
+    "album": "Music in Continuous Motion",
+    "label": "Palilalia Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/44/91/28/44912816-3eca-cc2a-676f-031591866db7/840526502929.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCtlHeROyWFk3EJz8OKYKbfw"
+  },
+  {
+    "release_date": "2026-03-13",
     "artist": "The Black Crowes",
     "album": "A Pound of Feathers",
+    "label": "Silver Arrow",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/4d/2c/1a/4d2c1abd-323c-9933-a020-5374c8791ffe/199806667569.jpg/1200x1200bb.jpg",
     "track_count": 11,
     "artist_id": "UCGqNQHzM7ZDQ0psEJegykpA"
@@ -2012,10 +2734,19 @@
   },
   {
     "release_date": "2026-03-13",
+    "artist": "Bruiser Wolf",
+    "album": "Push & Paint",
+    "label": "Fake Shore Drive Records, Sheefy LLC",
+    "artist_id": "UCUnvVHKp0oFJOcUFyFqXKdw"
+  },
+  {
+    "release_date": "2026-03-13",
     "artist": "Crack Cloud",
     "album": "Peace and Purpose",
     "label": "Meat Machine",
-    "artist_id": "UC4yFh-28ICCl4B9SlXjGiMQ"
+    "artist_id": "UC4yFh-28ICCl4B9SlXjGiMQ",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/6d/ef/bf/6defbf16-0b13-cd89-1450-0c4841b30cd2/199806860670.jpg/1200x1200bb.jpg",
+    "track_count": 14
   },
   {
     "release_date": "2026-03-13",
@@ -2034,9 +2765,10 @@
   },
   {
     "release_date": "2026-03-13",
-    "artist": "Elucidand Sebb Bash",
+    "artist": "Elucid and Sebb Bash",
     "album": "I Guess You Had to Be There",
-    "label": "Backwoodz Studioz"
+    "label": "Backwoodz Studioz",
+    "artist_id": "UCxidpQqmGVp4XWF7-u1s6Dw"
   },
   {
     "release_date": "2026-03-13",
@@ -2074,6 +2806,24 @@
   },
   {
     "release_date": "2026-03-13",
+    "artist": "Haute and Freddy",
+    "album": "Big Disgrace",
+    "label": "Atlantic",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/a9/81/ab/a981ab03-874c-0400-caea-d6146b9ba6c0/075679595843.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCQEkVzckJabQmmqrzLdA1UA"
+  },
+  {
+    "release_date": "2026-03-13",
+    "artist": "Jack Harlow",
+    "album": "Monica",
+    "label": "Atlantic",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/66/b3/a8/66b3a8d4-10ba-ea70-37ff-b1e73ab22431/075679586377.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCKIOM0Wi1qNV8HFLArK-uYQ"
+  },
+  {
+    "release_date": "2026-03-13",
     "artist": "James Blake",
     "album": "Trying Times",
     "label": "Good Boy Records",
@@ -2083,8 +2833,16 @@
   },
   {
     "release_date": "2026-03-13",
+    "artist": "Johnny Blue Skies& the Dark Clouds",
+    "album": "Mutiny After Midnight",
+    "label": "High Top Mountain, Atlantic Outpost",
+    "artist_id": "UCzjqoh1AgMqICw3JKaAj6sw"
+  },
+  {
+    "release_date": "2026-03-13",
     "artist": "Kim Gordon",
     "album": "Play Me",
+    "genre": "Trap,industrial,trip hop",
     "label": "Matador",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/0a/3d/56/0a3d5627-c6e4-cc2a-e64f-0058a0791454/191401219877.png/1200x1200bb.jpg",
     "track_count": 12,
@@ -2098,6 +2856,15 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/70/ca/3b/70ca3bef-28de-2cd6-f45b-4fff8bbd3bf9/196873585321.jpg/1200x1200bb.jpg",
     "track_count": 10,
     "artist_id": "UCTaA5rGW1qSMnCTTFyFFKoA"
+  },
+  {
+    "release_date": "2026-03-13",
+    "artist": "Leven Kali",
+    "album": "LK99",
+    "label": "Def Jam",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/de/5c/1e/de5c1e41-0d1a-dc67-1da0-2bc17c2f6477/26UMGIM11616.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCMob7bYrgQdgpeHAT5wb0jg"
   },
   {
     "release_date": "2026-03-13",
@@ -2119,10 +2886,20 @@
   },
   {
     "release_date": "2026-03-13",
+    "artist": "Nili Brosh",
+    "album": "Eventide",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/7c/72/b5/7c72b5fd-d909-4752-cd41-1c0d2718e957/859732092827_cover.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UC3rZh706X1pI_zGs77NC5GA"
+  },
+  {
+    "release_date": "2026-03-13",
     "artist": "The Notwist",
     "album": "News from Planet Zombie",
     "label": "Morr Music",
-    "artist_id": "UC6PnAv5kzAHJS4NgVcP43zA"
+    "artist_id": "UC6PnAv5kzAHJS4NgVcP43zA",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/d1/55/4c/d1554cc4-f0f2-7ede-1a70-1342fcad2f10/880918820705.jpg/1200x1200bb.jpg",
+    "track_count": 11
   },
   {
     "release_date": "2026-03-13",
@@ -2132,6 +2909,15 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/77/8e/00/778e0076-45be-4a3f-00e3-72b32de5b4bf/5400863198015_cover.jpg/1200x1200bb.jpg",
     "track_count": 11,
     "artist_id": "UCEn4UwtKoVXtd8EtCzs0XZw"
+  },
+  {
+    "release_date": "2026-03-13",
+    "artist": "P1Harmony",
+    "album": "Unique",
+    "label": "FNC",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/9d/a4/3c/9da43c4a-faf8-a743-56e7-c63f9c28d669/cover_KM0024197_1.jpg/1200x1200bb.jpg",
+    "track_count": 6,
+    "artist_id": "UCW70uAKYm20yAPhKKUY7kqw"
   },
   {
     "release_date": "2026-03-13",
@@ -2181,9 +2967,50 @@
   {
     "release_date": "2026-03-13",
     "artist": "Yonaka",
-    "album": "Hope You're Satisfied",
+    "album": "Until You're Satisfied",
     "label": "Distiller Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/26/d1/3a/26d13a1f-da5f-572f-b667-20e7d8cc2dc7/820200480996.jpg/1200x1200bb.jpg",
+    "track_count": 18,
     "artist_id": "UCXkLhKzv8nSuCZ1vTWIo9cg"
+  },
+  {
+    "release_date": "2026-03-16",
+    "artist": "Sophie May",
+    "album": "Stars and Teeth",
+    "artist_id": "UCY3VEgsd-vQbAJqrYJ6ZYXw"
+  },
+  {
+    "release_date": "2026-03-17",
+    "artist": "Anthony Green",
+    "album": "Reconcile at the Tile Works, Recorded Live",
+    "label": "Born Losers",
+    "artist_id": "UCsK2n_IuZcTj8-XIRirU2bA"
+  },
+  {
+    "release_date": "2026-03-19",
+    "artist": "Ca7riel & Paco Amoroso",
+    "album": "Free Spirits",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/ba/8c/d9/ba8cd968-5658-5149-596c-6c8140a4c06a/196874217917.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCxagpCJmcvQ_MiVlDECy7yw"
+  },
+  {
+    "release_date": "2026-03-19",
+    "artist": "Central Cee",
+    "album": "All Roads Lead Home",
+    "label": "Columbia",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/45/f7/c5/45f7c5eb-dced-2c2d-3e88-dfdf61e6b4c6/196874108215.jpg/1200x1200bb.jpg",
+    "track_count": 7,
+    "artist_id": "UCiDD2aSYdgxSPE2YUm5lEjg"
+  },
+  {
+    "release_date": "2026-03-20",
+    "artist": "Anna Calvi",
+    "album": "Is This All There Is?",
+    "label": "Domino",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/8e/3b/4f/8e3b4f5f-98bd-2336-d68a-b6b27bfe5a98/887829132866.png/1200x1200bb.jpg",
+    "track_count": 4,
+    "artist_id": "UCyUILKZqKzVS-D0t9GU2tQw"
   },
   {
     "release_date": "2026-03-20",
@@ -2221,10 +3048,53 @@
   },
   {
     "release_date": "2026-03-20",
+    "artist": "Damaged Bug",
+    "album": "Zuzax",
+    "label": "Deathgod Corp",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/07/95/91/07959150-fed1-5189-5ff1-ee5353acaacf/769152434421.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCJTcRRS3HN1dktdMhWMqOCw"
+  },
+  {
+    "release_date": "2026-03-20",
     "artist": "The Dandy Warhols",
     "album": "Pin Ups",
     "label": "Beat the World, Little Cloud Records",
     "artist_id": "UC49eSXGt7tBykoC_0_DfsQQ"
+  },
+  {
+    "release_date": "2026-03-20",
+    "artist": "Dan Sultan",
+    "album": "Live at Tubowgule (Sydney Opera House)",
+    "label": "Mushroom Music",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/b3/7c/4f/b37c4fb8-2ef6-9ede-8e3a-ce74e8606cca/9341004149489_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCL2iZB0vZC1i4SOEluKNCjg"
+  },
+  {
+    "release_date": "2026-03-20",
+    "artist": "The Dear Hunter",
+    "album": "Sunya",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/7e/67/4e/7e674ec3-3bf0-d0ab-5196-4e351719431d/656465059567_cover.jpg/1200x1200bb.jpg",
+    "track_count": 7,
+    "artist_id": "UCxOZTyaSbbILMz56GNZGswg"
+  },
+  {
+    "release_date": "2026-03-20",
+    "artist": "Dylan Brady",
+    "album": "Needle Guy",
+    "label": "Dog Show Records,Atlantic",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/9c/77/a7/9c77a7e2-f70a-71e1-3e03-982659243887/075679588722.jpg/1200x1200bb.jpg",
+    "track_count": 1,
+    "artist_id": "UCVEpetqfGfJgLCv9JhuU1Qg"
+  },
+  {
+    "release_date": "2026-03-20",
+    "artist": "Ego Ella May",
+    "album": "Good Intentions",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/40/a6/d5/40a6d5e4-ca66-129b-aeb7-67c4d59026e4/cover.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCHefp2K_n1bpHnyVp2Wwqow"
   },
   {
     "release_date": "2026-03-20",
@@ -2253,9 +3123,27 @@
   },
   {
     "release_date": "2026-03-20",
+    "artist": "Grace Ives",
+    "album": "Girlfriend",
+    "label": "True Panther,Polyvinyl",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/09/57/30/095730f8-6646-538f-a0ea-bfe2cf1225b0/25UM2IM01547.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCC3ebmTnhl55DUOfH7kft2Q"
+  },
+  {
+    "release_date": "2026-03-20",
     "artist": "Haircut One Hundred",
     "album": "Boxing the Compass",
     "artist_id": "UCkZhZbeXcnaQRBSTzdM-cTw"
+  },
+  {
+    "release_date": "2026-03-20",
+    "artist": "Hurray for the Riff Raff",
+    "album": "Live Forever",
+    "label": "Nonesuch",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/0f/fe/1b/0ffe1b37-6fc8-d80a-2c69-644dedd111c3/075597893236.jpg/1200x1200bb.jpg",
+    "track_count": 14,
+    "artist_id": "UCpDeHPntpUS7mEnESy9odmQ"
   },
   {
     "release_date": "2026-03-20",
@@ -2274,6 +3162,31 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/4c/b6/e5/4cb6e5b1-2db0-88c0-f025-b79cad3b8fab/196873832111.jpg/1200x1200bb.jpg",
     "track_count": 22,
     "artist_id": "UCzdDM4zheCgC3s4WzKhQ4-w"
+  },
+  {
+    "release_date": "2026-03-20",
+    "artist": "Manchester Orchestra",
+    "album": "Union Chapel, London, England",
+    "label": "Loma Vista",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/dc/ed/a4/dceda471-0069-c5df-6207-f6af545128c3/24CRGIM41649.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 21,
+    "artist_id": "UC52xilymw0N3P8Q2JWMAEdw"
+  },
+  {
+    "release_date": "2026-03-20",
+    "artist": "Mclusky",
+    "album": "I Sure Am Getting Sick of this Bowling Alley",
+    "label": "Ipecac",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/79/38/aa/7938aa24-4675-7011-4510-d7d63be0c696/61298.jpg/1200x1200bb.jpg",
+    "track_count": 6,
+    "artist_id": "UCwLq-tDm-vyJsku3uq7panA"
+  },
+  {
+    "release_date": "2026-03-20",
+    "artist": "Mike Will Made It",
+    "album": "R3set",
+    "label": "Eardrummer Records,Giant",
+    "artist_id": "UC7ipOvuZ_RZ6uwdyxGW73dg"
   },
   {
     "release_date": "2026-03-20",
@@ -2322,6 +3235,13 @@
   },
   {
     "release_date": "2026-03-20",
+    "artist": "St. Vincent",
+    "album": "Live in London!",
+    "label": "Total Pleasure, Virgin Music Group",
+    "artist_id": "UCGjbexoF9La7TxGeFP64m8A"
+  },
+  {
+    "release_date": "2026-03-20",
     "artist": "Tedeschi Trucks Band",
     "album": "Future Soul",
     "label": "Fantasy",
@@ -2340,11 +3260,36 @@
   },
   {
     "release_date": "2026-03-20",
+    "artist": "Underscores",
+    "album": "U",
+    "label": "Mom + Pop",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/34/e9/68/34e9680c-152b-9fc6-07e7-8f253e76d8f2/810090098852_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UCUdMQSZu3e12dk_DREEz80w"
+  },
+  {
+    "release_date": "2026-03-20",
     "artist": "Zhu",
     "album": "Black Midas",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/22/46/bd/2246bda8-ce6a-2545-570d-139a1f6bcf09/663918810019.jpg/1200x1200bb.jpg",
     "track_count": 14,
     "artist_id": "UCSw_oqIGG4dIo1GmnqUYdUA"
+  },
+  {
+    "release_date": "2026-03-23",
+    "artist": "Yuna",
+    "album": "Ice Cream",
+    "label": "JYP",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/17/35/f5/1735f57e-d24c-4e4e-8740-c600d2a47119/8809928958415_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 4,
+    "artist_id": "UCG5bt-tMFnUv3IzooTE9Rqg"
+  },
+  {
+    "release_date": "2026-03-24",
+    "artist": "Baby Dont Cry",
+    "album": "After Cry",
+    "label": "P Nation",
+    "artist_id": "UCdp8IRX3Qi65xCz7w_nEDug"
   },
   {
     "release_date": "2026-03-27",
@@ -2366,7 +3311,7 @@
   },
   {
     "release_date": "2026-03-27",
-    "artist": "Bernard Butler,Norman Blake, andJames Grant",
+    "artist": "Bernard Butler,Norman Blake, and James Grant",
     "album": "Murmurs",
     "label": "355 Recordings"
   },
@@ -2378,6 +3323,62 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/76/ba/30/76ba30e4-5919-b835-b664-d9d05ab9817f/30237.jpg/1200x1200bb.jpg",
     "track_count": 13,
     "artist_id": "UCfvQwQIzdo-0cKhRWNyyx8g"
+  },
+  {
+    "release_date": "2026-03-27",
+    "artist": "The Boxer Rebellion",
+    "album": "The Second I'm Asleep",
+    "artist_id": "UCM-ehR6o20UJSMBllfeK3Kg"
+  },
+  {
+    "release_date": "2026-03-27",
+    "artist": "Buzzy Lee",
+    "album": "Shoulder to Shoulder",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/a5/51/64/a55164e3-f95b-bf28-6be7-dc6b60001871/198704972294_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UC27NwdAaxaHcv5d9XfEURpA"
+  },
+  {
+    "release_date": "2026-03-27",
+    "artist": "Cannons",
+    "album": "Everything Glows",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/af/ae/2c/afae2c32-3ede-dedb-33a9-04e5e1126130/196874018224.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UC_HOunYNwYXCHZKUzzNQkmA"
+  },
+  {
+    "release_date": "2026-03-27",
+    "artist": "Carnivore A.D.",
+    "album": "Transmutation",
+    "label": "Apostasy Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/1f/71/2b/1f712b6e-8d4a-e3c1-8e2c-44e95d180b61/cover.jpg/1200x1200bb.jpg",
+    "track_count": 5,
+    "artist_id": "UCudnsyJ1VQUBHoK2q-hszQQ"
+  },
+  {
+    "release_date": "2026-03-27",
+    "artist": "The Casualties",
+    "album": "Detonate",
+    "label": "Hellcat",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/d7/93/cf/d793cfa5-ea14-baa0-ca57-e436fce7dfd9/0045778055760.png/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCZmqy3qp9EZprPISE1dREKw"
+  },
+  {
+    "release_date": "2026-03-27",
+    "artist": "Chamber",
+    "album": "This is Goodbye...",
+    "label": "Pure Noise",
+    "artist_id": "UC2rNlNbwW9MdPhJHOvnzkNw"
+  },
+  {
+    "release_date": "2026-03-06",
+    "artist": "Charlie Puth",
+    "album": "Whatever's Clever!",
+    "label": "Atlantic",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/48/e0/a1/48e0a157-0f2a-28fc-a864-b274409703d8/075679599575.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCQ-ygxSFSlq-O2zGnXxELXQ"
   },
   {
     "release_date": "2026-03-27",
@@ -2416,12 +3417,35 @@
   },
   {
     "release_date": "2026-03-27",
+    "artist": "Dave Harrington and Tim Mislock",
+    "album": "Isle of Palms",
+    "label": "Maximum Overdub"
+  },
+  {
+    "release_date": "2026-03-27",
+    "artist": "David Gray",
+    "album": "Nightjar",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/1b/9a/d6/1b9ad66a-e4b7-a7c8-b462-b72318a6eab5/61001.jpg/1200x1200bb.jpg",
+    "track_count": 19,
+    "artist_id": "UCJTvkeW8lrmwp_m5zeuBP6A"
+  },
+  {
+    "release_date": "2026-03-27",
     "artist": "Dermot Kennedy",
     "album": "The Weight of the Woods",
     "label": "Island,Interscope",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/1b/9f/04/1b9f047e-74b9-595b-5b21-f09f29404d9a/25UM1IM76628.rgb.jpg/1200x1200bb.jpg",
     "track_count": 14,
     "artist_id": "UClHxZy_9ArA6rploIzcDReQ"
+  },
+  {
+    "release_date": "2026-03-27",
+    "artist": "Don Broco",
+    "album": "Nightmare Tripping",
+    "label": "Fearless",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/f8/14/04/f81404e2-4faa-a8df-335f-3b174786c112/25CRGIM50449.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCw7JlnXVEb-Jz05V4wGKVgw"
   },
   {
     "release_date": "2026-03-27",
@@ -2443,6 +3467,15 @@
   },
   {
     "release_date": "2026-03-27",
+    "artist": "Flatl and Cavalry",
+    "album": "Work of Heart",
+    "label": "Lost Highway",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/67/7a/99/677a998b-eb2e-a4b8-2fab-1578f2408705/26UMGIM00998.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCX1VnSiXYwteb8it_SkPjTw"
+  },
+  {
+    "release_date": "2026-03-27",
     "artist": "Flea",
     "album": "Honora",
     "label": "Nonesuch",
@@ -2456,6 +3489,15 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/18/d4/4a/18d44a28-5543-0bf2-6872-3224b59e5076/8721416936425.png/1200x1200bb.jpg",
     "track_count": 11,
     "artist_id": "UCw8Fe1D_FrMQHWQrTQREDfg"
+  },
+  {
+    "release_date": "2026-03-27",
+    "artist": "Good Riddance",
+    "album": "Before the World Caves In",
+    "label": "Fat Wreck Chords",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/a9/6b/9c/a96b9cf0-50ce-5065-76f9-aeef73ef42a9/3292.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCbdkp56m6kCWzXznuDNpZHg"
   },
   {
     "release_date": "2026-03-27",
@@ -2477,6 +3519,15 @@
   },
   {
     "release_date": "2026-03-27",
+    "artist": "Irreversible Entanglements",
+    "album": "Future Present Past",
+    "label": "Impulse!",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e6/8d/49/e68d4968-9d3c-7d5e-9c2a-76564504737a/26UMGIM03364.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCKb62MdrH_GbDOXgV_RcWzA"
+  },
+  {
+    "release_date": "2026-03-27",
     "artist": "José González",
     "album": "Against the Dying of the Light",
     "label": "Mute",
@@ -2486,12 +3537,44 @@
   },
   {
     "release_date": "2026-03-27",
+    "artist": "Justine Skye",
+    "album": "Candy",
+    "label": "Warner",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/c1/80/45/c180458b-681b-71a1-650d-de3d33e92358/093624822851.jpg/1200x1200bb.jpg",
+    "track_count": 8,
+    "artist_id": "UCn0zYuOC2uFuwdfamox0U8w"
+  },
+  {
+    "release_date": "2026-03-27",
+    "artist": "Kanye West",
+    "album": "Bully",
+    "label": "YZY",
+    "artist_id": "UCRY5dYsbIN5TylSbd7gVnZg"
+  },
+  {
+    "release_date": "2026-03-27",
     "artist": "King Tuff",
     "album": "Moo",
     "label": "Mup Records,Thirty Tigers",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/3f/9b/01/3f9b01d9-f790-74ea-61e0-90327aa9541b/199806617151.jpg/1200x1200bb.jpg",
     "track_count": 10,
     "artist_id": "UCjwqoZVdhJg4-T-b1XRe0ng"
+  },
+  {
+    "release_date": "2026-03-27",
+    "artist": "Konradsen",
+    "album": "Hunt, Gather",
+    "label": "777 Music Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/8c/dd/84/8cdd84ff-d5a7-31ba-d13a-d20cf0ace431/198704994128_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCWRtz9DmtZe7vGlWeVmCssA"
+  },
+  {
+    "release_date": "2026-03-27",
+    "artist": "Kyle Falconer",
+    "album": "Lovely Night of Terror",
+    "label": "Modern Sky Records, Run On Records",
+    "artist_id": "UChhDV2Z47ZFxyZ6CleXjKXQ"
   },
   {
     "release_date": "2026-03-27",
@@ -2530,6 +3613,14 @@
   },
   {
     "release_date": "2026-03-27",
+    "artist": "Melanie Martinez",
+    "album": "Hades",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/0a/01/82/0a018255-d739-00b5-b6c7-93de2a307e6e/075679587862.jpg/1200x1200bb.jpg",
+    "track_count": 19,
+    "artist_id": "UC3mgK-SgaPOBGQXxdf8DCAQ"
+  },
+  {
+    "release_date": "2026-03-27",
     "artist": "Melissa Etheridge",
     "album": "Rise",
     "label": "Sun Records",
@@ -2539,9 +3630,10 @@
   },
   {
     "release_date": "2026-03-27",
-    "artist": "Memorials (Verity SusmanandMatthew Simms)",
+    "artist": "Memorials (Verity Susman and Matthew Simms)",
     "album": "All Clouds Bring Not Rain",
-    "label": "Fire"
+    "label": "Fire",
+    "artist_id": "UCT8HqmpGDi0lWY_Oqyt3lFw"
   },
   {
     "release_date": "2026-03-27",
@@ -2590,6 +3682,14 @@
   },
   {
     "release_date": "2026-03-27",
+    "artist": "Rum.gold",
+    "album": "Is There Anybody Home?",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/57/d0/b3/57d0b3e6-4d71-9c50-f2af-5b0d65e8383d/199538537789.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCp7iwNW0sWkg6-P2jriDsWw"
+  },
+  {
+    "release_date": "2026-03-27",
     "artist": "Seafret",
     "album": "Fear of Emotion",
     "label": "Nettwerk",
@@ -2622,12 +3722,38 @@
   },
   {
     "release_date": "2026-03-27",
+    "artist": "Suzi Quatro",
+    "album": "Freedom",
+    "label": "Chrysalis",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/8c/91/ca/8c91cace-e6fc-5193-ccc1-6aa539653088/0840401723371.png/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UC2BgKNrzZ93CGcISZ_WP4Sg"
+  },
+  {
+    "release_date": "2026-03-27",
+    "artist": "Threat Signal",
+    "album": "Revelations",
+    "label": "Agonia Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/d7/6e/dc/d76edc76-c9d3-5066-061f-2147aba43651/5908287135628.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCPEjKqkWG6g__cQRqwO24-A"
+  },
+  {
+    "release_date": "2026-03-27",
     "artist": "Tigers Jaw",
     "album": "Lost on You",
     "label": "Hopeless",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/a2/93/55/a29355b5-3b60-6f6a-f4d0-0a47e1eb9273/3274.jpg/1200x1200bb.jpg",
     "track_count": 11,
     "artist_id": "UCrxV1xnezZDtQ6zp1kQItTg"
+  },
+  {
+    "release_date": "2026-03-27",
+    "artist": "Tom Misch",
+    "album": "Full Circle",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/5c/b6/65/5cb6652a-dc9d-73f7-eecd-108c4c237af6/199806550625.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCCCWJwLEvpPAs4r_nJiKe2Q"
   },
   {
     "release_date": "2026-03-27",
@@ -2665,12 +3791,28 @@
   },
   {
     "release_date": "2026-04-03",
+    "artist": "Angine de Poitrine",
+    "album": "Vol. II",
+    "label": "Angine de Poitrine",
+    "artist_id": "UCCc-xdA3zmyn6m7L1lD0gcQ"
+  },
+  {
+    "release_date": "2026-04-03",
     "artist": "Arlo Parks",
     "album": "Ambiguous Desire",
     "label": "Transgressive",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/86/10/2a/86102a67-2d84-24f7-dd60-4c7a6846ed05/5400863205140_cover.jpg/1200x1200bb.jpg",
     "track_count": 12,
     "artist_id": "UCONW30aJYOThs54eGXz38kw"
+  },
+  {
+    "release_date": "2026-04-03",
+    "artist": "Beatrice Deer",
+    "album": "Inuit Legend",
+    "label": "Uummati Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/2c/cb/e9/2ccbe951-89e3-cb67-0109-0047ffaaf516/11079.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCW4Y8KEmz5WgOP6O3iwAwKw"
   },
   {
     "release_date": "2026-04-03",
@@ -2689,10 +3831,62 @@
   },
   {
     "release_date": "2026-04-03",
-    "artist": "Bruce Hornsbyand The Noisemakers",
+    "artist": "Bon Iver",
+    "album": "Volumes: One (Selections from Music Concerts 2019–2023 Bon Iver 6 Piece Band)",
+    "label": "Jagjaguwar",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/92/33/c9/9233c984-e56c-c361-9f99-f75f0591ddfa/62268.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCx-cwf1tCXoZr0KtnpaDwyA"
+  },
+  {
+    "release_date": "2026-04-03",
+    "artist": "Bruce Hornsby and the Noisemakers",
     "album": "Indigo Park",
     "label": "Zappo Productions,Thirty Tigers",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/fb/99/91/fb9991f9-7ae2-b7ab-1a6f-f3c73712bd98/820200032454.jpg/1200x1200bb.jpg",
+    "track_count": 10,
     "artist_id": "UCiwLXd-mXNArd1LLq-ri9Kw"
+  },
+  {
+    "release_date": "2026-04-03",
+    "artist": "Charley Crockett",
+    "album": "Age of the Ram",
+    "label": "Island, Lone Star Rider Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/7f/53/4f/7f534f1a-745f-3785-baf1-05a47bcaa450/26UMGIM10996.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 20,
+    "artist_id": "UCL_xM7HCmc1_aw66yNcdlbg"
+  },
+  {
+    "release_date": "2026-04-03",
+    "artist": "Codefendants",
+    "album": "Lifers",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/9f/d2/e1/9fd2e176-fbaf-a787-c38d-a91426173f7d/199891342624_cover.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UC30BBt9jjlsXbd8J74Nj4BA"
+  },
+  {
+    "release_date": "2026-04-03",
+    "artist": "Corrosion of Conformity",
+    "album": "Good God / Baad Man",
+    "label": "Nuclear Blast",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/64/33/36/6433366e-a87c-1e1c-75e6-f54f09004a61/cover.jpg/1200x1200bb.jpg",
+    "track_count": 14,
+    "artist_id": "UCY8beduhHROBQYGevnRlEXQ"
+  },
+  {
+    "release_date": "2026-04-03",
+    "artist": "Earl Sweatshirt,Mike and Surf Gang",
+    "album": "Pompeii / Utility",
+    "label": "10k, Tan Cressida, Surf Gang Records",
+    "artist_id": "UCrE_FNQxg5oXy8SLQ63Nx7A"
+  },
+  {
+    "release_date": "2026-04-03",
+    "artist": "Grade 2",
+    "album": "Talk About It",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/fb/c2/58/fbc25824-77a5-1d7c-ad24-7423f2939f10/0045778055463.png/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCAon7eqVCBsGfBOmYJIyHGg"
   },
   {
     "release_date": "2026-04-03",
@@ -2703,12 +3897,30 @@
   },
   {
     "release_date": "2026-04-03",
+    "artist": "Katie Alice Greer",
+    "album": "Perfect Woman Sound Machine, Vol. 1",
+    "label": "GAK Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/b4/09/e3/b409e341-589d-8260-4fe7-a99ee587a89d/artwork.jpg/1200x1200bb.jpg",
+    "track_count": 8,
+    "artist_id": "UCaSeEltXlbYSXb7h8h0mw6g"
+  },
+  {
+    "release_date": "2026-04-03",
     "artist": "Lantlôs",
     "album": "Nowhere in Between Forever",
     "label": "Prophecy Productions",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/15/b0/6a/15b06a58-a77d-94af-5cc0-d409268cbc8e/2796.jpg/1200x1200bb.jpg",
     "track_count": 11,
     "artist_id": "UCbZ7iBdTnuBPwtZBfrRVGfw"
+  },
+  {
+    "release_date": "2026-04-03",
+    "artist": "Maria Taylor",
+    "album": "Story's End",
+    "label": "Million Stars",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/79/d1/22/79d12229-dd1e-0fcb-9abd-7c6bbd053634/198704947605_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 1,
+    "artist_id": "UCueT5zJuhA4OMaGaI0jiG2g"
   },
   {
     "release_date": "2026-04-03",
@@ -2730,6 +3942,24 @@
   },
   {
     "release_date": "2026-04-03",
+    "artist": "Population II",
+    "album": "Gimmicks",
+    "label": "Bonsound",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/88/00/c9/8800c979-4be5-98db-de06-95343a72bbf4/123679.jpg/1200x1200bb.jpg",
+    "track_count": 5,
+    "artist_id": "UCEtFCmOEkyP4Af-2aXXhRxw"
+  },
+  {
+    "release_date": "2026-04-03",
+    "artist": "Los Retros",
+    "album": "Odisea",
+    "label": "Stones Throw",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/9b/1a/d5/9b1ad56a-ab80-f81a-10d5-e84ff8130ac6/2171.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCE8R3Vkqj_7tOYOTxdkW5cQ"
+  },
+  {
+    "release_date": "2026-04-03",
     "artist": "Sunn O)))",
     "album": "Sunn O)))",
     "label": "Sub Pop",
@@ -2738,10 +3968,43 @@
     "artist_id": "UC1-97Uf4c18yhCOkYqpN_oQ"
   },
   {
+    "release_date": "2026-04-03",
+    "artist": "Thundercat",
+    "album": "Distracted",
+    "label": "Brainfeeder",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/8a/9b/5f/8a9b5f98-1ba4-ea86-c70d-2bc19919e99d/5054429208733.png/1200x1200bb.jpg",
+    "track_count": 15,
+    "artist_id": "UCUl7CLMqbyYVb62zJ7nbLfA"
+  },
+  {
+    "release_date": "2026-04-03",
+    "artist": "Zachary Baker",
+    "album": "Dark Horse",
+    "label": "Vngnz Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/a8/8a/7a/a88a7a0c-3b66-3f8f-8b77-a18c7fda7c6a/artwork.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCxh_WoQeOfWFzL0tV4DUNYw"
+  },
+  {
+    "release_date": "2026-04-06",
+    "artist": "KickFlip",
+    "album": "My First Kick",
+    "label": "JYP",
+    "artist_id": "UCgY89NTMGGuTzEmdOabjOYg"
+  },
+  {
     "release_date": "2026-04-08",
     "artist": "Attila",
     "album": "Concrete Throne",
     "artist_id": "UC7djyjppX-Zw0d3CKzQykpQ"
+  },
+  {
+    "release_date": "2026-04-10",
+    "artist": "Alfie Boe",
+    "album": "Face Myself",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/c8/80/22/c8802262-6e0a-406f-5789-c9d69eb1ecb7/820200000569.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCz-r4te0BUqcAJ42vLzhnsg"
   },
   {
     "release_date": "2026-04-10",
@@ -2757,6 +4020,14 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/e3/c1/98/e3c19824-b7e6-f51e-f667-0742c2d68218/196873779720.jpg/1200x1200bb.jpg",
     "track_count": 12,
     "artist_id": "UCn9ubUSWMCjfOcHDUvUMoag"
+  },
+  {
+    "release_date": "2026-04-10",
+    "artist": "Bilmuri",
+    "album": "Kinda Hard",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/35/89/b0/3589b0e1-41da-a15f-b673-469059df6342/196874025635.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCGFdAlnCuH6ziQceyZvPnBw"
   },
   {
     "release_date": "2026-04-10",
@@ -2796,6 +4067,15 @@
   },
   {
     "release_date": "2026-04-10",
+    "artist": "I Am the Avalanche",
+    "album": "The Horror Show",
+    "label": "Equal Vision",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/02/4e/da/024eda50-529c-f072-0fa5-b6a866d61d6b/794558054560.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UC5B60FXRplpJo21mkYHE7dQ"
+  },
+  {
+    "release_date": "2026-04-10",
     "artist": "Immolation",
     "album": "Descent",
     "label": "Nuclear Blast",
@@ -2814,6 +4094,15 @@
   },
   {
     "release_date": "2026-04-10",
+    "artist": "Jessie Ware",
+    "album": "Superbloom",
+    "label": "EMI",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/50/ab/34/50ab34f5-11bc-5e78-9c43-80aca9e301b4/25UM2IM06906.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UC53XOR2hYpVcmGmkhukIihA"
+  },
+  {
+    "release_date": "2026-04-10",
     "artist": "Lime Garden",
     "album": "Maybe Not Tonight",
     "label": "So Young Records",
@@ -2823,9 +4112,65 @@
   },
   {
     "release_date": "2026-04-10",
+    "artist": "Long Distance Calling",
+    "album": "The Phantom Void",
+    "label": "earMusic",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c2/6d/a1/c26da192-d023-3689-2375-8d53bcc8a8c4/4029759213833.jpg/1200x1200bb.jpg",
+    "track_count": 7,
+    "artist_id": "UCOuME89JCNu3aoFHxYcf34g"
+  },
+  {
+    "release_date": "2026-04-10",
     "artist": "The Maine",
     "album": "Joy Next Door",
-    "artist_id": "UCihvT3Taf8NL5CrcVgAwFsg"
+    "artist_id": "UCihvT3Taf8NL5CrcVgAwFsg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/96/c2/a4/96c2a430-93ba-75c0-233a-db655ac5d02c/604675422749_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 11
+  },
+  {
+    "release_date": "2026-04-10",
+    "artist": "Mei Semones",
+    "album": "Kurage",
+    "label": "Bayonet Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/0d/3a/9e/0d3a9e2c-f697-2519-a2e2-647c179bebea/61346.jpg/1200x1200bb.jpg",
+    "track_count": 3,
+    "artist_id": "UCFB0QBxjmwyDITdS5W4OzFw"
+  },
+  {
+    "release_date": "2026-04-10",
+    "artist": "Melechesh",
+    "album": "Sentinels of Shamash",
+    "label": "Reigning Phoenix",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/80/56/6a/80566a34-8cea-4cc3-d59e-c49270253cf4/4251981714172.jpg/1200x1200bb.jpg",
+    "track_count": 3,
+    "artist_id": "UCXnaV6aydmsChYnKNEOXyDg"
+  },
+  {
+    "release_date": "2026-04-10",
+    "artist": "Melvins and Napalm Death",
+    "album": "Savage Imperial Death March",
+    "label": "Ipecac",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/cc/62/4f/cc624f63-733d-5ccc-ec30-126832e66a82/61286.jpg/1200x1200bb.jpg",
+    "track_count": 8,
+    "artist_id": "UCgmLobCGRg2x6iShDcDRwQA"
+  },
+  {
+    "release_date": "2026-04-10",
+    "artist": "Metal Church",
+    "album": "Dead to Rights",
+    "label": "Rat Pak Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c1/45/60/c145604e-3bed-95c1-2300-254c8b81b678/5026854388458.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCSRf9xcJTj7fFzCp5FwM1Dw"
+  },
+  {
+    "release_date": "2026-04-10",
+    "artist": "My New Band Believe",
+    "album": "My New Band Believe",
+    "label": "Rough Trade",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/1f/d1/7a/1fd17a69-ee3c-0f0a-ce28-fbc990935d7f/191402060072.png/1200x1200bb.jpg",
+    "track_count": 8,
+    "artist_id": "UCTfcucn8Bk4S6L4pNW-DWAg"
   },
   {
     "release_date": "2026-04-10",
@@ -2833,6 +4178,113 @@
     "album": "Life Slime",
     "label": "Fire",
     "artist_id": "UCsS_7dyD9bToTfj6SJlHrtA"
+  },
+  {
+    "release_date": "2026-04-10",
+    "artist": "Squarepusher",
+    "album": "Kammerkonzert",
+    "label": "Warp",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/16/0a/07/160a0752-bb5b-0205-4164-26e3c6ca4368/5056818805707.png/1200x1200bb.jpg",
+    "track_count": 14,
+    "artist_id": "UCpwax2-MvnILOcR68QWOZ1g"
+  },
+  {
+    "release_date": "2026-04-10",
+    "artist": "T'Pau",
+    "album": "Be Wonderful",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music123/v4/02/83/47/0283475c-1c02-6fe5-1cfe-612e239c8852/artwork.jpg/1200x1200bb.jpg",
+    "track_count": 1,
+    "artist_id": "UC96O3b2Ga3ixSy90tM3mZWw"
+  },
+  {
+    "release_date": "2026-04-10",
+    "artist": "Vomitory",
+    "album": "In Death Throes",
+    "label": "Metal Blade",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/a0/38/30/a03830cd-4f41-4f7a-4cbf-ee230c20ec99/Vomitory_-_In_Death_Throes.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCOCP1FEiKH6s7q7N5kOX1BA"
+  },
+  {
+    "release_date": "2026-04-10",
+    "artist": "WU LYF",
+    "album": "A Wave That Will Never Break"
+  },
+  {
+    "release_date": "2026-04-14",
+    "artist": "They Might Be Giants",
+    "album": "The World Is to Dig",
+    "label": "Idlewild Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/6b/84/71/6b84713c-5e87-0426-912e-62fd34ca7d95/820200274816.jpg/1200x1200bb.jpg",
+    "track_count": 18,
+    "artist_id": "UCuVDbfvBzNkyCUuKNVHDeNw"
+  },
+  {
+    "release_date": "2026-04-17",
+    "artist": "Anne Hathaway",
+    "album": "Mother Mary: Greatest Hits",
+    "label": "A24 Music",
+    "artist_id": "UCdfBAD0_hity3UsnyC1gbdQ"
+  },
+  {
+    "release_date": "2026-04-17",
+    "artist": "Arkells",
+    "album": "Between Us",
+    "label": "Universal Music Canada",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/3a/81/2b/3a812bd5-7ba0-3c50-2832-0db3b57207a9/26SYMIM25686.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UC4gSaMkJ6AK35F9MDIIiyPA"
+  },
+  {
+    "release_date": "2026-04-17",
+    "artist": "Brother Cane",
+    "album": "Magnolia Medicine",
+    "label": "Double Dragon Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/fb/28/02/fb2802a5-56be-e9a8-3fb2-0f52189b00ab/198704635380_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCxSjZP21Wi9L8X_PYySsg-Q"
+  },
+  {
+    "release_date": "2026-04-17",
+    "artist": "Crimson Glory",
+    "album": "Chasing the Hydra",
+    "label": "BraveWords Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/1a/86/73/1a867374-c9cc-903f-1b16-11ad8af0b0f2/CRIMSON-GLORY-COVER-FINAL-FLATTEN.jpg/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UCdODWbC4NKUpFtOBxOezSnw"
+  },
+  {
+    "release_date": "2026-04-17",
+    "artist": "From Ashes to New",
+    "album": "Reflections",
+    "label": "Better Noise",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/6c/29/8e/6c298eea-664f-8094-05f3-1b9f4d7c8d6a/810202534308.png/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCJif7WIflX_1Jg5RypJjqnw"
+  },
+  {
+    "release_date": "2026-04-17",
+    "artist": "Hardline",
+    "album": "Shout",
+    "label": "Steamhammer/SPV",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/37/36/12/3736129c-262d-b8ec-2f5c-e7483a171ac4/4001617068441.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCFpUIUMRuASxBhDZ2SSbQeg"
+  },
+  {
+    "release_date": "2026-04-17",
+    "artist": "Hermitude",
+    "album": "Eight",
+    "label": "Heavy Weather",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/13/f9/1f/13f91f71-f0b3-1c0b-4d24-bb5920db20fe/8721465667714.png/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCy0MIpREDjJE1cpiIIsHXdw"
+  },
+  {
+    "release_date": "2026-04-17",
+    "artist": "Honey Dijon",
+    "album": "Nightlife",
+    "artist_id": "UCLoyUoHBcUVbEvygJHggJoQ"
   },
   {
     "release_date": "2026-04-17",
@@ -2852,6 +4304,30 @@
     "artist_id": "UCtDnOMx2c8mU07Ug772TkxQ"
   },
   {
+    "release_date": "2026-03-06",
+    "artist": "Matt Corby",
+    "album": "Tragic Magic",
+    "label": "Island Australia",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/dc/51/7f/dc517f1d-da93-29a1-a3a3-a05d2121e655/25UM1IM51446.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCR2iuWSzShNMhtoRWaMFQdw"
+  },
+  {
+    "release_date": "2026-04-17",
+    "artist": "Prince Daddy & the Hyena",
+    "album": "Hotwire Trip Switch",
+    "label": "Counter Intuitive",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/35/1f/57/351f5729-167f-e57d-3bc5-46cb99de52fc/199806899106.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCoOvf8xmzO9TEUYqzcuZt3A"
+  },
+  {
+    "release_date": "2026-04-17",
+    "artist": "Nekrogoblikon",
+    "album": "The Boiling Sea",
+    "artist_id": "UCRhm-BvXdkTHrbaxo0LIACA"
+  },
+  {
     "release_date": "2026-04-17",
     "artist": "Skindred",
     "album": "You Got This",
@@ -2862,12 +4338,44 @@
   },
   {
     "release_date": "2026-04-17",
+    "artist": "Sofia Isella",
+    "album": "Something Is a Shell",
+    "artist_id": "UCNXV_R8DkNq8xIpNphO-DMw"
+  },
+  {
+    "release_date": "2026-04-17",
     "artist": "Souled American",
     "album": "Sanctions",
     "label": "Jealous Butcher Records",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/6d/c7/e8/6dc7e8e6-e05e-510e-d1d2-e243ee3fa634/123455.jpg/1200x1200bb.jpg",
     "track_count": 12,
     "artist_id": "UCUuIUARm85ALKVdglKc-frw"
+  },
+  {
+    "release_date": "2026-04-17",
+    "artist": "Tanya Donelly and Chris Brokaw",
+    "album": "The Undone Is Done Again",
+    "label": "Fire",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/bf/41/ca/bf41ca27-64d2-eb01-8548-62635c967f88/809236004970_cover.jpg/1200x1200bb.jpg",
+    "track_count": 4
+  },
+  {
+    "release_date": "2026-04-17",
+    "artist": "Tomora",
+    "album": "Come Closer",
+    "label": "Capitol",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/46/10/7f/46107fb0-ccff-4370-49f4-3ddd29b2729c/25UM2IM08119.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UClYlBs5Lth5CKnwwNv5RkpA"
+  },
+  {
+    "release_date": "2026-04-17",
+    "artist": "Teen Suicide",
+    "album": "Nude Descending Staircase Headless",
+    "label": "Run for Cover",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/9f/7a/d8/9f7ad825-531f-6045-df23-cc7698ce368d/61426.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UC60-9iQ9yL7lK7liKOxd25A"
   },
   {
     "release_date": "2026-04-17",
@@ -2888,10 +4396,131 @@
     "artist_id": "UCII0SFvLXpSACNv1nImt0lQ"
   },
   {
+    "release_date": "2026-04-17",
+    "artist": "Wage War",
+    "album": "It Calls Me by My Name",
+    "label": "Fearless",
+    "artist_id": "UCJ-G9Ij2PUj-s3oe4hbqbFg"
+  },
+  {
+    "release_date": "2026-04-17",
+    "artist": "Yaya Bey",
+    "album": "Fidelity",
+    "label": "Drink sum wtr",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/dd/8c/73/dd8c737b-fe2e-1d2d-7e07-dd5d2a268836/62076.jpg/1200x1200bb.jpg",
+    "track_count": 16,
+    "artist_id": "UCXChWvig9-oK7V15r_8XADQ"
+  },
+  {
+    "release_date": "2026-04-17",
+    "artist": "Zayn",
+    "album": "Konnakol",
+    "label": "Mercury,Island",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/97/10/fd/9710fdc3-5f45-45b8-2d00-ae3ee736e520/26UMGIM08006.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 15,
+    "artist_id": "UCYR9erHSNBPjjNswR4FrMaw"
+  },
+  {
     "release_date": "2026-04-18",
-    "artist": "DoPE (Chuck DandJohn Densmore)",
+    "artist": "Air",
+    "album": "Moon Safari – The Athens Concert",
+    "artist_id": "UCH_Q3OLUXLZNF0qmnY3bCXg"
+  },
+  {
+    "release_date": "2026-04-18",
+    "artist": "Look Outside Your Window",
+    "album": "Look Outside Your Window"
+  },
+  {
+    "release_date": "2026-04-18",
+    "artist": "Dallas Good and Richard Reed Parry",
+    "album": "Were \"The Watchtowers\"",
+    "label": "Yep Roc",
+    "artist_id": "UCiFXfIjuPAwlNtWPCwY90vg"
+  },
+  {
+    "release_date": "2026-04-18",
+    "artist": "DoPE (Chuck D and John Densmore)",
     "album": "No Country for Old Men",
     "label": "Org Music"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "The Amity Affliction",
+    "album": "House of Cards",
+    "label": "Pure Noise",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/55/41/57/5541578e-7cd1-8cae-8f1d-b00eeb5cf6d6/199806964736.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCyS5sW5oCYW9awwdYnQ02lg"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Angélique Kidjo",
+    "album": "Hope!!",
+    "label": "Warner",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/25/0d/d1/250dd1fd-debc-e49e-149a-b4f1fa003158/5026854794860.jpg/1200x1200bb.jpg",
+    "track_count": 16,
+    "artist_id": "UCKy_RKvarNHSW-1IZzDFtBA"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Angelo De Augustine",
+    "album": "Angel in Plainclothes",
+    "label": "Asthmatic Kitty",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/29/1e/f8/291ef899-d456-947f-7db3-2bf1bda8c054/61607.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCkbPCoZKBkfXuiughWP0KDA"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Atreyu",
+    "album": "The End Is Not the End",
+    "label": "Spinefarm",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/31/a5/1c/31a51cd9-1e67-b30f-a6f6-a161f9796109/5401148010749_cover.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UC5wCFGdu-Jg4iHn-nTonVZg"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "At the Gates",
+    "album": "The Ghost of a Future Dead",
+    "label": "Century Media",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/0a/ae/80/0aae8004-6b6d-6075-6293-f3ae4fb017bc/196873096056.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCMz6YuvYXH4bGFSZWz6Mfsw"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "The Cab",
+    "album": "Chasing Crowns",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/2c/e0/61/2ce061af-f1be-6b64-9264-dc8ae97efde3/527886.jpg/1200x1200bb.jpg",
+    "track_count": 18,
+    "artist_id": "UC1GYMQ6BG1MhFo_FMbvfHWA"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Cadence Weapon",
+    "album": "Forager",
+    "label": "Six Shooter",
+    "artist_id": "UCQTIYIgiZO1Z05kqJ-ZCsmw"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Carla dal Forno",
+    "album": "Confession",
+    "label": "Kallista Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/a7/9f/f4/a79ff47e-7cf6-e2da-be12-6079c1895d66/16130.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCSoNBNFrsOl9iuOLrvwRFgQ"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Cavs",
+    "album": "Sojourn",
+    "label": "p(doom)",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/36/a0/6f/36a06f2e-592b-ecca-ff4f-2935c483644a/198704974410_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCn-qBDzr3R5GqCP0TZi_yqQ"
   },
   {
     "release_date": "2026-04-24",
@@ -2901,6 +4530,81 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/63/a1/b5/63a1b568-2ad7-5e9f-6159-ba7d62ef07f9/9782.jpg/1200x1200bb.jpg",
     "track_count": 12,
     "artist_id": "UCsy7tJvpOyCtqOm5uHD9o7g"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Doug Gillard",
+    "album": "Parallel Stride",
+    "label": "Dromedary Records",
+    "artist_id": "UCO435B5-KR0RBBSvu3NRBNA"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Elegant Weapons",
+    "album": "Evolution",
+    "label": "Exciter Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/13/50/77/13507723-8027-28a7-69f8-5f9860f365ad/16254.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCWRBTXPEFBrLTt33TQNPVTQ"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Failure",
+    "album": "Location Lost",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/f8/02/74/f802742c-f1b0-6de3-3d6a-841b1f519420/198704937330_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UCYMu2TKjqagU93V1azZ09ew"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Foo Fighters",
+    "album": "Your Favorite Toy",
+    "label": "Roswell,RCA",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/ab/4d/3d/ab4d3dcb-704e-4ab5-bbaf-dcfaf6163c1a/196874077870.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCwDw2KaS8jRUxAPScL2U8og"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Friko",
+    "album": "Something Worth Waiting For",
+    "label": "ATO",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/bc/03/54/bc0354be-3b7e-69ff-2d35-b98e4926909a/00880882686550_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UC43JhSwW2IanzBGMfaIxBlA"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Gia Margaret",
+    "album": "Singing",
+    "label": "Jagjaguwar",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/ee/1d/b4/ee1db453-9422-f335-da7f-9ca77dcf4ce4/61541.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCwGhxf5oHwgtw_QX5diCL-w"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Glen Hansard",
+    "album": "Don't Settle – Transmissions East",
+    "label": "Plateau Records,Secretly",
+    "artist_id": "UCmqLoaQpdKv0efAmEZm43RQ"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Gus G",
+    "album": "Steel Burner",
+    "label": "Metal Department Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/a2/d5/67/a2d567fa-2025-e60d-160e-291e337c3874/859729757999_cover.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCYFoKB8eiANKaSv1SpvQzWA"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Hrishikesh Hirway",
+    "album": "In the Last Hour of Light",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/a1/8b/da/a18bdafa-5f6f-700a-f246-b1f0e8ad2e33/61436.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCkzN7i5sxvvyf6d3VCsgzBA"
   },
   {
     "release_date": "2026-04-24",
@@ -2921,6 +4625,24 @@
   },
   {
     "release_date": "2026-04-24",
+    "artist": "Julia Cumming",
+    "album": "Julia",
+    "label": "Partisan",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/ee/8d/c0/ee8dc019-2556-1355-c266-a45ae66f8169/0720841305996_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCganPuVSo4Z2ylRX42GSNjA"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Kehlani",
+    "album": "Kehlani",
+    "label": "Atlantic, TSNMI",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/da/ea/6c/daea6c92-0990-d691-3283-6f019c4c8529/075679584670.jpg/1200x1200bb.jpg",
+    "track_count": 19,
+    "artist_id": "UCONwFIjhxe4MR2sY3Cv0adA"
+  },
+  {
+    "release_date": "2026-04-24",
     "artist": "Kneecap",
     "album": "Fenian",
     "label": "Heavenly",
@@ -2930,9 +4652,12 @@
   },
   {
     "release_date": "2026-04-24",
-    "artist": "Lightning BoltandOOIOO",
+    "artist": "Lightning Bolt and OOIOO",
     "album": "The Horizon Spirals / The Horizon Viral",
-    "label": "Thrill Jockey"
+    "label": "Thrill Jockey",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/2f/ac/9e/2fac9e90-3bbb-06e4-fd05-f43bc3ffa204/790377065862.png/1200x1200bb.jpg",
+    "track_count": 7,
+    "artist_id": "UCzGwNHrM63TKRggqSWBRZWg"
   },
   {
     "release_date": "2026-04-24",
@@ -2942,6 +4667,15 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/83/7f/d3/837fd38f-c902-59e4-7d89-5faaa5034637/196873676364.jpg/1200x1200bb.jpg",
     "track_count": 16,
     "artist_id": "UC_VCJd8skzwcPktsMLqTz1g"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Metric",
+    "album": "Romanticize the Dive",
+    "label": "Thirty Tigers",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/d1/bb/e5/d1bbe5ac-d03b-3441-ac77-77d0e1891abf/199806356883.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCEDAqx7QPrOUV3Bx9aqUjsw"
   },
   {
     "release_date": "2026-04-24",
@@ -2965,7 +4699,28 @@
     "release_date": "2026-04-24",
     "artist": "Noah Kahan",
     "album": "The Great Divide",
-    "artist_id": "UCwGXlFP4Ba5do7KoxRJYgVQ"
+    "label": "Mercury",
+    "artist_id": "UCwGXlFP4Ba5do7KoxRJYgVQ",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e0/53/5b/e0535bb5-a269-8cc4-e12f-589e26809569/26UMGIM02802.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 17
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Portrayal of Guilt",
+    "album": "...Beginning of the End",
+    "label": "Run for Cover",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/f2/d9/9e/f2d99e1d-a123-c119-939f-399373e7a537/62247.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCvy8OJlElx5AAW1Hc9zthJQ"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Ringo Starr",
+    "album": "Long Long Road",
+    "label": "UMe",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/57/ff/72/57ff7236-a492-736d-1c62-0f9d81282147/26UMGIM06906.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCJWrY1uIUlnGvs0sUz5ydwQ"
   },
   {
     "release_date": "2026-04-24",
@@ -2974,6 +4729,15 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/9f/50/f9/9f50f931-7eea-5a6a-f675-d52c7317c7f3/199806171356.jpg/1200x1200bb.jpg",
     "track_count": 13,
     "artist_id": "UCH8ry93F2_AHy3fnnX-yxsw"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Ruby Fields",
+    "album": "Small Achievements",
+    "label": "Ruby Fields",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/f4/74/cc/f474ccd1-7027-63a3-bb46-cb513f9f2e04/429679.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UC0zM5y428xKDYZsuoUfS3Dw"
   },
   {
     "release_date": "2026-04-24",
@@ -2986,6 +4750,15 @@
   },
   {
     "release_date": "2026-04-24",
+    "artist": "Sepultura",
+    "album": "The Cloud of Unknowing",
+    "label": "Nuclear Blast",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/2e/19/7b/2e197be5-2e9b-00a8-44ea-400eb5468307/cover.jpg/1200x1200bb.jpg",
+    "track_count": 4,
+    "artist_id": "UCZDm-NPbTrtTGa69EC2dFGw"
+  },
+  {
+    "release_date": "2026-04-24",
     "artist": "Setting",
     "album": "Setting",
     "label": "Thrill Jockey",
@@ -2995,12 +4768,160 @@
   },
   {
     "release_date": "2026-04-24",
+    "artist": "Six Feet Under",
+    "album": "Next to Die",
+    "label": "Metal Blade",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/fb/cf/cd/fbcfcd2a-7b9e-0d1a-9e74-0204866c010c/Six_Feet_Under_-_Next_to_Die.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCdHYk27kWRWIHbjEbxFZnqg"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "Terror",
+    "album": "Still Suffer",
+    "label": "Flatspot Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/d1/b4/36/d1b43632-bd06-5035-2978-59500f13c1d0/61928.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCtQwayvZe6oVoaXErRu2iQQ"
+  },
+  {
+    "release_date": "2026-04-24",
     "artist": "White Denim",
     "album": "13",
     "label": "Bella Union",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/dc/73/20/dc732028-6d82-0870-c148-f0e918bf055e/cover.jpg/1200x1200bb.jpg",
     "track_count": 13,
     "artist_id": "UC_Bg34OvidmryhOwQDk7jbw"
+  },
+  {
+    "release_date": "2026-04-24",
+    "artist": "White Fence",
+    "album": "Orange",
+    "label": "Drag City",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d4/d0/41/d4d041ad-5d5e-1f29-7287-ce6de99760d2/781484097822.png/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCuoJbbqftLdL9LBbIuAQVEQ"
+  },
+  {
+    "release_date": "2026-04-30",
+    "artist": "Octo Octa",
+    "album": "Sigils for Survival",
+    "label": "T4T LUV NRG",
+    "artist_id": "UCWjnh-Ty_8Nq4UdcbTzXFSA"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "American Football",
+    "album": "American Football",
+    "label": "Polyvinyl",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/17/fc/53/17fc5379-78f6-a661-369b-4fa27875de78/644110002563.png/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UCX0E0vMNuhVdIH_s3RVFGGA"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "Ana Roxanne",
+    "album": "Poem 1",
+    "label": "Kranky",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/4c/ff/61/4cff61c5-8f6b-e0f8-c25d-6b57f39593c5/796441825226.jpg/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UC4aFbRaJCyMi7M7_hjUjAIw"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "The Black Keys",
+    "album": "Peaches!",
+    "label": "Easy Eye Sound Records,Parlophone",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/4d/77/de/4d77defb-a755-601b-0a3d-604871e24c66/093624823445.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCchwuI134MUX4GSZqYLpYGA"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "The Boo Radleys",
+    "album": "In Spite of Everything",
+    "label": "Boostr Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e9/b0/f1/e9b0f19e-4a37-24a4-1cc4-72439ea14088/5037300561813.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCB8txLMh_HegLpuTSGxb6HA"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "The Claypool Lennon Delirium",
+    "album": "The Great Parrot-Ox and the Golden Egg of Empathy",
+    "label": "ATO",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/1c/27/62/1c2762f8-1300-f6f9-20d6-91305e431dca/00880882688158_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 14,
+    "artist_id": "UClRaiJfHj0KoWkln7LBGFJg"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "Dodgy",
+    "album": "Hello Beautiful",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/59/61/10/596110da-efe0-e007-3449-22a9ac4fe903/artwork.jpg/1200x1200bb.jpg",
+    "track_count": 1,
+    "artist_id": "UCz-73wXIcmB-sVO3i-u7guA"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "Geordie Gordon",
+    "album": "River Round",
+    "label": "Victory Pool Records",
+    "artist_id": "UCB1wjgSrvd-eAwNukB3gGsQ"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "Haste the Day",
+    "album": "Dissenter",
+    "label": "Solid State",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d0/cd/80/d0cd8061-5d98-f97c-b754-ee0d07819e21/810129812770.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCcnnw-M55BtFtwTsjv5oS8A"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "Hiss Golden Messenger",
+    "album": "I'm People",
+    "label": "Chrysalis",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/0f/21/57/0f2157cd-4602-db72-efa5-40ea23b684cc/0840401722930.png/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCumSnGuRTWL8AGrJRTiMrZQ"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "Jesca Hoop",
+    "album": "Long Wave Home",
+    "label": "Last Laugh Records, Republic of Music Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/a8/f3/6a/a8f36a58-ebdb-3223-310c-916cd2b440fa/5053760146612_cover.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCH-5_WYYadpXlPuG93aXIxQ"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "Kacey Musgraves",
+    "album": "Middle of Nowhere",
+    "label": "Lost Highway",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/ab/4a/ca/ab4acaa2-2d94-0b78-11f6-b4ec462659ea/26UMGIM23086.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UC87QNTF9qgTwe8KKN1V8NGw"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "Laibach",
+    "album": "Musick",
+    "label": "Mute",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/b6/e6/28/b6e62865-e613-97b7-5afe-5bd13de5473b/5400863204211.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCs7UAXsNuZ4bhUMK-15NEgQ"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "Maya Hawke",
+    "album": "Maitreya Corso",
+    "label": "Mom + Pop",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/70/07/3d/70073d79-17ae-6c75-8f3e-7d52f92b3bc9/810090098876_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCpCdLTLfDakfXAI29jeytkg"
   },
   {
     "release_date": "2026-05-01",
@@ -3013,12 +4934,45 @@
   },
   {
     "release_date": "2026-05-01",
+    "artist": "Rita Wilson",
+    "album": "Sound of a Woman",
+    "label": "Sing it Loud Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/4d/86/7c/4d867cd7-11e2-61fa-99ec-0782fc5d13f8/199806689929.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UC6E5fTKYFDRve-aO5ba-ZeA"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "Seefeel",
+    "album": "Sol.Hz",
+    "label": "Warp",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/98/74/70/98747071-1afa-fd9b-348b-2bb1dd5ce34a/5056818805905.png/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UCRCwqhJWQGi43RKqrKgzmSw"
+  },
+  {
+    "release_date": "2026-05-01",
     "artist": "Sevendust",
     "album": "One",
     "label": "Napalm",
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/6e/ab/7c/6eab7c5f-065e-9a01-6f61-76894d556e52/810185199259.jpg/1200x1200bb.jpg",
     "track_count": 10,
     "artist_id": "UCQ9OsAvXM3OoI4bNmbVEq1Q"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "Thurston Moore and Bonner Kramer",
+    "album": "They Came Like Swallows – Seven Requiems for the Children of Gaza",
+    "label": "Silver Current Records"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "Toadies",
+    "album": "The Charmer",
+    "label": "Spaceflight Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/fa/bd/a5/fabda53c-ff6b-09fc-61e6-62a5f944534d/123473.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCIm5pgtqD7m5gmwvuuklvdA"
   },
   {
     "release_date": "2026-05-01",
@@ -3030,11 +4984,366 @@
     "artist_id": "UCIgQ_8rulGwokbAu6QOxCGQ"
   },
   {
+    "release_date": "2026-05-01",
+    "artist": "Venom",
+    "album": "Into Oblivion",
+    "label": "Noise,BMG",
+    "artist_id": "UCbRHXM6fCmrQouFtXpBMqRQ"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "Young the Giant",
+    "album": "Victory Garden",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/7b/5e/0e/7b5e0ed6-65d9-6cf0-e1e1-0d6ef8e30b99/25CRGIM52199.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UC7xy1_cEwDPN2Ffk1fyFbIQ"
+  },
+  {
+    "release_date": "2026-05-01",
+    "artist": "Youbet",
+    "album": "Youbet",
+    "label": "Hardly Art",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/77/8b/c1/778bc1fb-1173-6f00-0188-f7354356fd1c/098787318463.png/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCLpYjbL37DLNok4eNYb2TiQ"
+  },
+  {
+    "release_date": "2026-05-02",
+    "artist": "Upsammy and Valentina Magaletti",
+    "album": "Seismo",
+    "label": "PAN",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/a0/b0/d0/a0b0d066-6e78-7df2-2bc6-c06c977b3bd2/62953.jpg/1200x1200bb.jpg",
+    "track_count": 8,
+    "artist_id": "UCc53K2jz3paetwxvGXqBHMg"
+  },
+  {
+    "release_date": "2026-05-04",
+    "artist": "Cortis",
+    "album": "GreenGreen",
+    "label": "Big Hit",
+    "artist_id": "UCraxhuo4vXXMMgXJ6Gil4Eg"
+  },
+  {
+    "release_date": "2026-05-05",
+    "artist": "Alabaster DePlume",
+    "album": "Dear Children of Our Children, I Knew: Epilogue",
+    "label": "International Anthem",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/88/ef/4f/88ef4f3e-1406-57da-d50b-6fbfa9e7535c/123989.jpg/1200x1200bb.jpg",
+    "track_count": 5,
+    "artist_id": "UC4cYnpGo1QwOi-E7VFQPNfg"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Abigail Lapell",
+    "album": "Shadow Child",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d7/11/94/d71194cb-c7de-83bc-7597-eae418f2a2a3/121339.jpg/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UCX-mRR8yW2lZHHA0lqXo30g"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Aldous Harding",
+    "album": "Train on the Island",
+    "label": "4AD",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/71/87/11/7187119a-dca7-bc82-6bd8-e369a982bad0/191400087378.png/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCJhnUvaiyk98avfRDgV_8Hw"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Amy Grant",
+    "album": "The Me That Remains",
+    "label": "Thirty Tigers",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/89/18/da/8918daac-fae7-8d2d-a117-b5fed829e245/199806913918.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCTKsl6JRuiTfJebTGQujo6A"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Basement",
+    "album": "Wired",
+    "label": "Run for Cover",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/61/46/24/614624ba-e75f-3dd7-9620-79d24e5c0c71/62232.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UC7Ccjp1JYTpIcTRdM1EpgFw"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Broken Social Scene",
+    "album": "Remember the Humans",
+    "label": "Arts & Crafts",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/c2/47/cf/c247cf09-0d98-da49-57c4-ef70d1fd5c22/26SYMIM25624.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCaWg46NlUWiP7vYGDcyHIVg"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Chinese American Bear",
+    "album": "Dim Sum & Then Some",
+    "label": "Moshi Moshi",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/5d/16/3f/5d163f5d-e7be-89ba-23ae-63a09dfe5d83/61814.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCHt8Isqt9vB0BKsvIqU9Blg"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Cola",
+    "album": "Cost of Living Adjustment",
+    "label": "Fire Talk Records",
+    "artist_id": "UCOj-XQMQewDzwrpSphvhOMg"
+  },
+  {
     "release_date": "2026-05-08",
     "artist": "Crashdïet",
     "album": "Art of Chaos",
     "label": "Ninetone",
     "artist_id": "UCfP-7_BzkTrouC-EF0vbC3A"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Croz Boyce (Avey Tare and Geologist)",
+    "album": "Croz Boyce",
+    "label": "Domino",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/9a/12/0c/9a120c6a-60d8-7e68-6004-06f91fa6dabe/887828057368.png/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UC6X5Baxp63Ex9NaLZwAy7lQ"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Deb Never",
+    "album": "Arcade",
+    "label": "Giant Music",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/00/55/ed/0055ed16-dca9-fd9f-9cb6-ecd33e184027/193436459099_DNAAlbumArtwork.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCeEgIoI0lmuRwdHIcgqd1SQ"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Draconian",
+    "album": "In Somnolent Ruin",
+    "label": "Napalm",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/6a/96/87/6a968707-755b-3752-d711-9d083db171fa/810210531184.jpg/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UCItGiuzrW0IrOdMj5OZ_9XA"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "The Flatliners",
+    "album": "Cold World",
+    "label": "Rude Records,Equal Vision",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/95/dc/14/95dc1469-0908-610b-6268-5ee87196cc7f/794558055161.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCf4sZySOBR0ukuhDCl-PJ9g"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Frozen Soul",
+    "album": "No Place of Warmth",
+    "label": "Century Media",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/61/0d/5c/610d5cb1-1055-bb71-94c3-1807b9d13a59/196873835044.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCITRLUQlEhOvaNhp4Fhe7FA"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Ingested",
+    "album": "Denigration",
+    "label": "Metal Blade",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/3d/2f/30/3d2f3096-cb46-0440-9f1e-ed37ed93d2d7/Ingested_-_Denigration.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UC7vOAwRZFsmfLHYBuUJwN7A"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Josiah and the Bonnevilles",
+    "album": "As Is",
+    "label": "Rounder",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/b6/eb/8d/b6eb8d6b-fa33-a887-251d-dee26c37cb34/25CRGIM53100.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCS1IzMwekGz_23RSFX5mKYw"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Koyo",
+    "album": "Barely Here",
+    "label": "Pure Noise",
+    "artist_id": "UCpXiYpnAMCQ1QJXqyTlc1xA"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "The Lemon Twigs",
+    "album": "Look for Your Mind!",
+    "label": "Captured Tracks",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/83/e6/99/83e6996b-f432-cc96-8dab-bda8b1512b0e/62431.jpg/1200x1200bb.jpg",
+    "track_count": 14,
+    "artist_id": "UC-kQ5nT06yHT5PmCLgE6c7A"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Linda Perry",
+    "album": "Let It Die Here",
+    "label": "670 Records,Kill Rock Stars",
+    "artist_id": "UCUmMvO-ND0F0h6KKS8AsGqg",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/b4/68/74/b4687466-cd0f-3177-825f-a6ce096d1bdc/122286.jpg/1200x1200bb.jpg",
+    "track_count": 17
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Loraine James",
+    "album": "Detached from the Rest of You",
+    "label": "Hyperdub",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/cb/a5/8f/cba58f3a-9c56-af5f-0574-f3bcf2d1468a/124199.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCkBJm6QbSDLvZH4A2YxPndA"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Lykke Li",
+    "album": "The Afterparty",
+    "label": "Neon Gold, Futures",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/84/a4/c6/84a4c65d-db62-65ed-9aed-cdb0a875c408/198704887093_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UCT5O41GykmKuyD2lQlwm5DA"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Max Cooper",
+    "album": "Feeling Is Structure",
+    "artist_id": "UCrF_AxlDCcXbMBFuaA1nuYA"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Muna",
+    "album": "Dancing on the Wall",
+    "label": "Saddest Factory, Secretly Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/27/24/4a/27244aaf-dd91-be23-a13a-b092c1f56010/61705.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UCx0IdTqF60go5IlmzHhpdsw"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Namasenda",
+    "album": "Limbo",
+    "label": "Year0001",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/d8/b6/8c/d8b68c62-78e1-9ea5-cc04-59cd7dbbaac5/8721253846451.png/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCNhbB4FC_3wkJMOKjDmmDTA"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Olof Dreijer",
+    "album": "Loud Boom",
+    "label": "DH2",
+    "artist_id": "UCZmPBOMu475T6RX8ojHs9Nw"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Royal & the Serpent",
+    "album": "Emptiness Is Godly",
+    "label": "Atlantic",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/bb/f3/f1/bbf3f12d-d7f2-7d7e-ab55-19b2887e8f61/075679587930.jpg/1200x1200bb.jpg",
+    "track_count": 17,
+    "artist_id": "UCKBrpZF_1ljJEaLzoSA2IZQ"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Social Distortion",
+    "album": "Born to Kill",
+    "label": "Epitaph",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/b6/b1/40/b6b140b8-c3fe-eeae-a73f-7500c5b1f3db/0045778736867.png/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCQM2DZqCIOZStXx0VcIvm-w"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "Stephen Sanchez",
+    "album": "Love, Love, Love",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/63/36/c2/6336c2ed-8c84-fed7-f787-a77df8ffdd99/25UM2IM07646.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCZukHZtjqY72iSEgkBF1QYA"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "The Jungle Giants",
+    "album": "Experiencing Feelings of Joy",
+    "label": "Amplifire",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/20/d2/f4/20d2f4a9-13b6-805f-14c5-29ab0a132958/820200202895.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCl87EAIqTXCeyFoBqXjyJ3Q"
+  },
+  {
+    "release_date": "2026-05-08",
+    "artist": "War on Women",
+    "album": "Time Under Tension",
+    "label": "Smartpunk",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/08/07/65/08076581-dfeb-e854-1d6e-83418bdfb6a7/8721465640779.png/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UC4oFWZG3K-14oYC_C5abWxQ"
+  },
+  {
+    "release_date": "2026-05-12",
+    "artist": "Gun Outfit",
+    "album": "Process & Reality",
+    "label": "Upset the Rhythm",
+    "artist_id": "UCyL3pQ7_ec7MrrqnVbMeuOQ"
+  },
+  {
+    "release_date": "2026-05-15",
+    "artist": "49 Winchester",
+    "album": "Change of Plans",
+    "label": "MCA Nashville, Lucille Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/9c/0d/6c/9c0d6ccc-1bf0-1e49-b155-6c7bf3057a3d/26UMGIM02045.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCAMDpwKQUFZ03RGNs1KWXKQ"
+  },
+  {
+    "release_date": "2026-05-15",
+    "artist": "Acid Reign",
+    "album": "Daze of the Week",
+    "artist_id": "UCahRyopF_Veamg9J4vCASSQ"
+  },
+  {
+    "release_date": "2026-05-15",
+    "artist": "The All-American Rejects",
+    "album": "Sandbox",
+    "label": "Slick Shoes Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c7/b1/f1/c7b1f1ed-a22c-5f79-fdb3-0c741813a101/795130.jpg/1200x1200bb.jpg",
+    "track_count": 2,
+    "artist_id": "UCIo16EqSZ0A4HXA-kf5rSuQ"
+  },
+  {
+    "release_date": "2026-05-15",
+    "artist": "Crown Lands",
+    "album": "Apocalypse",
+    "label": "Inside Out",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/7a/ba/19/7aba1997-f63b-3ec2-3ac4-6575bcd419ec/196873829388.jpg/1200x1200bb.jpg",
+    "track_count": 7,
+    "artist_id": "UCkq83lw1B6arpgr7YJxg00g"
+  },
+  {
+    "release_date": "2026-05-15",
+    "artist": "Dua Saleh",
+    "album": "Of Earth & Wires",
+    "label": "Ghostly International",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/10/7f/8e/107f8e00-bf5c-30a0-4666-37a02b2826a6/61520.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCmk_Fm58Td53UjRzDW0nmYw"
+  },
+  {
+    "release_date": "2026-05-15",
+    "artist": "Genesis Owusu",
+    "album": "Redstar Wu & the Worldwide Scourge",
+    "label": "Ourness",
+    "artist_id": "UC5wpqD21ZgEcS78Nft4t5Bw"
+  },
+  {
+    "release_date": "2026-05-15",
+    "artist": "Kevin Morby",
+    "album": "Little Wide Open",
+    "label": "Dead Oceans",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d9/ed/a5/d9eda5bd-06a0-af77-9f9e-74bda5ee061d/61710.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UC5f6zyIPpGOWL0_ZAcwSBqA"
   },
   {
     "release_date": "2026-05-15",
@@ -3045,11 +5354,333 @@
     "artist_id": "UCh1mOseeXbq8xWuEAsWhoAg"
   },
   {
+    "release_date": "2026-05-15",
+    "artist": "Peter Frampton",
+    "album": "Carry the Light",
+    "label": "UMe",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/7d/5c/7b/7d5c7b8e-078d-5407-9382-9b4c7f8bfdfd/26UMGIM07594.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCI5RQ0Z0J8whww9HWAYPxGg"
+  },
+  {
+    "release_date": "2026-05-15",
+    "artist": "Pro-Pain",
+    "album": "Stone Cold Anger",
+    "label": "Napalm",
+    "artist_id": "UCrSyZDD2EDGwjvgoh8vlgrA"
+  },
+  {
+    "release_date": "2026-05-15",
+    "artist": "Robin Beck",
+    "album": "Living Proof",
+    "label": "Frontiers Music",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/1e/8c/18/1e8c18e9-e74f-1cdf-2a23-ff73d3cf62d5/820200255457.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCpslyJ6k5o9W-SRNjjRoyag"
+  },
+  {
+    "release_date": "2026-05-15",
+    "artist": "Ryan Bingham& The Texas Gentlemen",
+    "album": "They Call Us the Lucky Ones",
+    "label": "The Bingham Recording Company,Thirty Tigers",
+    "artist_id": "UC6BOgwn-SXhEIxCF9W0DEAA"
+  },
+  {
+    "release_date": "2026-05-15",
+    "artist": "The Virginmarys",
+    "album": "Beyond the House of Fires",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/0f/63/51/0f635135-0c18-7b37-aab2-b9923e242990/artwork.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCqy1lR9L-w_ZPYs9kCwv4SQ"
+  },
+  {
+    "release_date": "2026-05-22",
+    "artist": "A",
+    "album": "Prang",
+    "label": "Cooking Vinyl",
+    "artist_id": "UCsfPXoStha2wqN8hB9dFR2g"
+  },
+  {
+    "release_date": "2026-05-22",
+    "artist": "Alela Diane",
+    "album": "Who's Keeping Time?",
+    "label": "Fluff and Gravy Records,Loose Music",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/7a/1a/02/7a1a024a-7d58-b191-0590-bc34197b4918/820200156174.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UC-nPPqDPJD16ScfggSbp0KQ"
+  },
+  {
     "release_date": "2026-05-22",
     "artist": "Alt Blk Era",
     "album": "Our World",
     "label": "LAB",
     "artist_id": "UCEottac-n2rd_U45Vlhvxfw"
+  },
+  {
+    "release_date": "2026-05-22",
+    "artist": "Bill Orcutt and Mabe Fratti",
+    "album": "Almost Waking",
+    "label": "Tin Angel",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/02/e6/e2/02e6e2a0-f316-e93e-c3f6-e64650a65271/820200548146.jpg/1200x1200bb.jpg",
+    "track_count": 2,
+    "artist_id": "UCRcdbcalpbwYJ0MWTNnMvaQ"
+  },
+  {
+    "release_date": "2026-05-22",
+    "artist": "Bleachers",
+    "album": "Everyone for Ten Minutes",
+    "label": "Dirty Hit",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/53/84/8a/53848a81-bebe-e36c-bca7-fae80956b97e/198704979941_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UC4I8aMvF6G_x6n-1ZWnlq1Q"
+  },
+  {
+    "release_date": "2026-05-22",
+    "artist": "Cabaret Voltaire",
+    "album": "But What Time Is It Really?",
+    "artist_id": "UC0eYzYaC7cSOzSSksPr10VQ"
+  },
+  {
+    "release_date": "2026-05-22",
+    "artist": "Ed O'Brien",
+    "album": "Blue Morpho",
+    "label": "Transgressive",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/0d/5b/1a/0d5b1a3e-8957-eef7-189f-f2a6efa76b34/8721465678116.png/1200x1200bb.jpg",
+    "track_count": 7,
+    "artist_id": "UCgiKdmzPkrEWchwp4PTBDgw"
+  },
+  {
+    "release_date": "2026-05-22",
+    "artist": "Erik Grönwall",
+    "album": "Bad Bones",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e4/06/e6/e406e662-14d6-4041-5491-9c4155f08602/cover.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCnBI7Glonlg5IjVaSh5qVNg"
+  },
+  {
+    "release_date": "2026-05-22",
+    "artist": "Lowertown",
+    "album": "Ugly Duckling Union",
+    "label": "Summer Shade Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/32/75/80/327580aa-1295-7504-cb4c-b153115b5ee7/61911.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UClH9F0SSUKPMy9Fq-OO0ESg"
+  },
+  {
+    "release_date": "2026-05-22",
+    "artist": "Marisa Anderson",
+    "album": "The Anthology of Unamerican Folk Music",
+    "label": "Thrill Jockey",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/63/eb/43/63eb439d-554f-f4f0-f805-c0bc095a8639/790377065466.png/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UCtXxO4nM-cK_tR5VHmUi3pg"
+  },
+  {
+    "release_date": "2026-05-22",
+    "artist": "Marmozets",
+    "album": "Co.War.Dice.",
+    "label": "Alcopop!",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/e3/da/92/e3da92d7-34cc-281c-a698-0fac2dc99004/067003184250.png/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UC2rT0rIl2jB2TxTkw_MfgRg"
+  },
+  {
+    "release_date": "2026-05-22",
+    "artist": "Visible Cloaks",
+    "album": "Paradessence",
+    "label": "RVNG Intl.",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/80/8e/2a/808e2a0c-990e-03d0-8fb0-e468ddc74afb/62189.jpg/1200x1200bb.jpg",
+    "track_count": 14,
+    "artist_id": "UCxGbAtUQygl67LN8-Lu4_LQ"
+  },
+  {
+    "release_date": "2026-05-29",
+    "artist": "All Them Witches",
+    "album": "House of Mirrors",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/27/f1/98/27f19810-4574-6b9e-4593-2f43f77d1fb6/4099964235999.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCyYGtzX--CaSWjM8SC9t1qQ"
+  },
+  {
+    "release_date": "2026-05-29",
+    "artist": "The Bug Club",
+    "album": "Every Single Muscle",
+    "label": "Sub Pop",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/9c/35/74/9c357448-2a2d-1612-126a-50333e059316/098787172768.png/1200x1200bb.jpg",
+    "track_count": 18,
+    "artist_id": "UC4QAoarr-wNL4TI3qye5gDQ"
+  },
+  {
+    "release_date": "2026-05-29",
+    "artist": "Dark Divine",
+    "album": "Undead Melody",
+    "label": "Thriller",
+    "artist_id": "UCvgu5VJWazm1jDevS18qDFg"
+  },
+  {
+    "release_date": "2026-05-29",
+    "artist": "Devin Townsend",
+    "album": "The Moth",
+    "label": "Inside Out, HevyDevy",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/53/34/90/533490a7-7643-2a81-7ab0-54f825a365e3/196874071854.jpg/1200x1200bb.jpg",
+    "track_count": 48,
+    "artist_id": "UCylstOR8n268-jdMGwMfazw"
+  },
+  {
+    "release_date": "2026-05-29",
+    "artist": "Dogstar",
+    "album": "All In Now",
+    "label": "Dillon Street Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/df/c8/af/dfc8af96-52fd-2a18-29af-629f8077a895/810183320624.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCcdAwGI9pjkpu-rRJpJThAQ"
+  },
+  {
+    "release_date": "2026-05-29",
+    "artist": "Elder",
+    "album": "Through Zero",
+    "label": "Blues Funeral Records, Stickman Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/84/31/1b/84311b34-73c0-7a8e-3386-2a0a10a6c25a/760137208594.png/1200x1200bb.jpg",
+    "track_count": 6,
+    "artist_id": "UCMZUhx9HFUY_OjhcMvJ4pOQ"
+  },
+  {
+    "release_date": "2026-05-29",
+    "artist": "Francis of Delirium",
+    "album": "Run, Run Pure Beauty",
+    "label": "Dalliance Recordings",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/de/d4/69/ded4698a-14ed-235b-cfe4-cfcccdebb0cd/8721465945515.png/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCzZ9BoYbRXNA9SfdAZE5toQ"
+  },
+  {
+    "release_date": "2026-05-29",
+    "artist": "Greg Mendez",
+    "album": "Beauty Land",
+    "label": "Dead Oceans",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/75/a3/41/75a341d8-5858-c0ea-3bd9-1a3f02bc202f/63326.jpg/1200x1200bb.jpg",
+    "track_count": 14,
+    "artist_id": "UCcefyQ1va20RA114g0nJ6lQ"
+  },
+  {
+    "release_date": "2026-05-29",
+    "artist": "Guided by Voices",
+    "album": "Crawlspace of the Pantheon",
+    "label": "GBV Inc",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/49/aa/ce/49aacec5-d29b-551b-67d1-61a7970d3201/769152435824.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCJ-Wx9-Xq36zECVOUCBSTNA"
+  },
+  {
+    "release_date": "2026-05-29",
+    "artist": "Rodney Atkins",
+    "album": "True South",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/7a/8c/ca/7a8ccafc-8bbb-8aea-dc07-f54f029a5ac4/194646048066.png/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCRtsSD_oApQcRDB3RYbaDiA"
+  },
+  {
+    "release_date": "2026-05-29",
+    "artist": "Shinedown",
+    "album": "Eight",
+    "label": "Atlantic",
+    "artist_id": "UCaWl0HHyhwtrtfVw4bN2wJA"
+  },
+  {
+    "release_date": "2026-05-29",
+    "artist": "Violet Grohl",
+    "album": "Be Sweet to Me",
+    "label": "Auroura Records,Republic",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/fa/98/9b/fa989bfb-8d0e-35cd-127a-754b7dd2f6cd/26UMGIM22395.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCw7CZ10-EJw5VQuxNDTNCdA"
+  },
+  {
+    "release_date": "2026-05-29",
+    "artist": "Willie Nelson",
+    "album": "Dream Chaser",
+    "label": "Sony Music",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/6c/fd/ea/6cfdeaaf-ae32-dcc5-b1d7-0c3dec633156/196874110089.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCPmpbAuktEPbIVpwGrY_c4g"
+  },
+  {
+    "release_date": "2026-06-04",
+    "artist": "Tender",
+    "album": "Where the Waves Break",
+    "label": "Nettwerk",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/5d/be/47/5dbe47c6-4077-724e-6251-c1f8f2007475/067003185851.png/1200x1200bb.jpg",
+    "track_count": 14,
+    "artist_id": "UCg4eEfOdLsZCejwtNpw0XHg"
+  },
+  {
+    "release_date": "2026-06-05",
+    "artist": "Dea Matrona",
+    "album": "Hate That I Care",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/b3/da/6d/b3da6dc6-fd73-1926-1fa6-25136d8f9f05/820200345448.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCCxl5hn5Z1C0dAk5jMBTC0w"
+  },
+  {
+    "release_date": "2026-06-05",
+    "artist": "Death Cab for Cutie",
+    "album": "I Built You a Tower",
+    "label": "Anti-",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c9/89/87/c98987bd-3093-5826-7b2c-960df8c713ba/0045778817061.png/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCQyYgbGkyvK3v3X1XzGDQ2Q"
+  },
+  {
+    "release_date": "2026-06-05",
+    "artist": "Deer Tick",
+    "album": "Coin-O-Matic",
+    "label": "ATO",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/63/bf/e4/63bfe48b-0fdd-744f-249d-2821a79421f6/00880882677657_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCEfnosbF_Cfm4fTlOzodOVQ"
+  },
+  {
+    "release_date": "2026-06-05",
+    "artist": "DJ Seinfeld",
+    "album": "If This Is It",
+    "label": "Ninja Tune",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/ff/50/3d/ff503d8b-e982-c2a7-4ef0-d347d86fc84d/5054429206265.png/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCshOz0mzWg4enVtjm-Dk6rw"
+  },
+  {
+    "release_date": "2026-06-05",
+    "artist": "Evergrey",
+    "album": "Architects of a New Weave",
+    "label": "Napalm",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/05/01/7b/05017b98-fe39-41a6-75fe-8a3ba43dbc8e/810210531634.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCDsnwE_sowBb-bjgAeF_VJQ"
+  },
+  {
+    "release_date": "2026-06-05",
+    "artist": "Fink",
+    "album": "The City Is Coming to Erase It All",
+    "label": "R'Coup'D",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/f4/84/0f/f4840f31-3d3f-bc7e-8c34-98ffcd126d9e/5053760142652_cover.jpg/1200x1200bb.jpg",
+    "track_count": 9,
+    "artist_id": "UCtLPNVgupwHTf6f-5h0Kz1Q"
+  },
+  {
+    "release_date": "2026-06-05",
+    "artist": "Hammock",
+    "album": "When Does This Place Become Our Scene",
+    "label": "Sargent House",
+    "artist_id": "UC7C3HR_AQkjkOWLmzp2e0ag"
+  },
+  {
+    "release_date": "2026-06-05",
+    "artist": "Jalen Ngonda",
+    "album": "Doctrine of Love",
+    "label": "Daptone",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/9e/0b/64/9e0b64fb-d05e-9399-8df0-c0cb32a5d1a3/123843.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCanEz8-7TH7ZkLXoYWzbxCw"
   },
   {
     "release_date": "2026-06-05",
@@ -3059,6 +5690,88 @@
     "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/fb/73/2e/fb732e9c-4acc-fd1c-ecba-ea5e610c5d0a/199806913093.jpg/1200x1200bb.jpg",
     "track_count": 10,
     "artist_id": "UCpvaQSUTOO0AVS8p06IXn_g"
+  },
+  {
+    "release_date": "2026-06-05",
+    "artist": "Lee Brice",
+    "album": "Sunriser",
+    "label": "Curb",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/58/80/6e/58806ed6-86d8-b6ea-da9b-5f6e631310e1/194646052469.png/1200x1200bb.jpg",
+    "track_count": 16,
+    "artist_id": "UCry_m7AWDMJdO0vS9T4GM3Q"
+  },
+  {
+    "release_date": "2026-06-05",
+    "artist": "Niall Horan",
+    "album": "Dinner Party",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/1a/25/18/1a251875-6f6d-75eb-4dbb-683020851088/26UMGIM21495.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCxm9sS8Dd2aRthr_O3rVLJQ"
+  },
+  {
+    "release_date": "2026-06-05",
+    "artist": "Vika and Linda",
+    "album": "Where Do You Come From?",
+    "label": "Mushroom Music",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/b2/50/c1/b250c14d-f301-371e-5d39-55e80a1130a0/9341004148932_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCGJv8sg1ApHHkehbgI37iCg"
+  },
+  {
+    "release_date": "2026-06-05",
+    "artist": "Widowspeak",
+    "album": "Roses",
+    "label": "Captured Tracks",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/a3/12/cf/a312cf27-4fa0-1fe2-3ce7-b765f1e6e4b0/63379.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCNvXQkhLIXu_DAoHtmRURFA"
+  },
+  {
+    "release_date": "2026-06-06",
+    "artist": "Fucked Up",
+    "album": "Year of the Monkey",
+    "label": "Hidden World",
+    "artist_id": "UCZ1sfjcklFG5NY7LDGIPLJQ"
+  },
+  {
+    "release_date": "2026-06-12",
+    "artist": "Bebe Rexha",
+    "album": "Dirty Blonde",
+    "label": "Empire",
+    "artist_id": "UChwSjx8SnvG6k96a9xqYw1g"
+  },
+  {
+    "release_date": "2026-06-12",
+    "artist": "Big Brave",
+    "album": "In Grief or in Hope",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/75/c6/62/75c662d1-2868-9414-5ae3-ad9d0c74968d/790377065367.png/1200x1200bb.jpg",
+    "track_count": 8,
+    "artist_id": "UCdBZDSj-1WJy-5FrXRr2Tfw"
+  },
+  {
+    "release_date": "2026-06-12",
+    "artist": "The Bobby Lees",
+    "album": "New Self",
+    "label": "Epitaph",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/92/eb/ce/92ebceee-671c-b2d4-5284-d391bb84bc91/0045778815760.png/1200x1200bb.jpg",
+    "track_count": 8,
+    "artist_id": "UCNVhYlIvdp7wnKRYVzbYXhA"
+  },
+  {
+    "release_date": "2026-06-12",
+    "artist": "CFCF",
+    "album": "L.U.V. (Life in Ultra Violet)",
+    "label": "BGM Solutions",
+    "artist_id": "UC0d789iQUeLjE-3bxinnzDw"
+  },
+  {
+    "release_date": "2026-06-12",
+    "artist": "Dirty Heads",
+    "album": "7 Seas",
+    "label": "Better Noise Music",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/c4/50/63/c45063bd-a42d-5f7c-655f-a875f07177b0/810202536104.png/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UC7q5dbgYlcbVLpbj-bHjLYg"
   },
   {
     "release_date": "2026-06-12",
@@ -3071,9 +5784,223 @@
   },
   {
     "release_date": "2026-06-12",
+    "artist": "Horse Lords",
+    "album": "Dem and to Be Taken to Heaven Alive!",
+    "label": "RVNG Intl.",
+    "artist_id": "UCHoNF_Z1Q1j09EEIuHMUODw"
+  },
+  {
+    "release_date": "2026-06-12",
+    "artist": "Josh Pyke",
+    "album": "Kingdom Within",
+    "label": "ADA",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/c1/77/e8/c177e8a8-3830-6391-38cb-1a18766aff21/5026854607269.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UClcnVHZ8gmC72hWxWT9V92Q"
+  },
+  {
+    "release_date": "2026-06-12",
+    "artist": "Kelsey Lu",
+    "album": "So Help Me God",
+    "label": "Dirty Hit",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/a8/d7/d7/a8d7d74e-5949-3069-c8c6-580248124d7e/823375003397_Cover.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCt8u9TvvvvtElYX_0h_KVcA"
+  },
+  {
+    "release_date": "2026-06-12",
+    "artist": "Mekons",
+    "album": "Horrorble (Mekons vs. Tony Maimone in Dub Conference)",
+    "label": "Fire",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/ec/ca/84/ecca843e-352a-fc27-ffe0-e47812057913/809236005601_cover.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCy7Jpvzesb0IoxUpcaIzNoQ"
+  },
+  {
+    "release_date": "2026-06-12",
+    "artist": "Piebald",
+    "album": "Tales for the Rage",
+    "label": "Iodine",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/34/6b/bb/346bbb6c-312c-45a1-caef-529089b828aa/725305742294.jpg/1200x1200bb.jpg",
+    "track_count": 13,
+    "artist_id": "UClftaaVjbUZ051kUso2-5eA"
+  },
+  {
+    "release_date": "2026-06-12",
+    "artist": "La Sécurité",
+    "album": "Bingo!",
+    "label": "Bella Union, Mothl and Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/c4/e2/df/c4e2dfef-6d92-c0de-6117-dbf609d39a5f/199806994047.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCV8Pgw6Drlk0T44QD2DF6yw"
+  },
+  {
+    "release_date": "2026-06-12",
+    "artist": "Sonny Fodera",
+    "album": "Can We Do It All Again?",
+    "label": "Solotoko",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/5e/1a/c6/5e1ac6a2-e24a-f712-1554-3c4f5bab6d65/5026854771687.jpg/1200x1200bb.jpg",
+    "track_count": 18,
+    "artist_id": "UC0SYxvanGLLe91K-tTiwPiw"
+  },
+  {
+    "release_date": "2026-06-12",
+    "artist": "Spread Eagle",
+    "album": "The Brutal Divine",
+    "label": "Frontiers",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/fc/29/a3/fc29a3ef-c880-66d0-6632-0086e1fdb8c8/820200339973.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCpz1nlAzVwnnpvTHDCrWi4Q"
+  },
+  {
+    "release_date": "2026-06-12",
     "artist": "Stitched Up Heart",
     "album": "Medusa",
     "artist_id": "UCMgzDGyJlO6jih1-a8TccWA"
+  },
+  {
+    "release_date": "2026-06-12",
+    "artist": "Tarja Turunen",
+    "album": "Frisson Noir",
+    "label": "earMUSIC",
+    "artist_id": "UCYWGPvcAl6q2I80wvK4N4JQ"
+  },
+  {
+    "release_date": "2026-06-19",
+    "artist": "Hard-Fi",
+    "album": "Sweating Someone Else's Fever",
+    "label": "V2",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/f6/92/ad/f692ad61-f535-9a4a-35ec-c4a9da1b91b6/8717931356404.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCJDaDcqtznx85_Ea_crRgWw"
+  },
+  {
+    "release_date": "2026-06-19",
+    "artist": "Natasha Hamilton",
+    "album": "Extraction",
+    "label": "Morpho Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/f0/ec/8d/f0ec8dbe-22d9-85fa-d48b-57dd7812ae24/820200317896.jpg/1200x1200bb.jpg",
+    "track_count": 5,
+    "artist_id": "UC0_UnahtAz-BEPLgZA9Mhuw"
+  },
+  {
+    "release_date": "2026-06-19",
+    "artist": "Swim Deep",
+    "album": "Hum",
+    "label": "Submarine Cat Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/3a/6c/c1/3a6cc15f-f6f1-5280-43ae-9f5ee2ea13d2/5060951632922_cover.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCInOLo8h3_EtZ1SzTjtWROA"
+  },
+  {
+    "release_date": "2026-06-19",
+    "artist": "Tucker Zimmerman",
+    "album": "Dream Me a Dream",
+    "label": "Big Potato Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/40/d4/50/40d45078-0cff-f727-5949-dae06cb00e65/16197.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCdrFlItNO_Hbz6Xub0vdGJQ"
+  },
+  {
+    "release_date": "2026-06-26",
+    "artist": "Alewya",
+    "album": "Zero",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/bc/d0/0d/bcd00d6a-0eaa-b22a-937a-8fa701ce4e26/5056556175346_cover.jpg/1200x1200bb.jpg",
+    "track_count": 15,
+    "artist_id": "UCMXA8IpKcwoLH2q6AhqqVPg"
+  },
+  {
+    "release_date": "2026-06-26",
+    "artist": "Butthole Surfers",
+    "album": "After the Astronaut",
+    "label": "Sunset Blvd",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/30/b4/45/30b44550-6e61-cc22-ab8a-5ae781d47d62/124300.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCn72wlZDEj7CQFboaHDe47w"
+  },
+  {
+    "release_date": "2026-06-26",
+    "artist": "Katie Noonan",
+    "album": "Alone but All One",
+    "label": "Katie Noonan",
+    "artist_id": "UCv3O8IJbzdbaKxZCVwfI_aQ"
+  },
+  {
+    "release_date": "2026-06-26",
+    "artist": "Kita Alexander",
+    "album": "Rage",
+    "label": "Warner Music Australia",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/ac/b0/62/acb0624c-6dbe-a974-0de1-a74777117965/5026854500393.jpg/1200x1200bb.jpg",
+    "track_count": 12,
+    "artist_id": "UCd4GJgdapCr6_4SwDY5zZuA"
+  },
+  {
+    "release_date": "2026-06-26",
+    "artist": "Masterplan",
+    "album": "Metalmorphosis",
+    "label": "Frontiers",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/fa/22/ce/fa22cecd-a576-53ce-e8ee-a056524fdd75/820200277725.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCQm2l9VFAwCEMR2zydt9y6w"
+  },
+  {
+    "release_date": "2026-06-26",
+    "artist": "The Pretty Reckless",
+    "album": "Dear God",
+    "label": "Fearless",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/7a/04/ed/7a04ed0c-b477-cf86-18a4-411db9c0c8b6/25CRGIM51366.rgb.jpg/1200x1200bb.jpg",
+    "track_count": 14,
+    "artist_id": "UCHAWWjry4il7qplZFRP9RtA"
+  },
+  {
+    "release_date": "2026-06-26",
+    "artist": "Some Velvet Sidewalk",
+    "album": "Critters Encore",
+    "label": "K",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/8d/7b/ba/8d7bbae3-ee24-8833-2c1f-09f74b9e57fb/64043.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCFCxRV36D1t45Jy-dGWm2bg"
+  },
+  {
+    "release_date": "2026-06-26",
+    "artist": "Temples",
+    "album": "Bliss",
+    "label": "V2",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/e3/56/77/e35677cf-5fb6-5d06-11d8-63733431a0e4/8717931356282.jpg/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCAwEVNrw_7At5j2ccsDc_wQ"
+  },
+  {
+    "release_date": "2026-07-03",
+    "artist": "Low Cut Connie",
+    "album": "Livin in the USA",
+    "label": "Contender Records",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/54/f7/f6/54f7f6e2-732c-8c48-df10-c25746a04820/8721465623284.png/1200x1200bb.jpg",
+    "track_count": 10,
+    "artist_id": "UCSO-8G2o4o9E79R0dbBl8xg"
+  },
+  {
+    "release_date": "2026-07-03",
+    "artist": "Moonspell",
+    "album": "Far from God",
+    "label": "Napalm",
+    "artist_id": "UCAMRJ90Pcdop3wlEfiVAeHQ"
+  },
+  {
+    "release_date": "2026-07-17",
+    "artist": "As It Is",
+    "album": "Aiiv",
+    "label": "FLG Records",
+    "artist_id": "UCbc3NeYyajP6u7ccBUkHH4Q"
+  },
+  {
+    "release_date": "2026-07-31",
+    "artist": "Amy Shark",
+    "album": "Soft Pop",
+    "label": "Wonderlick,Sony Music",
+    "thumbnail": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/ff/a2/15/ffa2156c-4424-9c61-898c-24399cf826f6/196874156407.jpg/1200x1200bb.jpg",
+    "track_count": 11,
+    "artist_id": "UCTVV4ftXytYeCZ8mr9HvLkA"
   },
   {
     "release_date": "TBA",
@@ -3097,9 +6024,21 @@
   },
   {
     "release_date": "TBA",
+    "artist": "Blondie",
+    "album": "High Noon",
+    "artist_id": "UCF6I8FH_f6NBEsngIfkZY6g"
+  },
+  {
+    "release_date": "TBA",
     "artist": "Bruce Springsteen",
     "album": "TBA",
     "artist_id": "UCyFqJ_5TyAeTD7rHpLikbKQ"
+  },
+  {
+    "release_date": "TBA",
+    "artist": "Candlebox",
+    "album": "TBA",
+    "artist_id": "UCmUR0eYQ9JD3R8W7JE7mXnw"
   },
   {
     "release_date": "TBA",
@@ -3129,9 +6068,15 @@
   },
   {
     "release_date": "TBA",
-    "artist": "Dropkick Murphysand Haywire",
-    "album": "New England Forever",
-    "label": "—"
+    "artist": "Dropkick Murphys and Haywire",
+    "album": "New Engl and Forever",
+    "artist_id": "UCcqMWHRrsVuUZ30mqaVv-fA"
+  },
+  {
+    "release_date": "TBA",
+    "artist": "Edo Maajka and Jazz OrkestarHRT-a",
+    "album": "TBA",
+    "artist_id": "UCrNa4vA7uBNCpoF6fVW7Now"
   },
   {
     "release_date": "TBA",
@@ -3141,9 +6086,28 @@
   },
   {
     "release_date": "TBA",
+    "artist": "Everclear",
+    "album": "TBA",
+    "artist_id": "UClBVV9ZvFRdEGTDCGSkNysA"
+  },
+  {
+    "release_date": "TBA",
     "artist": "Fear Factory",
     "album": "TBA",
     "artist_id": "UCYLgZ9GVwd4mtrpbVQkq0Rw"
+  },
+  {
+    "release_date": "TBA",
+    "artist": "Foals",
+    "album": "TBA",
+    "artist_id": "UCKbSM-2Qu8hCdLDdzpFa0eQ"
+  },
+  {
+    "release_date": "TBA",
+    "artist": "Godflesh",
+    "album": "Decay",
+    "label": "Relapse",
+    "artist_id": "UCp0Y3xX7HCgspe1YRhL_W7Q"
   },
   {
     "release_date": "TBA",
@@ -3159,10 +6123,16 @@
   },
   {
     "release_date": "TBA",
-    "artist": "Linda Perry",
-    "album": "Let It Die Here",
-    "label": "670 Records,Kill Rock Stars",
-    "artist_id": "UCUmMvO-ND0F0h6KKS8AsGqg"
+    "artist": "Interpol",
+    "album": "TBA",
+    "artist_id": "UC81b4dQlJVcecDMLJQofmGw"
+  },
+  {
+    "release_date": "TBA",
+    "artist": "Labi Siffre",
+    "album": "Unfinished Business",
+    "label": "Demon",
+    "artist_id": "UC8nGncQWGe5mkWM_1FgCszg"
   },
   {
     "release_date": "TBA",
@@ -3186,7 +6156,7 @@
   {
     "release_date": "TBA",
     "artist": "Megan Thee Stallion",
-    "album": "MEGAN: ACT III",
+    "album": "Megan: Act III",
     "label": "Hot Girl,Warner",
     "artist_id": "UCZBf6sY19D8pN4JIxP9PE3Q"
   },
@@ -3195,6 +6165,13 @@
     "artist": "Ministry",
     "album": "TBA",
     "artist_id": "UCkHZWbfPk_iA8_Rio-9J5LA"
+  },
+  {
+    "release_date": "TBA",
+    "artist": "Motionless in White",
+    "album": "TBA",
+    "label": "Roadrunner",
+    "artist_id": "UCw8Lyg6oQsYgQR3aKXErnjA"
   },
   {
     "release_date": "TBA",
@@ -3229,15 +6206,22 @@
   },
   {
     "release_date": "TBA",
-    "artist": "Symphony X",
+    "artist": "Sublime",
     "album": "TBA",
-    "artist_id": "UCKfHntVz0GHNeQ1cTZFy-wg"
+    "label": "Atlantic",
+    "artist_id": "UCPu227hd28pLRBC-S6i5e6g"
   },
   {
     "release_date": "TBA",
-    "artist": "They Might Be Giants",
+    "artist": "Sugababes",
     "album": "TBA",
-    "artist_id": "UCuVDbfvBzNkyCUuKNVHDeNw"
+    "artist_id": "UCVfMy79ncPY6fyusC3giBdA"
+  },
+  {
+    "release_date": "TBA",
+    "artist": "Symphony X",
+    "album": "TBA",
+    "artist_id": "UCKfHntVz0GHNeQ1cTZFy-wg"
   },
   {
     "release_date": "TBA",
@@ -3250,6 +6234,13 @@
     "artist": "Trivium",
     "album": "TBA",
     "artist_id": "UCwh3hZIwSbmJPoY3oXHyP1A"
+  },
+  {
+    "release_date": "TBA",
+    "artist": "Tyla",
+    "album": "A-Pop",
+    "label": "Fax Records,Epic",
+    "artist_id": "UCnZBreGKMYsBpE5Vqxevewg"
   },
   {
     "release_date": "TBA",

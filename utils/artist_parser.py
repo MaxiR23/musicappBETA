@@ -1,32 +1,70 @@
 # utils/artist_parser.py
 def parse_top_songs_v2(artist_data, yt_client):
     """
-    Obtiene las top 10 songs usando get_playlist.
-    Requiere artist_data (de get_artist) y yt_client.
+    obtiene las top 10 songs usando get_playlist.
+    fallback a results inline + duraciones desde albums (paralelo, cacheado).
     """
-    songs_browse_id = artist_data.get("songs", {}).get("browseId")
-    top_songs_raw = []
+    from concurrent.futures import ThreadPoolExecutor
+
+    songs_section = artist_data.get("songs", {})
+    songs_browse_id = songs_section.get("browseId")
+
     if songs_browse_id:
         playlist_data = yt_client.get_playlist(songs_browse_id, limit=10)
         top_songs_raw = (playlist_data.get("tracks", []))[:10]
-    
+        duration_map = {}
+    else:
+        top_songs_raw = (songs_section.get("results", []))[:10]
+
+        album_ids = set()
+        for s in top_songs_raw:
+            aid = (s.get("album") or {}).get("id")
+            if aid:
+                album_ids.add(aid)
+
+        duration_map = {}
+
+        def fetch_durations(aid):
+            try:
+                album_data = yt_client.get_album(aid)
+                partial = {}
+                for t in album_data.get("tracks", []):
+                    title = (t.get("title") or "").strip().lower()
+                    if title and t.get("duration_seconds"):
+                        partial[title] = {
+                            "duration": t.get("duration"),
+                            "duration_seconds": t.get("duration_seconds"),
+                        }
+                return partial
+            except Exception:
+                return {}
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            for partial in executor.map(fetch_durations, album_ids):
+                duration_map.update(partial)
+
     top_songs_filtered = []
     for track in top_songs_raw:
-        # Artists
         artists_list = track.get("artists", [])
         artists = [{"id": a.get("id"), "name": a.get("name")} for a in artists_list]
         artist_name = ", ".join(a["name"] for a in artists if a.get("name"))
         primary_artist_id = artists[0]["id"] if artists else None
-        
-        # Album
+
         album = track.get("album") or {}
         album_id = album.get("id")
         album_name = album.get("name")
-        
-        # Thumbnail
+
         thumbs = track.get("thumbnails", [])
         thumbnail = thumbs[-1]["url"] if thumbs else None
-        
+
+        duration = track.get("duration")
+        duration_seconds = track.get("duration_seconds")
+        if not duration_seconds and duration_map:
+            title_key = (track.get("title") or "").strip().lower()
+            enriched = duration_map.get(title_key, {})
+            duration = enriched.get("duration") or duration
+            duration_seconds = enriched.get("duration_seconds") or duration_seconds
+
         top_songs_filtered.append({
             "id": track.get("videoId"),
             "title": track.get("title"),
@@ -36,10 +74,10 @@ def parse_top_songs_v2(artist_data, yt_client):
             "artist_id": primary_artist_id,
             "artist_name": artist_name,
             "artists": artists,
-            "duration": track.get("duration"),
-            "duration_seconds": track.get("duration_seconds")
+            "duration": duration,
+            "duration_seconds": duration_seconds,
         })
-    
+
     return top_songs_filtered
 
 def parse_albums(section):
