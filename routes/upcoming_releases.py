@@ -6,7 +6,7 @@ from fastapi.responses import ORJSONResponse, JSONResponse
 
 from core.dependencies import get_db
 from services.db_protocol import DBClient
-from services.upcoming_releases_repo import list_upcoming_releases_cached, build_upcoming_item
+from services.upcoming_releases_repo import list_upcoming_releases_cached, build_upcoming_item, list_upcoming_30d_cached
 
 router = APIRouter()
 
@@ -28,19 +28,14 @@ async def get_upcoming_releases(
         print(f"[upcoming_releases][ERROR] {e}")
         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
 
-@router.get("/this-month", response_class=ORJSONResponse)
-async def get_this_month_releases(
+@router.get("/next", response_class=ORJSONResponse)
+async def get_upcoming_next(
     db: DBClient = Depends(get_db),
 ) -> Dict[str, Any]:
     try:
-        from services.upcoming_releases_repo import list_this_month_releases_cached
-        releases = list_this_month_releases_cached(db)
+        releases = list_upcoming_30d_cached(db)
         mapped = _filter_complete([build_upcoming_item(r) for r in releases])
-        return {
-            "ok": True,
-            "count": len(mapped),
-            "releases": mapped,
-        }
+        return {"ok": True, "count": len(mapped), "releases": mapped}
     except Exception as e:
-        print(f"[upcoming_releases/this-month][ERROR] {e}")
+        print(f"[upcoming_releases/next][ERROR] {e}")
         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})

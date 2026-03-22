@@ -6,11 +6,12 @@ from concurrent.futures import ThreadPoolExecutor
 
 from services import music_client
 from services.cache_service import get_cached, set_cached
-from services.cache_config import CacheType
+from services.cache_config import CacheType, set_manual_version
 from services.db_protocol import DBClient
 from services.executor import gather
 from services.events_service import get_events_cached_only, schedule_events_refresh
 from services.feed_repo import list_new_releases_for_artist
+from services.upcoming_releases_repo import get_upcoming_by_artist_id_cached, mark_as_released
 from shared.clients import _ytmusic_client
 from utils.artist_parser import (
     parse_top_songs_v2,
@@ -47,7 +48,7 @@ def parse_contents(raw: dict) -> list:
     )
 
 def find_albums_section(contents: list) -> dict | None:
-    """Busca la sección de albums en contents."""
+    """Busca la seccion de albums en contents."""
     for sec in contents:
         shelf = sec.get("musicCarouselShelfRenderer")
         if not shelf:
@@ -64,7 +65,7 @@ def find_albums_section(contents: list) -> dict | None:
     return None
 
 def find_singles_section(contents: list) -> dict | None:
-    """Busca la sección de singles/EPs en contents."""
+    """Busca la seccion de singles/EPs en contents."""
     for sec in contents:
         shelf = sec.get("musicCarouselShelfRenderer")
         if not shelf:
@@ -84,13 +85,33 @@ def build_error_payload(artist_id: str, error: str = "service_unavailable") -> d
     return {"id": artist_id, "error": error}
 
 def build_has_more(artist_data: dict) -> dict:
-    """Determina si hay más albums/singles para paginar."""
+    """Determina si hay mas albums/singles para paginar."""
     albums_section = artist_data.get("albums", {})
     singles_section = artist_data.get("singles", {})
     return {
         "albums": albums_section.get("browseId") is not None and len(albums_section.get("results", [])) >= 10,
         "singles": singles_section.get("browseId") is not None and len(singles_section.get("results", [])) >= 10,
     }
+
+def _check_upcoming_released(db: DBClient, artist_id: str, albums: list) -> None:
+    if not albums:
+        return
+
+    upcoming = get_upcoming_by_artist_id_cached(db, artist_id)
+    if not upcoming:
+        return
+
+    upcoming_name = (upcoming.get("album") or "").strip().lower()
+    if not upcoming_name:
+        return
+
+    latest_album_title = (albums[0].get("title") or "").strip().lower()
+    if upcoming_name == latest_album_title:
+        release_id = upcoming.get("id")
+        if release_id and mark_as_released(db, release_id):
+            set_manual_version(CacheType.UPCOMING_RELEASES)
+            set_manual_version(CacheType.UPCOMING_ARTIST)
+            print(f"[artist_service] Upcoming confirmado: {upcoming.get('artist')} - {upcoming.get('album')}")
 
 def build_artist_payload(
     header: dict,
@@ -205,7 +226,7 @@ def get_artist(db: DBClient, artist_id: str, use_cache: bool = True) -> dict:
 
         header = parse_header(raw)
         if not should_cache_artist(header):
-            print(f"[artist_service][WARN] {artist_id}: header vacío")
+            print(f"[artist_service][WARN] {artist_id}: header vacio")
             return build_error_payload(artist_id)
 
         contents = parse_contents(raw)
@@ -219,6 +240,9 @@ def get_artist(db: DBClient, artist_id: str, use_cache: bool = True) -> dict:
         related = parse_related_artists(rel_sec) if rel_sec else []
         top_songs = parse_top_songs_v2(artist_data, _ytmusic_client())
         has_more = build_has_more(artist_data)
+
+        # Check upcoming release en tiempo real
+        _check_upcoming_released(db, artist_id, albums)
 
         events = []
         if artist_name:

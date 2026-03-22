@@ -6,38 +6,12 @@ from services.cache_service import get_cached, set_cached
 from services.cache_config import CacheType
 
 TABLE = "upcoming_releases"
-FEED_TABLE = "feed_current"
 
-def build_feed_set(rows: list) -> set:
-    """Construye set de (artist, album) desde rows del feed."""
-    feed_set = set()
-    for row in rows:
-        artist = (row.get("artist") or "").lower().strip()
-        album = (row.get("album") or row.get("title") or "").lower().strip()
-        if artist and album:
-            feed_set.add((artist, album))
-    return feed_set
-
-def filter_releases_by_feed(releases: list, feed_set: set) -> list:
-    """Filtra releases que NO están en feed_set."""
-    if not feed_set:
-        return releases
-
-    filtered = []
-    for release in releases:
-        artist_name = (release.get("artist_name") or "").lower().strip()
-        album_name = (release.get("album_name") or "").lower().strip()
-
-        if artist_name and album_name:
-            if (artist_name, album_name) not in feed_set:
-                filtered.append(release)
-        else:
-            filtered.append(release)
-
-    return filtered
+# ── Pure ─────────────────────────────────────────────────
 
 def build_upcoming_item(r: dict) -> dict:
     return {
+        "id": r.get("id"),
         "release_date": r.get("release_date"),
         "artist": r.get("artist_name"),
         "album": r.get("album_name"),
@@ -72,71 +46,51 @@ def parse_release_date(release_date_str: str | None) -> date | None:
         return None
 
 # ── IO ───────────────────────────────────────────────────
-def _get_feed_releases_set(db: DBClient) -> set:
-    """Obtiene TODOS los releases en feed_current como set de (artist, album)."""
-    try:
-        res = db.table(FEED_TABLE).select("artist, album, title").execute()
-        rows = getattr(res, "data", None) or []
-        return build_feed_set(rows)
-    except Exception as e:
-        print(f"[upcoming_repo][_get_feed_releases_set][ERROR] {e}")
-        return set()
 
-def _filter_releases_not_in_feed(db: DBClient, releases: list) -> list:
-    """Filtra releases que ya están en feed_current."""
-    if not releases:
-        return []
-    feed_set = _get_feed_releases_set(db)
-    return filter_releases_by_feed(releases, feed_set)
-
-def list_upcoming_releases(db: DBClient, include_tba: bool = True, limit: int = 50, filter_feed: bool = True) -> list:
-    """Trae releases futuros (desde hoy en adelante)."""
+def list_upcoming_releases(db: DBClient, include_tba: bool = True, limit: int = 50) -> list:
+    """Trae releases pending futuros (desde hoy en adelante)."""
     today = date.today().isoformat()
-    fetch_limit = limit * 2 if filter_feed else limit
 
     try:
-        q = db.table(TABLE).select("*")
+        q = db.table(TABLE).select("*").eq("status", "pending")
         if include_tba:
             q = q.or_(f"release_date.gte.{today},is_tba.eq.true")
         else:
             q = q.gte("release_date", today)
-        q = q.order("is_tba", desc=False).order("release_date", desc=False).limit(fetch_limit)
+        q = q.order("is_tba", desc=False).order("release_date", desc=False).limit(limit)
         res = q.execute()
-        releases = getattr(res, "data", None) or []
+        return getattr(res, "data", None) or []
     except Exception as e:
         print(f"[upcoming_repo][list_upcoming_releases][ERROR] {e}")
         return []
 
-    if filter_feed and releases:
-        releases = _filter_releases_not_in_feed(db, releases)
-
-    return releases[:limit]
-
-def count_upcoming_releases(db: DBClient, filter_feed: bool = True) -> int:
-    """Cuenta cuántos releases hay en total."""
+def count_upcoming_releases(db: DBClient) -> int:
+    """Cuenta cuantos releases pending hay."""
     today = date.today().isoformat()
-    try:
-        res = db.table(TABLE).select("*").or_(f"release_date.gte.{today},is_tba.eq.true").execute()
-        releases = getattr(res, "data", None) or []
-    except Exception as e:
-        print(f"[upcoming_repo][count_upcoming_releases][ERROR] {e}")
-        return 0
-
-    if filter_feed and releases:
-        releases = _filter_releases_not_in_feed(db, releases)
-
-    return len(releases)
-
-def get_next_release_date(db: DBClient, filter_feed: bool = True) -> date | None:
-    """Encuentra la fecha del próximo release (>=hoy) que NO esté en feed."""
-    today = date.today()
     try:
         res = (
             db.table(TABLE)
             .select("*")
+            .eq("status", "pending")
+            .or_(f"release_date.gte.{today},is_tba.eq.true")
+            .execute()
+        )
+        return len(getattr(res, "data", None) or [])
+    except Exception as e:
+        print(f"[upcoming_repo][count_upcoming_releases][ERROR] {e}")
+        return 0
+
+def get_next_release_date(db: DBClient) -> date | None:
+    """Encuentra la fecha del proximo release pending (>=hoy)."""
+    today = date.today()
+    try:
+        res = (
+            db.table(TABLE)
+            .select("release_date")
+            .eq("status", "pending")
             .gte("release_date", today.isoformat())
             .order("release_date", desc=False)
-            .limit(20)
+            .limit(1)
             .execute()
         )
         rows = getattr(res, "data", []) or []
@@ -147,43 +101,38 @@ def get_next_release_date(db: DBClient, filter_feed: bool = True) -> date | None
     if not rows:
         return None
 
-    if filter_feed:
-        rows = _filter_releases_not_in_feed(db, rows)
-
-    if not rows:
-        return None
-
     return parse_release_date(rows[0].get("release_date"))
 
-def calculate_smart_ttl(db: DBClient, filter_feed: bool = True) -> int:
-    """Calcula TTL inteligente basado en próximo release."""
-    next_release = get_next_release_date(db, filter_feed)
+def calculate_smart_ttl(db: DBClient) -> int:
+    """Calcula TTL inteligente basado en proximo release."""
+    next_release = get_next_release_date(db)
     return calculate_ttl_from_date(next_release)
 
-def list_upcoming_releases_cached(db: DBClient, include_tba: bool = True, limit: int = 50, filter_feed: bool = True) -> list:
-    """Versión cacheada con TTL inteligente."""
-    cache_key = f"tba={include_tba}:limit={limit}:feed={filter_feed}"
+def list_upcoming_releases_cached(db: DBClient, include_tba: bool = True, limit: int = 50) -> list:
+    """Version cacheada con TTL inteligente."""
+    cache_key = f"tba={include_tba}:limit={limit}"
     cached = get_cached(CacheType.UPCOMING_RELEASES, suffix=cache_key)
     if cached is not None:
         return cached
 
-    releases = list_upcoming_releases(db, include_tba, limit, filter_feed)
-    smart_ttl = calculate_smart_ttl(db, filter_feed)
+    releases = list_upcoming_releases(db, include_tba, limit)
+    smart_ttl = calculate_smart_ttl(db)
     set_cached(CacheType.UPCOMING_RELEASES, releases, suffix=cache_key, ttl=smart_ttl)
     return releases
 
-def get_upcoming_by_artist_id(db: DBClient, artist_id: str, filter_feed: bool = True) -> dict | None:
-    """Devuelve el PRÓXIMO lanzamiento confirmado para un artista."""
+def get_upcoming_by_artist_id(db: DBClient, artist_id: str) -> dict | None:
+    """Devuelve el proximo lanzamiento pending para un artista."""
     today = date.today().isoformat()
     try:
         q = (
             db.table(TABLE)
-            .select("release_date, artist_name, album_name, label, thumbnail_url, track_count, artist_id")
+            .select("id, release_date, artist_name, album_name, label, thumbnail_url, track_count, artist_id")
             .eq("artist_id", artist_id)
+            .eq("status", "pending")
             .gte("release_date", today)
             .or_("is_tba.is.false,is_tba.is.null")
             .order("release_date", desc=False)
-            .limit(10)
+            .limit(1)
         )
         res = q.execute()
         rows = getattr(res, "data", None) or []
@@ -194,21 +143,16 @@ def get_upcoming_by_artist_id(db: DBClient, artist_id: str, filter_feed: bool = 
     if not rows:
         return None
 
-    if filter_feed:
-        rows = _filter_releases_not_in_feed(db, rows)
-        if not rows:
-            return None
-
     return build_upcoming_item(rows[0])
 
-def get_upcoming_by_artist_id_cached(db: DBClient, artist_id: str, filter_feed: bool = True) -> dict | None:
-    """Versión cacheada con TTL inteligente."""
-    cache_key = f"{artist_id}:feed={filter_feed}"
+def get_upcoming_by_artist_id_cached(db: DBClient, artist_id: str) -> dict | None:
+    """Version cacheada con TTL inteligente."""
+    cache_key = artist_id
     cached = get_cached(CacheType.UPCOMING_ARTIST, suffix=cache_key)
     if cached is not None:
         return cached
 
-    upcoming = get_upcoming_by_artist_id(db, artist_id, filter_feed)
+    upcoming = get_upcoming_by_artist_id(db, artist_id)
 
     if not upcoming:
         ttl = 7 * 86400
@@ -219,53 +163,78 @@ def get_upcoming_by_artist_id_cached(db: DBClient, artist_id: str, filter_feed: 
     set_cached(CacheType.UPCOMING_ARTIST, upcoming, suffix=cache_key, ttl=ttl)
     return upcoming
 
-def list_this_month_releases(db: DBClient, filter_feed: bool = True) -> list:
-    """
-    Trae los releases del mes actual que todavía no pasaron.
-    - release_date >= hoy
-    - release_date <= último día del mes actual
-    - Ordenado por fecha ASC
-    """
-    from calendar import monthrange
+def list_upcoming_30d(db: DBClient) -> list:
+    """Trae releases pending de hoy + 30 dias."""
+    from datetime import timedelta
 
-    today      = date.today()
-    month_end  = date(today.year, today.month, monthrange(today.year, today.month)[1])
+    today = date.today()
+    end = today + timedelta(days=30)
 
     try:
         res = (
             db.table(TABLE)
             .select("*")
+            .eq("status", "pending")
             .gte("release_date", today.isoformat())
-            .lte("release_date", month_end.isoformat())
+            .lte("release_date", end.isoformat())
             .order("release_date", desc=False)
             .execute()
         )
-        releases = getattr(res, "data", None) or []
+        return getattr(res, "data", None) or []
     except Exception as e:
-        print(f"[upcoming_repo][list_this_month_releases][ERROR] {e}")
+        print(f"[upcoming_repo][list_upcoming_30d][ERROR] {e}")
         return []
 
-    if filter_feed and releases:
-        releases = _filter_releases_not_in_feed(db, releases)
-
-    return releases
-
-
-def list_this_month_releases_cached(db: DBClient, filter_feed: bool = True) -> list:
-    """Versión cacheada. TTL = segundos hasta medianoche del día siguiente."""
-    from datetime import datetime as dt
-
-    cache_key = f"this_month:feed={filter_feed}"
+def list_upcoming_30d_cached(db: DBClient) -> list:
+    """Version cacheada. TTL = smart basado en proximo release."""
+    cache_key = "upcoming_30d"
     cached = get_cached(CacheType.UPCOMING_RELEASES, suffix=cache_key)
     if cached is not None:
         return cached
 
-    releases = list_this_month_releases(db, filter_feed)
-
-    # TTL: expira a medianoche para que el release de hoy desaparezca mañana
-    now            = dt.now()
-    midnight       = dt(now.year, now.month, now.day, 23, 59, 59)
-    ttl            = max(int((midnight - now).total_seconds()), 300)
-
-    set_cached(CacheType.UPCOMING_RELEASES, releases, suffix=cache_key, ttl=ttl)
+    releases = list_upcoming_30d(db)
+    smart_ttl = calculate_smart_ttl(db)
+    set_cached(CacheType.UPCOMING_RELEASES, releases, suffix=cache_key, ttl=smart_ttl)
     return releases
+
+# ── Status updates (para cron y check en tiempo real) ────
+
+def mark_as_released(db: DBClient, release_id: str) -> bool:
+    """Marca un release como confirmado."""
+    try:
+        db.table(TABLE).update({
+            "status": "released",
+            "confirmed_at": datetime.now().isoformat(),
+        }).eq("id", release_id).execute()
+        return True
+    except Exception as e:
+        print(f"[upcoming_repo][mark_as_released][ERROR] {e}")
+        return False
+
+def mark_as_postponed(db: DBClient, release_id: str) -> bool:
+    """Marca un release como postergado."""
+    try:
+        db.table(TABLE).update({
+            "status": "postponed",
+            "confirmed_at": datetime.now().isoformat(),
+        }).eq("id", release_id).execute()
+        return True
+    except Exception as e:
+        print(f"[upcoming_repo][mark_as_postponed][ERROR] {e}")
+        return False
+
+def get_todays_pending(db: DBClient) -> list:
+    """Trae releases de hoy que siguen pending (para el cron)."""
+    today = date.today().isoformat()
+    try:
+        res = (
+            db.table(TABLE)
+            .select("*")
+            .eq("status", "pending")
+            .eq("release_date", today)
+            .execute()
+        )
+        return getattr(res, "data", None) or []
+    except Exception as e:
+        print(f"[upcoming_repo][get_todays_pending][ERROR] {e}")
+        return []
