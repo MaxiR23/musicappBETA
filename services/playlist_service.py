@@ -108,6 +108,20 @@ def add_track(
         "extra": body.get("extra"),
     }, on_conflict="track_id").execute()
 
+    internal_id = track_resp.data[0]["id"]
+
+    # Chequear duplicado
+    existing = (
+        db.table("playlist_tracks")
+        .select("id")
+        .eq("playlist_id", playlist_id)
+        .eq("track_id", internal_id)
+        .limit(1)
+        .execute()
+    )
+    if existing.data:
+        raise ValueError("track_already_in_playlist")
+
     max_pos_resp = (
         db.table("playlist_tracks")
         .select("position")
@@ -120,7 +134,7 @@ def add_track(
 
     link_resp = db.table("playlist_tracks").insert({
         "playlist_id": playlist_id,
-        "track_id": track_resp.data[0]["id"],
+        "track_id": internal_id,
         "position": last_pos + 1,
         "added_by": user_id,
     }).execute()

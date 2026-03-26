@@ -94,6 +94,10 @@ async def add_track_route(
     try:
         result = add_track(db, service_db, user_id, playlist_id, track_id, body)
         return {"ok": True, **result}
+    except ValueError as e:
+        if "track_already_in_playlist" in str(e):
+            return JSONResponse(status_code=409, content={"error": "track_already_in_playlist"})
+        return JSONResponse(status_code=400, content={"error": str(e)})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "db_error", "detail": str(e)})
 
