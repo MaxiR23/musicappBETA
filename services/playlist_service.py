@@ -71,6 +71,17 @@ def delete_playlist(db: DBClient, user_id: str, playlist_id: str) -> list:
     _invalidate_playlist_cache(user_id, playlist_id)
     return resp.data or []
 
+def update_playlist(db: DBClient, user_id: str, playlist_id: str, title: str, description: str | None, is_public: bool) -> dict:
+    resp = (
+        db.table("playlists")
+        .update({"title": title, "description": description, "is_public": is_public})
+        .eq("id", playlist_id)
+        .eq("owner_id", user_id)
+        .execute()
+    )
+    _invalidate_playlist_cache(user_id, playlist_id)
+    return resp.data[0]
+
 # ── TRACKS ─────────────────────────────────────────────────────────────────────
 def add_track(
     db: DBClient,

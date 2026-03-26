@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, ORJSONResponse
-from routes import cache, health, tracks, playlists, feed, debug, genres, upcoming_releases, search, activity, album, artists, audio, stats
+from routes import cache, health, tracks, playlists, feed, debug, genres, upcoming_releases, search, activity, album, artists, audio, stats, likes
 from middlewares.supa_auth import supa_auth
 from middlewares.cors_headers import add_cors_middleware
 
@@ -88,6 +88,7 @@ app.include_router(audio.router, prefix="/api/music")
 app.include_router(album.router, prefix="/api/music")
 
 app.include_router(playlists.router, prefix="/api/playlists")
+app.include_router(likes.router, prefix="/api/likes")
 app.include_router(feed.router, prefix="/api/feed")
 app.include_router(cache.router, prefix="/api/cache") 
 app.include_router(genres.router, prefix="/api/genres")
