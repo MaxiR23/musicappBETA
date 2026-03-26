@@ -7,6 +7,7 @@ from services.playlist_service import (
     create_playlist,
     get_playlists,
     get_playlist_by_id,
+    update_playlist,
     delete_playlist,
     add_track,
     remove_track,
@@ -51,6 +52,21 @@ async def get_playlist_by_id_route(
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "db_error", "detail": str(e)})
 
+@router.patch("/{playlist_id}")
+async def update_playlist_route(
+    playlist_id: str,
+    body: dict = Body(...),
+    db: DBClient = Depends(get_user_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    title = body.get("title")
+    if not title:
+        return JSONResponse(status_code=400, content={"error": "title_required"})
+    try:
+        return update_playlist(db, user_id, playlist_id, title, body.get("description"), body.get("is_public", False))
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": "db_error", "detail": str(e)})
+
 @router.delete("/{playlist_id}")
 async def delete_playlist_route(
     playlist_id: str,
@@ -78,6 +94,10 @@ async def add_track_route(
     try:
         result = add_track(db, service_db, user_id, playlist_id, track_id, body)
         return {"ok": True, **result}
+    except ValueError as e:
+        if "track_already_in_playlist" in str(e):
+            return JSONResponse(status_code=409, content={"error": "track_already_in_playlist"})
+        return JSONResponse(status_code=400, content={"error": str(e)})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "db_error", "detail": str(e)})
 

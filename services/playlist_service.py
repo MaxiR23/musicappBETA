@@ -71,6 +71,17 @@ def delete_playlist(db: DBClient, user_id: str, playlist_id: str) -> list:
     _invalidate_playlist_cache(user_id, playlist_id)
     return resp.data or []
 
+def update_playlist(db: DBClient, user_id: str, playlist_id: str, title: str, description: str | None, is_public: bool) -> dict:
+    resp = (
+        db.table("playlists")
+        .update({"title": title, "description": description, "is_public": is_public})
+        .eq("id", playlist_id)
+        .eq("owner_id", user_id)
+        .execute()
+    )
+    _invalidate_playlist_cache(user_id, playlist_id)
+    return resp.data[0]
+
 # ── TRACKS ─────────────────────────────────────────────────────────────────────
 def add_track(
     db: DBClient,
@@ -97,6 +108,20 @@ def add_track(
         "extra": body.get("extra"),
     }, on_conflict="track_id").execute()
 
+    internal_id = track_resp.data[0]["id"]
+
+    # Chequear duplicado
+    existing = (
+        db.table("playlist_tracks")
+        .select("id")
+        .eq("playlist_id", playlist_id)
+        .eq("track_id", internal_id)
+        .limit(1)
+        .execute()
+    )
+    if existing.data:
+        raise ValueError("track_already_in_playlist")
+
     max_pos_resp = (
         db.table("playlist_tracks")
         .select("position")
@@ -109,7 +134,7 @@ def add_track(
 
     link_resp = db.table("playlist_tracks").insert({
         "playlist_id": playlist_id,
-        "track_id": track_resp.data[0]["id"],
+        "track_id": internal_id,
         "position": last_pos + 1,
         "added_by": user_id,
     }).execute()
