@@ -65,7 +65,7 @@ def enrich_artist_thumbnails(artists: List[Dict[str, Any]]) -> List[Dict[str, An
         if not artist_id:
             return
         try:
-            data = get_artist(artist_id)
+            data = get_artist(sb, artist_id)
             thumbs = (data.get('header') or {}).get('thumbnails') or []
             if thumbs:
                 url = thumbs[-1].get('url', '')
