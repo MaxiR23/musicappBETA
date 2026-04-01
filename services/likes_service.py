@@ -87,7 +87,7 @@ def get_likes(db: DBClient, user_id: str) -> list:
         .select("track_id,created_at,tracks(*)")
         .eq("user_id", user_id)
         .is_("deleted_at", "null")
-        .order("created_at", desc=True)
+        .order("created_at", desc=False)
         .execute()
     )
     return resp.data or []
