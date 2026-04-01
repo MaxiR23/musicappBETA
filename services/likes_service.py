@@ -6,8 +6,16 @@ from datetime import datetime, timezone
 from services.db_protocol import DBClient
 from services.track_service import ensure_duration_seconds
 
-# ── LIKE / UNLIKE ──────────────────────────────────────────────────────────────
+from services.db_protocol import DBClient
+from services.track_service import ensure_duration_seconds
+from services.cache_service import get_cached, set_cached, invalidate
+from services.cache_config import CacheType
 
+# ── CACHE ──────────────────────────────────────────────────────────────────────
+def _invalidate_liked_cache(user_id: str) -> None:
+    invalidate(CacheType.LIKED_TRACKS, suffix=user_id)
+
+# ── LIKE / UNLIKE ──────────────────────────────────────────────────────────────
 def like_track(
     db: DBClient,
     service_db: DBClient,
@@ -54,6 +62,7 @@ def like_track(
         .execute()
     )
 
+    _invalidate_liked_cache(user_id)
     return resp.data[0]
 
 def unlike_track(db: DBClient, user_id: str, track_id: str) -> None:
@@ -68,6 +77,7 @@ def unlike_track(db: DBClient, user_id: str, track_id: str) -> None:
             "updated_at": now,
         }
     ).eq("user_id", user_id).eq("track_id", track_id).is_("deleted_at", "null").execute()
+    _invalidate_liked_cache(user_id)
 
 # ── QUERIES ────────────────────────────────────────────────────────────────────
 def get_likes(db: DBClient, user_id: str) -> list:
@@ -97,3 +107,52 @@ def get_likes_sync(db: DBClient, user_id: str, since: str) -> list:
         .execute()
     )
     return resp.data or []
+
+# ── LIKED PLAYLIST ─────────────────────────────────────────────────────────────
+def get_liked_playlist(db: DBClient, user_id: str) -> dict:
+    """
+    Playlist virtual con todos los likes activos del usuario.
+    Devuelve el mismo shape que get_playlist_by_id para que el front
+    lo trate como cualquier playlist.
+    """
+    cached = get_cached(CacheType.LIKED_TRACKS, suffix=user_id)
+    if cached is not None:
+        return cached
+
+    resp = (
+        db.table("user_likes")
+        .select("track_id,created_at,tracks(*)")
+        .eq("user_id", user_id)
+        .is_("deleted_at", "null")
+        .order("created_at", desc=False)
+        .execute()
+    )
+
+    rows = resp.data or []
+    tracks = []
+    for i, row in enumerate(rows):
+        t = row.get("tracks") or {}
+        tracks.append({
+            "id": t.get("id"),
+            "track_id": row["track_id"],
+            "title": t.get("title"),
+            "artist": t.get("artist"),
+            "artist_id": t.get("artist_id"),
+            "album_id": t.get("album_id"),
+            "album_name": t.get("album"),
+            "duration_seconds": t.get("duration_seconds"),
+            "thumbnail_url": t.get("thumbnail_url"),
+            "position": i + 1,
+            "added_at": row.get("created_at"),
+        })
+
+    payload = {
+        "id": "liked",
+        "title": "Liked Songs",
+        "description": None,
+        "is_public": False,
+        "tracks": tracks,
+    }
+
+    set_cached(CacheType.LIKED_TRACKS, payload, suffix=user_id)
+    return payload

@@ -13,6 +13,8 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from services.supabase_service import supabase_service as sb
+from services.cache_config import set_manual_version, CacheType
+from services.cache_service import invalidate_all
 
 def get_first_day_of_last_month() -> str:
     """Retorna el primer día del mes pasado en formato YYYY-MM-DD"""
@@ -179,6 +181,10 @@ def main():
             save_monthly_stats(user_id, month, entity_type, items)
     
     print("Agregación mensual completada")
+
+    invalidate_all(CacheType.MONTHLY_STATS)
+    set_manual_version(CacheType.MONTHLY_STATS)
+    print("[cache] MONTHLY_STATS invalidado")
 
 if __name__ == '__main__':
     main()

@@ -17,6 +17,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from services.supabase_service import supabase_service as sb
 from services.artist_service import get_artist
 
+from services.cache_config import set_manual_version, CacheType
+from services.cache_service import invalidate_all
+
 def get_monday_of_last_week() -> str:
     today = datetime.now()
     days_since_monday = today.weekday()
@@ -65,7 +68,7 @@ def enrich_artist_thumbnails(artists: List[Dict[str, Any]]) -> List[Dict[str, An
         if not artist_id:
             return
         try:
-            data = get_artist(artist_id)
+            data = get_artist(sb, artist_id)
             thumbs = (data.get('header') or {}).get('thumbnails') or []
             if thumbs:
                 url = thumbs[-1].get('url', '')
@@ -110,6 +113,10 @@ def main():
             save_weekly_stats(user_id, week_start, entity_type, items)
     
     print("Agregación semanal completada")
+
+    invalidate_all(CacheType.WEEKLY_STATS)
+    set_manual_version(CacheType.WEEKLY_STATS)
+    print("[cache] WEEKLY_STATS invalidado")
 
 if __name__ == '__main__':
     main()
