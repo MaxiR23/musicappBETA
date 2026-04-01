@@ -68,6 +68,12 @@ def _get_album_recs(album_id: str, limit: int = 5) -> list:
         parsed = music_client.get_album(album_id)
         recs = parsed.get("related_recommendations") or []
 
+        for rec in recs:
+            if not rec.get("artist_name"):
+                artists = rec.get("artists") or []
+                if artists:
+                    rec["artist_name"] = artists[0].get("name")
+
         if not recs:
             artist_ids = [a.get("id") for a in (parsed.get("artists") or []) if a.get("id")]
             if artist_ids:
