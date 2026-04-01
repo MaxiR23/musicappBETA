@@ -23,6 +23,7 @@ class CacheType(str, Enum):
     SIMILAR_TO = "similar-to"
     USER_RECOMMENDATIONS = "user-recommendations"
     USER_PLAYLISTS = "user-playlists"
+    LIKED_TRACKS = "liked-tracks"
     
     # Music
     ARTIST = "artist"
@@ -71,6 +72,7 @@ CACHE_SCHEDULE: Dict[CacheType, CacheSchedule] = {
     CacheType.SIMILAR_TO: CacheSchedule.SUNDAY,
     CacheType.USER_RECOMMENDATIONS: CacheSchedule.MONDAY,
     CacheType.USER_PLAYLISTS: CacheSchedule.MANUAL,
+    CacheType.LIKED_TRACKS: CacheSchedule.MANUAL,
     
     CacheType.ARTIST: CacheSchedule.DAILY,  
     CacheType.ALBUM: CacheSchedule.MANUAL,
@@ -102,6 +104,7 @@ DEFAULT_TTL: Dict[CacheType, int] = {
     CacheType.SIMILAR_TO: 604800,
     CacheType.USER_RECOMMENDATIONS: 604800,
     CacheType.USER_PLAYLISTS: 3600,
+    CacheType.LIKED_TRACKS: 3600,
 
     CacheType.ARTIST: 86400,
     CacheType.ALBUM: 2592000,

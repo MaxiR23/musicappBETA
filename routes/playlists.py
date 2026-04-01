@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 
 from core.dependencies import get_user_db, get_service_db, get_current_user_id
 from services.db_protocol import DBClient
+from services.likes_service import get_liked_playlist
 from services.playlist_service import (
     create_playlist,
     get_playlists,
@@ -38,6 +39,16 @@ async def get_playlists_route(
 ):
     try:
         return get_playlists(db, user_id)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": "db_error", "detail": str(e)})
+
+@router.get("/liked")
+async def get_liked_playlist_route(
+    db: DBClient = Depends(get_user_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    try:
+        return get_liked_playlist(db, user_id)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "db_error", "detail": str(e)})
 
