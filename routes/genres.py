@@ -19,7 +19,7 @@ router = APIRouter(tags=["genres"])
 playlists_router = APIRouter(prefix="/playlists", tags=["playlists"])
 
 # ── GENRES ───────────────────────────────────────────────
-@router.get("/", summary="Lista todos los géneros")
+@router.get("", summary="Lista todos los géneros")
 async def list_genres(db: DBClient = Depends(get_db)):
     try:
         return {"ok": True, "genres": get_all_genres(db)}
