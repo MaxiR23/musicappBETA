@@ -361,21 +361,17 @@ python scripts/aggregate_weekly_stats.py
 python scripts/aggregate_monthly_stats.py
 ```
 
-### Script de Purga
+### Purga Automática (Supabase pg_cron)
 
-**Archivo**: `scripts/purge_old_data.py`
+**Función**: `purge_old_data()` en Supabase
+**Ejecución**: Domingos 4:00 AM GMT (pg_cron)
 
-**Ejecución**: Cada semana
+**Lógica**: Purga por volumen, no por tiempo.
+- `play_events`: si supera 50,000 filas, recorta a 40,000 (borra las más antiguas)
+- `user_weekly_stats`: si supera 5,000 filas, recorta a 4,000
+- `user_monthly_stats`: nunca se purga (permanente)
 
-**Proceso:**
-1. Borra registros de `play_events` más antiguos que 60 días
-2. Borra registros de `user_weekly_stats` más antiguos que 90 días
-3. Nunca borra `user_monthly_stats` (permanente)
-
-**Comando manual:**
-```bash
-python scripts/purge_old_data.py
-```
+No requiere GitHub Actions ni scripts externos.
 
 ## Flujo de Datos Completo
 
@@ -420,16 +416,14 @@ Guarda top 10 en user_monthly_stats
 3 registros por usuario (permanentes)
 ```
 
-### Purga Automática (Cada semana)
-```
-GitHub Action se dispara
+### Purga Automática (Domingos 4:00 AM GMT)
+pg_cron ejecuta purge_old_data()
     ↓
-Borra play_events > 60 días
+Chequea filas en play_events (>50K? → recorta a 40K)
     ↓
-Borra user_weekly_stats > 90 días
+Chequea filas en user_weekly_stats (>5K? → recorta a 4K)
     ↓
 Mantiene user_monthly_stats intacto
-```
 
 ## Sistema de Recomendaciones
 
