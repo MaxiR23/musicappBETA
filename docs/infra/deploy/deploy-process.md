@@ -44,7 +44,7 @@ ssh <SSH_USER>@<SERVER_IP>
 ./deploy.sh
 ```
 
-### Output esperado
+### Output esperado (similar, con data si tiene info el pull)
 
 ```
 [deploy] Pulling latest code...
