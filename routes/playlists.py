@@ -59,7 +59,10 @@ async def get_playlist_by_id_route(
     user_id: str = Depends(get_current_user_id),
 ):
     try:
-        return get_playlist_by_id(db, user_id, playlist_id)
+        result = get_playlist_by_id(db, user_id, playlist_id)
+        if result is None:
+            return JSONResponse(status_code=404, content={"error": "playlist_not_found"})
+        return result
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "db_error", "detail": str(e)})
 
