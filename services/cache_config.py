@@ -15,7 +15,7 @@ import calendar
 class CacheType(str, Enum):
     # Feed
     NEW_RELEASES = "new-releases"
-    NEW_SINGLES = "new-singles" 
+    # NEW_SINGLES = "new-singles"  # temporalmente deshabilitado
     TOP_TRACKS = "top-tracks"
     TOP_ALBUMS = "top-albums"
     SEED_TRACKS = "seed-tracks"
@@ -63,8 +63,8 @@ class CacheSchedule(str, Enum):
 # ============================================================================
 
 CACHE_SCHEDULE: Dict[CacheType, CacheSchedule] = {
-    CacheType.NEW_RELEASES: CacheSchedule.TWICE_WEEKLY,
-    CacheType.NEW_SINGLES: CacheSchedule.TWICE_WEEKLY,
+    CacheType.NEW_RELEASES: CacheSchedule.MANUAL,
+    # CacheType.NEW_SINGLES: CacheSchedule.TWICE_WEEKLY, # temporalmente deshabilitado
     CacheType.TOP_TRACKS: CacheSchedule.SUNDAY,
     CacheType.TOP_ALBUMS: CacheSchedule.SUNDAY,
     CacheType.SEED_TRACKS: CacheSchedule.FRIDAY,
@@ -96,7 +96,7 @@ CACHE_SCHEDULE: Dict[CacheType, CacheSchedule] = {
 
 DEFAULT_TTL: Dict[CacheType, int] = {
     CacheType.NEW_RELEASES: 86400,
-    CacheType.NEW_SINGLES: 86400,
+    # CacheType.NEW_SINGLES: 86400,  # temporalmente deshabilitado
     CacheType.TOP_TRACKS: 604800,
     CacheType.TOP_ALBUMS: 604800,
     CacheType.SEED_TRACKS: 604800,
@@ -210,7 +210,7 @@ def invalidate_related_caches(trigger: str = "new_release"):
     if trigger == "new_release":
         set_manual_version(CacheType.NEW_RELEASES)
         set_manual_version(CacheType.ARTIST_ALBUMS)
-        set_manual_version(CacheType.ARTIST_SINGLES)
+        # set_manual_version(CacheType.ARTIST_SINGLES) tempormalmente deshabilitado
         print(f"Caches invalidados por: {trigger}")
     
     elif trigger == "emergency":

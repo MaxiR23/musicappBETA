@@ -75,37 +75,22 @@ async def get_feed_db(limit: Optional[int] = 25, db: DBClient = Depends(get_db))
         print(f"[feed][most-played][ERROR] {e}")
         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
 
-@router.get("/db/new-releases", summary="Feed (DB) new releases")
-async def get_new_releases_db(limit: Optional[int] = 25, db: DBClient = Depends(get_db)):
-    cached_data = get_cached(CacheType.NEW_RELEASES)
-    if cached_data is not None:
-        return cached_data
-    try:
-        albums = list_feed(db, "new_releases", "album", limit or 25)
-        if not albums:
-            return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
-        result = {"ok": True, "new_releases": albums}
-        set_cached(CacheType.NEW_RELEASES, result)
-        return result
-    except Exception as e:
-        print(f"[feed][new-releases][ERROR] {e}")
-        return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
-
-@router.get("/db/new-singles", summary="Feed (DB) singles nuevos")
-async def get_new_singles_db(limit: Optional[int] = 25, db: DBClient = Depends(get_db)):
-    cached_data = get_cached(CacheType.NEW_SINGLES)
-    if cached_data is not None:
-        return cached_data
-    try:
-        tracks = list_feed(db, "new_singles", "track", limit or 25)
-        if not tracks:
-            return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
-        result = {"ok": True, "tracks": tracks}
-        set_cached(CacheType.NEW_SINGLES, result, ttl=43200)
-        return result
-    except Exception as e:
-        print(f"[feed][new-singles][ERROR] {e}")
-        return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
+# --- new_singles (temporalmente deshabilitado) ---
+# @router.get("/db/new-singles", summary="Feed (DB) singles nuevos")
+# async def get_new_singles_db(limit: Optional[int] = 25, db: DBClient = Depends(get_db)):
+#     cached_data = get_cached(CacheType.NEW_SINGLES)
+#     if cached_data is not None:
+#         return cached_data
+#     try:
+#         tracks = list_feed(db, "new_singles", "track", limit or 25)
+#         if not tracks:
+#             return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
+#         result = {"ok": True, "tracks": tracks}
+#         set_cached(CacheType.NEW_SINGLES, result, ttl=43200)
+#         return result
+#     except Exception as e:
+#         print(f"[feed][new-singles][ERROR] {e}")
+#         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
 
 @router.get("/db/seed-tracks", summary="Feed (DB) seed tracks")
 async def get_seed_tracks_db(limit: Optional[int] = 25, db: DBClient = Depends(get_db)):
@@ -165,7 +150,7 @@ def replay(user_id: str = Depends(get_current_user_id), db: DBClient = Depends(g
     except Exception as e:
         print(f"[replay][ERROR] {e}")
         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
-    
+
 @router.get("/listen-again")
 def listen_again(user_id: str = Depends(get_current_user_id), db: DBClient = Depends(get_db)):
     try:

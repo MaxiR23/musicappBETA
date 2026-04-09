@@ -198,14 +198,16 @@ def list_upcoming_30d_cached(db: DBClient) -> list:
     return releases
 
 # ── Status updates (para cron y check en tiempo real) ────
-
-def mark_as_released(db: DBClient, release_id: str) -> bool:
-    """Marca un release como confirmado."""
+def mark_as_released(db: DBClient, release_id: str, album_id: str | None = None) -> bool:
+    """Marca un release como confirmado, opcionalmente guarda album_id."""
     try:
-        db.table(TABLE).update({
+        payload = {
             "status": "released",
             "confirmed_at": datetime.now().isoformat(),
-        }).eq("id", release_id).execute()
+        }
+        if album_id:
+            payload["album_id"] = album_id
+        db.table(TABLE).update(payload).eq("id", release_id).execute()
         return True
     except Exception as e:
         print(f"[upcoming_repo][mark_as_released][ERROR] {e}")
@@ -238,3 +240,69 @@ def get_todays_pending(db: DBClient) -> list:
     except Exception as e:
         print(f"[upcoming_repo][get_todays_pending][ERROR] {e}")
         return []
+    
+def get_released_and_postponed_keys(db: DBClient) -> set:
+    """Keys (artist_name, album_name) de released/postponed. El sync los salta."""
+    try:
+        res = (
+            db.table(TABLE)
+            .select("artist_name, album_name")
+            .in_("status", ["released", "postponed"])
+            .execute()
+        )
+        rows = getattr(res, "data", None) or []
+        return {(r["artist_name"], r["album_name"]) for r in rows}
+    except Exception as e:
+        print(f"[upcoming_repo][get_released_and_postponed_keys][ERROR] {e}")
+        return set()
+    
+def get_all_pending(db: DBClient) -> dict:
+    """Trae todos los pending indexados por (artist_name, album_name).
+    El sync lo usa para decidir si actualizar metadata."""
+    try:
+        res = (
+            db.table(TABLE)
+            .select("id, artist_name, album_name, artist_id, thumbnail_url, track_count, release_date, is_tba")
+            .eq("status", "pending")
+            .execute()
+        )
+        rows = getattr(res, "data", None) or []
+        return {
+            (r["artist_name"], r["album_name"]): r
+            for r in rows
+        }
+    except Exception as e:
+        print(f"[upcoming_repo][get_all_pending][ERROR] {e}")
+        return {}
+    
+def insert_release(db: DBClient, row: dict) -> bool:
+    """Inserta un release nuevo."""
+    try:
+        db.table(TABLE).insert(row).execute()
+        return True
+    except Exception as e:
+        print(f"[upcoming_repo][insert_release][ERROR] {e}")
+        return False
+    
+def update_release_metadata(db: DBClient, release_id: str, updates: dict) -> bool:
+    """Actualiza metadata de un release pending (thumbnail, date, etc)."""
+    if not updates:
+        return True
+    try:
+        db.table(TABLE).update(updates).eq("id", release_id).execute()
+        return True
+    except Exception as e:
+        print(f"[upcoming_repo][update_release_metadata][ERROR] {e}")
+        return False
+    
+def log_sync_error(db: DBClient, artist_name: str, album_name: str, error_type: str, error_detail: str | None = None) -> None:
+    """Registra un error de sync en release_sync_errors."""
+    try:
+        db.table("release_sync_errors").insert({
+            "artist_name": artist_name,
+            "album_name": album_name,
+            "error_type": error_type,
+            "error_detail": error_detail,
+        }).execute()
+    except Exception as e:
+        print(f"[upcoming_repo][log_sync_error][ERROR] {e}")
