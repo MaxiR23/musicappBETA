@@ -14,6 +14,7 @@ from services.cache_config import CacheType, get_all_versions
 from scripts.store_user_recommendations import generate_weekly_bucket
 from services.replay_service import get_replay_songs
 from services.listen_again_service import get_listen_again_cached
+from services.recommended_playlists_service import get_recommended_playlists
 
 router = APIRouter(tags=["feed"])
 
@@ -158,4 +159,15 @@ def listen_again(user_id: str = Depends(get_current_user_id), db: DBClient = Dep
         return {"ok": True, "album": result}
     except Exception as e:
         print(f"[listen-again][ERROR] {e}")
+        return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
+    
+@router.get("/recommended-playlists")
+def recommended_playlists(
+    user_id: str = Depends(get_current_user_id),
+):
+    try:
+        playlists = get_recommended_playlists(user_id)
+        return {"ok": True, "playlists": playlists}
+    except Exception as e:
+        print(f"[recommended-playlists][ERROR] {e}")
         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})

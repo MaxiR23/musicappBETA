@@ -47,6 +47,7 @@ class CacheType(str, Enum):
 
     # Featured
     FEATURED_NEW_RELEASE = "featured-new-release"
+    RECOMMENDED_PLAYLISTS = "recommended-playlists"
 
     # Stats
     WEEKLY_STATS = "weekly-stats"
@@ -93,6 +94,7 @@ CACHE_SCHEDULE: Dict[CacheType, CacheSchedule] = {
     CacheType.REPLAY: CacheSchedule.FRIDAY,
     CacheType.LISTEN_AGAIN: CacheSchedule.FRIDAY,
     CacheType.FEATURED_NEW_RELEASE: CacheSchedule.SUNDAY,
+    CacheType.RECOMMENDED_PLAYLISTS: CacheSchedule.MONDAY,
 
     CacheType.WEEKLY_STATS: CacheSchedule.MONDAY,
     CacheType.MONTHLY_STATS: CacheSchedule.MANUAL,
@@ -126,6 +128,7 @@ DEFAULT_TTL: Dict[CacheType, int] = {
     CacheType.REPLAY: 604800,
     CacheType.LISTEN_AGAIN: 604800,
     CacheType.FEATURED_NEW_RELEASE: 604800,
+    CacheType.RECOMMENDED_PLAYLISTS: 604800,
 
     CacheType.WEEKLY_STATS: 604800,
 }
