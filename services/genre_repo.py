@@ -54,6 +54,7 @@ def build_playlist_track_item(position: int, track_id: str, track_data: Dict[str
         "duration_seconds": track_data.get("duration_seconds"),
         "thumbnail_url": track_data.get("thumbnail_url"),
         "artist_id": track_data.get("artist_id"),
+        "album_id": track_data.get("album_id"),
     }
 
 def extract_unique_categories(rows: List[Dict[str, Any]]) -> List[str]:
@@ -214,7 +215,7 @@ def get_playlist_tracks(db: DBClient, playlist_id: str, limit: Optional[int] = 1
         return []
 
     tracks_result = db.table("tracks") \
-        .select("track_id, title, artist, album, duration_seconds, thumbnail_url, artist_id") \
+        .select("track_id, title, artist, album, album_id, duration_seconds, thumbnail_url, artist_id") \
         .in_("track_id", track_ids) \
         .execute()
 
