@@ -233,7 +233,7 @@ def parse_artist_card_info(resp: dict) -> dict | None:
     sections = _dig(tab, ["content","sectionListRenderer","contents"], []) or []
     if not sections: return None
 
-    # CASO 1: card de artista (The Weeknd, etc.)
+    # card de artista (The Weeknd, etc.)
     card = None
     for sec in sections:
         if "musicCardShelfRenderer" in sec:
@@ -257,29 +257,6 @@ def parse_artist_card_info(resp: dict) -> dict | None:
                     "thumbnails": thumbs,
                     "type": "artist",
                 }
-
-    # CASO 2: artista en musicShelfRenderer (Zell, etc.)
-    for sec in sections:
-        shelf = sec.get("musicShelfRenderer")
-        if not shelf: continue
-        for it in shelf.get("contents", []) or []:
-            mrlir = it.get("musicResponsiveListItemRenderer")
-            if not mrlir: continue
-            page_type = _dig(mrlir, ["navigationEndpoint","browseEndpoint","browseEndpointContextSupportedConfigs","browseEndpointContextMusicConfig","pageType"])
-            if page_type != "MUSIC_PAGE_TYPE_ARTIST": continue
-            name = _dig(mrlir, ["flexColumns",0,"musicResponsiveListItemFlexColumnRenderer","text","runs",0,"text"])
-            artist_id = _dig(mrlir, ["navigationEndpoint","browseEndpoint","browseId"])
-            thumbs = _dig(mrlir, ["thumbnail","musicThumbnailRenderer","thumbnail","thumbnails"], []) or []
-            subtitle_runs = _dig(mrlir, ["flexColumns",1,"musicResponsiveListItemFlexColumnRenderer","text","runs"], []) or []
-            return {
-                "name": name,
-                "artist_id": artist_id,
-                "subtitle": _runs_text(subtitle_runs),
-                "subtitle_runs": subtitle_runs,
-                "subtitle_texts": [(r or {}).get("text","") for r in subtitle_runs],
-                "thumbnails": thumbs,
-                "type": "artist",
-            }
 
     return None
 
@@ -486,9 +463,6 @@ def parse_search_top_result(resp: dict) -> dict | None:
         video_id = nav.get("videoId")
         video_type = _dig(nav, ["watchEndpointMusicSupportedConfigs", "watchEndpointMusicConfig", "musicVideoType"])
 
-        if video_type != "MUSIC_VIDEO_TYPE_ATV":
-            return None
-
         subtitle_runs = _dig(card, ["subtitle", "runs"], []) or []
         artists = []
         for run in subtitle_runs:
@@ -505,18 +479,41 @@ def parse_search_top_result(resp: dict) -> dict | None:
 
         thumbs = _dig(card, ["thumbnail", "musicThumbnailRenderer", "thumbnail", "thumbnails"], []) or []
         thumb_url = thumbs[-1]["url"] if thumbs else None
-
         links = _extract_menu_navs(card)
 
-        return {
-            "title": title_text,
-            "track_id": video_id,
-            "artists": artists,
-            "duration": duration,
-            "thumbnail_url": thumb_url,
-            "album_id": links["album_id"],   
-            "artist_id": links["artist_id"], 
-        }
+        # Si es ATV devolvemos directo
+        if video_type == "MUSIC_VIDEO_TYPE_ATV":
+            return {
+                "title": title_text,
+                "track_id": video_id,
+                "artists": artists,
+                "duration": duration,
+                "thumbnail_url": thumb_url,
+                "album_id": links["album_id"],
+                "artist_id": links["artist_id"],
+            }
+
+        # Si es OMV → buscar ATV del mismo artista en los contents del card
+        artist_ids = {a["artist_id"] for a in artists if a.get("artist_id")}
+        for it in card.get("contents", []) or []:
+            mrlir = it.get("musicResponsiveListItemRenderer")
+            if not mrlir: continue
+            if not _is_atv_song_row(mrlir): continue
+            s = _extract_song_item(mrlir)
+            if not s.get("track_id"): continue
+            if any(a.get("artist_id") in artist_ids for a in s.get("artists", [])):
+                links2 = _extract_menu_navs(mrlir)
+                return {
+                    "title": s["title"],
+                    "track_id": s["track_id"],
+                    "artists": s["artists"],
+                    "duration": s.get("duration"),
+                    "thumbnail_url": (s["thumbnails"][-1]["url"] if s.get("thumbnails") else None),
+                    "album_id": links2["album_id"],
+                    "artist_id": links2["artist_id"],
+                }
+
+        return None
 
     except Exception:
         return None
