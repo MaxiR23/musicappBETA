@@ -232,38 +232,56 @@ def parse_artist_card_info(resp: dict) -> dict | None:
     if not tab: return None
     sections = _dig(tab, ["content","sectionListRenderer","contents"], []) or []
     if not sections: return None
+
+    # CASO 1: card de artista (The Weeknd, etc.)
     card = None
     for sec in sections:
         if "musicCardShelfRenderer" in sec:
             card = sec["musicCardShelfRenderer"]
             break
-    if not card: return None
+    if card:
+        title_runs = _dig(card, ["title","runs"], []) or []
+        if title_runs:
+            nav = title_runs[0].get("navigationEndpoint", {}) or {}
+            if _dig(nav, ["browseEndpoint","browseEndpointContextSupportedConfigs","browseEndpointContextMusicConfig","pageType"]) == "MUSIC_PAGE_TYPE_ARTIST":
+                name = title_runs[0].get("text","")
+                artist_id = _dig(nav, ["browseEndpoint","browseId"])
+                subtitle_runs = _dig(card, ["subtitle","runs"], []) or []
+                thumbs = _dig(card, ["thumbnail","musicThumbnailRenderer","thumbnail","thumbnails"], []) or []
+                return {
+                    "name": name,
+                    "artist_id": artist_id,
+                    "subtitle": _runs_text(subtitle_runs),
+                    "subtitle_runs": subtitle_runs,
+                    "subtitle_texts": [(r or {}).get("text","") for r in subtitle_runs],
+                    "thumbnails": thumbs,
+                    "type": "artist",
+                }
 
-    title_runs = _dig(card, ["title","runs"], []) or []
-    if not title_runs: return None
-    nav = title_runs[0].get("navigationEndpoint", {}) or {}
-    if _dig(nav, [
-        "browseEndpoint","browseEndpointContextSupportedConfigs",
-        "browseEndpointContextMusicConfig","pageType"
-    ]) != "MUSIC_PAGE_TYPE_ARTIST":
-        return None
+    # CASO 2: artista en musicShelfRenderer (Zell, etc.)
+    for sec in sections:
+        shelf = sec.get("musicShelfRenderer")
+        if not shelf: continue
+        for it in shelf.get("contents", []) or []:
+            mrlir = it.get("musicResponsiveListItemRenderer")
+            if not mrlir: continue
+            page_type = _dig(mrlir, ["navigationEndpoint","browseEndpoint","browseEndpointContextSupportedConfigs","browseEndpointContextMusicConfig","pageType"])
+            if page_type != "MUSIC_PAGE_TYPE_ARTIST": continue
+            name = _dig(mrlir, ["flexColumns",0,"musicResponsiveListItemFlexColumnRenderer","text","runs",0,"text"])
+            artist_id = _dig(mrlir, ["navigationEndpoint","browseEndpoint","browseId"])
+            thumbs = _dig(mrlir, ["thumbnail","musicThumbnailRenderer","thumbnail","thumbnails"], []) or []
+            subtitle_runs = _dig(mrlir, ["flexColumns",1,"musicResponsiveListItemFlexColumnRenderer","text","runs"], []) or []
+            return {
+                "name": name,
+                "artist_id": artist_id,
+                "subtitle": _runs_text(subtitle_runs),
+                "subtitle_runs": subtitle_runs,
+                "subtitle_texts": [(r or {}).get("text","") for r in subtitle_runs],
+                "thumbnails": thumbs,
+                "type": "artist",
+            }
 
-    name = title_runs[0].get("text","")
-    artist_id = _dig(nav, ["browseEndpoint","browseId"])
-    subtitle_runs = _dig(card, ["subtitle","runs"], []) or []
-    subtitle = _runs_text(subtitle_runs)
-    subtitle_texts = [(r or {}).get("text","") for r in subtitle_runs]
-    thumbs = _dig(card, ["thumbnail","musicThumbnailRenderer","thumbnail","thumbnails"], []) or []
-
-    return {
-        "name": name,
-        "artist_id": artist_id,
-        "subtitle": subtitle,
-        "subtitle_runs": subtitle_runs,
-        "subtitle_texts": subtitle_texts,
-        "thumbnails": thumbs,
-        "type": "artist",
-    }
+    return None
 
 # ---------- ARTIST CARD → SONGS (sin duración) ----------
 def parse_artist_card_songs(resp: dict, strict_atv: bool = True, limit: int | None = None, yt_innertube=None, yt_api=None, enrich_metadata: bool = False) -> list[dict]:
@@ -317,18 +335,49 @@ def parse_search_albums_and_songs(resp: dict, song_limit: int | None = None, alb
     if not tab: return {"songs": songs, "albums": albums}
     sections = _dig(tab, ["content","sectionListRenderer","contents"], []) or []
     for sec in sections:
+        card = sec.get("musicCardShelfRenderer")
+        if card:
+            # 1. Top result está en el título del card
+            top = parse_search_top_result(resp)
+            if top and top.get("track_id"):
+                songs.append({
+                    "title": top["title"],
+                    "track_id": top["track_id"],
+                    "artists": top["artists"],
+                    "thumbnails": [{"url": top["thumbnail_url"]}] if top.get("thumbnail_url") else [],
+                    "type": "song",
+                    "go_to": {"album_id": top.get("album_id"), "artist_id": top.get("artist_id")},
+                    "duration": top.get("duration"),
+                })
+            # 2. Contents son los relacionados
+            for it in card.get("contents", []) or []:
+                mrlir = it.get("musicResponsiveListItemRenderer")
+                if not mrlir: continue
+                if _is_atv_song_row(mrlir):
+                    links = _extract_menu_navs(mrlir)
+                    s = _extract_song_item(mrlir)
+                    if s.get("track_id"):
+                        songs.append({
+                            "title": s.get("title"),
+                            "track_id": s.get("track_id"),
+                            "artists": s.get("artists", []),
+                            "thumbnails": s.get("thumbnails", []),
+                            "type": "song",
+                            "go_to": {"album_id": links["album_id"], "artist_id": links["artist_id"]},
+                            "duration": s.get("duration"),
+                        })
+            continue
+
         shelf = sec.get("musicShelfRenderer")
         if not shelf: continue
         for it in shelf.get("contents", []) or []:
             mrlir = it.get("musicResponsiveListItemRenderer")
             if not mrlir: continue
-
             if _is_album_row(mrlir):
                 album = _extract_album_item_from_search(mrlir)
                 if album.get("album_id") or album.get("playlist_id"):
                     albums.append(album)
                 continue
-
             if _is_atv_song_row(mrlir):
                 links = _extract_menu_navs(mrlir)
                 s = _extract_song_item(mrlir)
@@ -348,7 +397,7 @@ def parse_search_albums_and_songs(resp: dict, song_limit: int | None = None, alb
 
     if enrich_metadata and yt_innertube and yt_api:
         _enrich_songs_with_metadata(yt_innertube, yt_api, songs)
-    
+
     if song_limit is not None: songs = songs[:song_limit]
     if album_limit is not None: albums = albums[:album_limit]
     return {"songs": songs, "albums": albums}
@@ -421,10 +470,6 @@ def _extract_album_item_from_search(mrlir: dict) -> dict:
 
 # ---------- TOP RESULT (musicCardShelfRenderer) ----------
 def parse_search_top_result(resp: dict) -> dict | None:
-    """
-    Devuelve el top result si existe y es MUSIC_VIDEO_TYPE_ATV.
-    Incluye título, artistas, duración y thumbnail.
-    """
     try:
         tab = _get_selected_tab(resp)
         if not tab:
@@ -439,25 +484,18 @@ def parse_search_top_result(resp: dict) -> dict | None:
         title_text = _dig(title_runs, [0, "text"])
         nav = _dig(title_runs, [0, "navigationEndpoint", "watchEndpoint"], {})
         video_id = nav.get("videoId")
-        video_type = _dig(nav, [
-            "watchEndpointMusicSupportedConfigs",
-            "watchEndpointMusicConfig",
-            "musicVideoType"
-        ])
+        video_type = _dig(nav, ["watchEndpointMusicSupportedConfigs", "watchEndpointMusicConfig", "musicVideoType"])
 
-        # Solo si es ATV devolvemos algo
         if video_type != "MUSIC_VIDEO_TYPE_ATV":
             return None
 
-        # --- artistas ---
-        artists = []
         subtitle_runs = _dig(card, ["subtitle", "runs"], []) or []
+        artists = []
         for run in subtitle_runs:
             bid = _dig(run, ["navigationEndpoint", "browseEndpoint", "browseId"])
             if bid and run.get("text"):
                 artists.append({"name": run["text"], "artist_id": bid})
 
-        # --- duración ---
         duration = None
         for run in subtitle_runs:
             txt = run.get("text", "")
@@ -465,11 +503,10 @@ def parse_search_top_result(resp: dict) -> dict | None:
                 duration = txt
                 break
 
-        # --- thumbnail ---
-        thumbs = _dig(card, [
-            "thumbnail", "musicThumbnailRenderer", "thumbnail", "thumbnails"
-        ], []) or []
+        thumbs = _dig(card, ["thumbnail", "musicThumbnailRenderer", "thumbnail", "thumbnails"], []) or []
         thumb_url = thumbs[-1]["url"] if thumbs else None
+
+        links = _extract_menu_navs(card)
 
         return {
             "title": title_text,
@@ -477,6 +514,8 @@ def parse_search_top_result(resp: dict) -> dict | None:
             "artists": artists,
             "duration": duration,
             "thumbnail_url": thumb_url,
+            "album_id": links["album_id"],   
+            "artist_id": links["artist_id"], 
         }
 
     except Exception:
