@@ -4,7 +4,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
 from services.search_service import search, get_warm_ids
-from services.audio_service import schedule_warm
+from services.audio_service import schedule_warm # TODO: check if needed
 
 router = APIRouter()
 
@@ -12,7 +12,7 @@ router = APIRouter()
 def search_music(q: str = Query(..., description="Texto a buscar")):
     try:
         result = search(q)
-        schedule_warm(get_warm_ids(result))
+        # TODO: check if needed schedule_warm(get_warm_ids(result))
         return result
     except Exception as e:
         print(f"[search][ERROR] {e}")
