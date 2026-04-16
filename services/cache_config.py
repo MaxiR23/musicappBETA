@@ -44,6 +44,7 @@ class CacheType(str, Enum):
     # Repeat
     REPLAY = "replay"
     LISTEN_AGAIN = "listen-again"
+    USER_STATIONS = "user-stations"
 
     # Featured
     FEATURED_NEW_RELEASE = "featured-new-release"
@@ -58,6 +59,7 @@ class CacheSchedule(str, Enum):
     TWICE_WEEKLY = "twice-weekly"
     DAILY = "daily"
     MONDAY = "monday"
+    TUESDAY = "tuesday"
     FRIDAY = "friday"
     SUNDAY = "sunday"
     MANUAL = "manual"
@@ -93,6 +95,8 @@ CACHE_SCHEDULE: Dict[CacheType, CacheSchedule] = {
 
     CacheType.REPLAY: CacheSchedule.FRIDAY,
     CacheType.LISTEN_AGAIN: CacheSchedule.FRIDAY,
+    CacheType.USER_STATIONS: CacheSchedule.TUESDAY,
+
     CacheType.FEATURED_NEW_RELEASE: CacheSchedule.SUNDAY,
     CacheType.RECOMMENDED_PLAYLISTS: CacheSchedule.MONDAY,
 
@@ -127,6 +131,8 @@ DEFAULT_TTL: Dict[CacheType, int] = {
 
     CacheType.REPLAY: 604800,
     CacheType.LISTEN_AGAIN: 604800,
+    CacheType.USER_STATIONS: 604800,
+
     CacheType.FEATURED_NEW_RELEASE: 604800,
     CacheType.RECOMMENDED_PLAYLISTS: 604800,
 
@@ -277,6 +283,10 @@ def get_version(cache_type: CacheType) -> str:
     elif schedule == CacheSchedule.MONDAY:
         year, week, _ = now.isocalendar()
         return f"v-{year}-w{week:02d}-MON"
+    
+    elif schedule == CacheSchedule.TUESDAY:
+        year, week, _ = now.isocalendar()
+        return f"v-{year}-w{week:02d}-TUE"
     
     elif schedule == CacheSchedule.FRIDAY:
         year, week, _ = now.isocalendar()
