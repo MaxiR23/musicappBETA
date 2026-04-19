@@ -30,3 +30,5 @@ htmlcov/
 
 # pytest
 .pytest_cache/
+
+cookies/
