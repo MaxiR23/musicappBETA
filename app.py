@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, ORJSONResponse
-from routes import cache, health, tracks, playlists, feed, debug, genres, upcoming_releases, new_releases, search, activity, album, artists, audio, stats, likes, featured, station
+from routes import cache, health, tracks, playlists, feed, debug, genres, upcoming_releases, new_releases, search, activity, album, artists, audio, stats, likes, featured, station, offline
 from middlewares.supa_auth import supa_auth
 from middlewares.cors_headers import add_cors_middleware
 
@@ -100,6 +100,10 @@ app.include_router(featured.router, prefix="/api/feed/featured")
 
 # Stats
 app.include_router(stats.router, prefix="/api/stats")
+
+# Offline sync (solo si hay usuarios habilitados)
+if offline.OFFLINE_USERS:
+    app.include_router(offline.router, prefix="/api")
 
 # Rutas de debug/test (solo en desarrollo)
 if ENV != "production":
