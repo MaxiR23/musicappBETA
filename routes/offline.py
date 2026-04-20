@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import os
+import shutil
+from starlette.background import BackgroundTask
+
 from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -43,4 +47,5 @@ def offline_fetch(
         path=result["path"],
         media_type=media_type_for_itag(itag),
         filename=f"{track_id}.{extension_for_itag(itag)}",
+        background=BackgroundTask(shutil.rmtree, os.path.dirname(result["path"]), ignore_errors=True),
     )
