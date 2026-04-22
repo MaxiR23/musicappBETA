@@ -24,28 +24,25 @@ from services.library_service import list_library_items
 LibraryViewKind = Literal["liked", "own_playlist", "saved_playlist", "saved_album"]
 SortMode = Literal["recents"]
 
-class LibraryViewItem(TypedDict):
+class LibraryViewItem(TypedDict, total=False):
     kind: LibraryViewKind
     id: str
     title: str
     thumbnail_url: str
     subtitle: str
     sorted_at: str
+    thumbnail_urls: list[str]
 
 # ── NORMALIZADORES ─────────────────────────────────────────────────────────────
 def _normalize_own_playlist(pl: dict) -> LibraryViewItem:
-    ptracks = pl.get("playlist_tracks") or []
-    first_thumb = ""
-    if ptracks:
-        tracks = ptracks[0].get("tracks") or {}
-        first_thumb = tracks.get("thumbnail_url") or ""
     return {
         "kind": "own_playlist",
         "id": pl["id"],
         "title": pl.get("title") or "",
-        "thumbnail_url": first_thumb,
+        "thumbnail_url": "",
         "subtitle": "",
         "sorted_at": pl.get("created_at") or "",
+        "thumbnail_urls": [],
     }
 
 def _normalize_liked(liked: dict) -> LibraryViewItem:
@@ -70,6 +67,37 @@ def _normalize_library_item(item: dict) -> LibraryViewItem:
         "subtitle": item.get("artist") or "",
         "sorted_at": item.get("added_at") or "",
     }
+
+def _fetch_own_playlist_thumbnails(
+    db: DBClient,
+    playlist_ids: List[str],
+) -> dict[str, List[str]]:
+    """
+    Trae hasta 4 thumbnails por cada playlist propia, en UNA sola llamada.
+    Usa get_user_playlist_thumbnails (funcion SQL en Supabase).
+    Retorna: { playlist_id: [url, url, ...] }
+    """
+    if not playlist_ids:
+        return {}
+
+    try:
+        resp = db.rpc(
+            "get_user_playlist_thumbnails",
+            {"playlist_ids": playlist_ids, "limit_per_playlist": 4},
+        ).execute()
+        rows = resp.data or []
+    except Exception as e:
+        print(f"[library_view] get_user_playlist_thumbnails failed: {e}")
+        return {}
+
+    result: dict[str, List[str]] = {}
+    for row in rows:
+        pid = row.get("playlist_id")
+        url = row.get("thumbnail_url")
+        if not pid or not url:
+            continue
+        result.setdefault(pid, []).append(url)
+    return result
 
 # ── ORDEN ──────────────────────────────────────────────────────────────────────
 def _apply_sort(items: List[LibraryViewItem], sort: SortMode) -> List[LibraryViewItem]:
@@ -110,6 +138,18 @@ def get_library_view(
     items.append(_normalize_liked(liked))
     items.extend(_normalize_own_playlist(pl) for pl in own)
     items.extend(_normalize_library_item(it) for it in saved)
+
+    # Enriquecer playlists propias con mosaico (hasta 4 thumbs).
+    own_ids = [pl["id"] for pl in own if pl.get("id")]
+    thumbs_by_pid = _fetch_own_playlist_thumbnails(db, own_ids)
+    if thumbs_by_pid:
+        for it in items:
+            if it.get("kind") != "own_playlist":
+                continue
+            urls = thumbs_by_pid.get(it["id"]) or []
+            if urls:
+                it["thumbnail_urls"] = urls
+                it["thumbnail_url"] = urls[0]
 
     items = _apply_sort(items, sort)
 
