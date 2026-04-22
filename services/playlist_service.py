@@ -5,14 +5,17 @@ from services.db_protocol import DBClient
 from services.cache_service import get_cached, set_cached, invalidate
 from services.cache_config import CacheType
 from services.track_service import ensure_duration_seconds
+from services.library_view_cache import invalidate_library_view
 
 # ── CACHE ─────────────────────────────────────────────────────────────────────
 def _invalidate_playlist_cache(owner_id: str, playlist_id: str | None = None) -> None:
-    invalidate(CacheType.USER_PLAYLISTS, suffix=owner_id)
+    # grilla unificada (reemplaza al ex-cache de lista USER_PLAYLISTS:{user_id})
+    invalidate_library_view(owner_id)
+    # detalle de la playlist (sobrevive: lo usa get_playlist_by_id)
     if playlist_id:
         invalidate(CacheType.USER_PLAYLISTS, suffix=f"{playlist_id}:{owner_id}")
 
-# ── PLAYLISTS ──────────────────────────────────────────────────────────────────
+# ── PLAYLISTS ────────────────────────────────────────────────def get_playlists(db: DBClient, user_id: str) -> list:──────────────────
 def create_playlist(db: DBClient, user_id: str, title: str, description: str | None, is_public: bool) -> dict:
     resp = db.table("playlists").insert({
         "title": title,
@@ -24,10 +27,10 @@ def create_playlist(db: DBClient, user_id: str, title: str, description: str | N
     return resp.data[0]
 
 def get_playlists(db: DBClient, user_id: str) -> list:
-    cached = get_cached(CacheType.USER_PLAYLISTS, suffix=user_id)
-    if cached is not None:
-        return cached
-
+    """
+    Lista de playlists propias del user, con thumbnail de la primera track.
+    Sin cache propio: el cache vive en library_view_service (grilla unificada).
+    """
     resp = db.table("playlists").select(
         "id,title,description,is_public,created_at,"
         "playlist_tracks(position,tracks(thumbnail_url))"
@@ -38,7 +41,6 @@ def get_playlists(db: DBClient, user_id: str) -> list:
         if pl.get("playlist_tracks"):
             pl["playlist_tracks"].sort(key=lambda t: t.get("position") or 0)
 
-    set_cached(CacheType.USER_PLAYLISTS, payload, suffix=user_id)
     return payload
 
 def get_playlist_by_id(db: DBClient, user_id: str, playlist_id: str) -> dict | None:

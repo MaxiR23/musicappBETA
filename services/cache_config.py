@@ -25,7 +25,7 @@ class CacheType(str, Enum):
     USER_PLAYLISTS = "user-playlists"
     LIKED_TRACKS = "liked-tracks"
 
-    LIBRARY = "library"
+    LIBRARY_VIEW = "library-view"
     
     # Music
     ARTIST = "artist"
@@ -82,7 +82,7 @@ CACHE_SCHEDULE: Dict[CacheType, CacheSchedule] = {
     CacheType.USER_PLAYLISTS: CacheSchedule.MANUAL,
     CacheType.LIKED_TRACKS: CacheSchedule.MANUAL,
 
-    CacheType.LIBRARY: CacheSchedule.MANUAL,
+    CacheType.LIBRARY_VIEW: CacheSchedule.MANUAL,
     
     CacheType.ARTIST: CacheSchedule.DAILY,  
     CacheType.ALBUM: CacheSchedule.MANUAL,
@@ -120,7 +120,7 @@ DEFAULT_TTL: Dict[CacheType, int] = {
     CacheType.USER_PLAYLISTS: 3600,
     CacheType.LIKED_TRACKS: 3600,
 
-    CacheType.LIBRARY: 3600,
+    CacheType.LIBRARY_VIEW: 3600,
 
     CacheType.ARTIST: 86400,
     CacheType.ALBUM: 2592000,

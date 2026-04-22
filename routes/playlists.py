@@ -6,7 +6,6 @@ from services.db_protocol import DBClient
 from services.likes_service import get_liked_playlist
 from services.playlist_service import (
     create_playlist,
-    get_playlists,
     get_playlist_by_id,
     update_playlist,
     delete_playlist,
@@ -18,7 +17,7 @@ from services.playlist_service import (
 router = APIRouter(tags=["playlists"])
 
 # ── PLAYLISTS ──────────────────────────────────────────────────────────────────
-@router.post("/")
+@router.post("")
 async def create_playlist_route(
     body: dict = Body(...),
     db: DBClient = Depends(get_user_db),
@@ -29,16 +28,6 @@ async def create_playlist_route(
         return JSONResponse(status_code=400, content={"error": "title_required"})
     try:
         return create_playlist(db, user_id, title, body.get("description"), body.get("is_public", False))
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": "db_error", "detail": str(e)})
-
-@router.get("/")
-async def get_playlists_route(
-    db: DBClient = Depends(get_user_db),
-    user_id: str = Depends(get_current_user_id),
-):
-    try:
-        return get_playlists(db, user_id)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "db_error", "detail": str(e)})
 

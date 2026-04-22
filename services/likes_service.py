@@ -5,15 +5,16 @@ from datetime import datetime, timezone
 
 from services.db_protocol import DBClient
 from services.track_service import ensure_duration_seconds
-
-from services.db_protocol import DBClient
-from services.track_service import ensure_duration_seconds
 from services.cache_service import get_cached, set_cached, invalidate
 from services.cache_config import CacheType
+from services.library_view_cache import invalidate_library_view
 
 # ── CACHE ──────────────────────────────────────────────────────────────────────
 def _invalidate_liked_cache(user_id: str) -> None:
+    # detalle de la Liked (sobrevive: lo usa get_liked_playlist con sus tracks)
     invalidate(CacheType.LIKED_TRACKS, suffix=user_id)
+    # grilla unificada (el count de tracks cambio)
+    invalidate_library_view(user_id)
 
 # ── LIKE / UNLIKE ──────────────────────────────────────────────────────────────
 def like_track(

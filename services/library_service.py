@@ -2,9 +2,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional, TypedDict
 
-from services.cache_config import CacheType
-from services.cache_service import get_cached, invalidate, set_cached
 from services.db_protocol import DBClient
+from services.library_view_cache import invalidate_library_view
 
 LibraryKind = Literal["album", "playlist"]
 
@@ -32,20 +31,12 @@ class LibraryItemInput(TypedDict, total=False):
     album_id: str
     album_name: str
 
-# ── CACHE ──────────────────────────────────────────────────────
-def _invalidate_library_cache(user_id: str) -> None:
-    invalidate(CacheType.LIBRARY, suffix=user_id)
-
+# ── DB READ ────────────────────────────────────────────────────
 def _fetch_user_library(db: DBClient, user_id: str) -> List[LibraryItem]:
     """
-    Carga todos los items del usuario desde DB o cache.
-    Esta es la ÚNICA entrada a DB para lecturas. El filtrado por kind
-    se hace en memoria a partir de este resultado.
+    Carga todos los items del usuario desde DB.
+    Sin cache propio: el cache unificado vive en library_view_service.
     """
-    cached = get_cached(CacheType.LIBRARY, suffix=user_id)
-    if cached is not None:
-        return cached
-
     response = (
         db.table("library_items")
         .select("*")
@@ -54,8 +45,6 @@ def _fetch_user_library(db: DBClient, user_id: str) -> List[LibraryItem]:
         .execute()
     )
     rows: List[LibraryItem] = getattr(response, "data", None) or []
-
-    set_cached(CacheType.LIBRARY, rows, suffix=user_id)
     return rows
 
 # ── Pure helpers ───────────────────────────────────────────────
@@ -137,7 +126,7 @@ def add_library_item(
         if not data:
             return {"error": "add_failed", "detail": "no rows returned"}
 
-        _invalidate_library_cache(user_id)
+        invalidate_library_view(user_id)
         return {"item": data[0]}
     except Exception as e:
         return {"error": "add_failed", "detail": str(e)[:200]}
@@ -162,7 +151,7 @@ def remove_library_item(
         if not data:
             return {"error": "not_found", "detail": "item not in library"}
 
-        _invalidate_library_cache(user_id)
+        invalidate_library_view(user_id)
         return {"removed": data[0]}
     except Exception as e:
         return {"error": "remove_failed", "detail": str(e)[:200]}
