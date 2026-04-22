@@ -134,9 +134,20 @@ def filter_related_sections(sections: list) -> list:
         if isinstance(section, dict) and section.get("title") not in EXCLUDED_RELATED_SECTIONS
     ]
 
-def build_lyrics_result(ok: bool, lyrics: str | None = None, source: str | None = None, reason: str | None = None) -> dict:
+def build_lyrics_result(
+    ok: bool,
+    lyrics=None,
+    source: str | None = None,
+    has_timestamps: bool = False,
+    reason: str | None = None,
+) -> dict:
     if ok:
-        return {"ok": True, "lyrics": lyrics, "source": source}
+        return {
+            "ok": True,
+            "lyrics": lyrics,
+            "source": source,
+            "has_timestamps": has_timestamps,
+        }
     return {"ok": False, "reason": reason}
 
 def build_error_result(reason: str, detail: str | None = None) -> dict:
@@ -144,6 +155,22 @@ def build_error_result(reason: str, detail: str | None = None) -> dict:
     if detail:
         result["detail"] = detail
     return result
+
+def serialize_lyric_line(line) -> dict:
+    """Convierte un LyricLine (dataclass) o dict a dict plano."""
+    if isinstance(line, dict):
+        return {
+            "text": line.get("text"),
+            "start_time": line.get("start_time"),
+            "end_time": line.get("end_time"),
+            "id": line.get("id"),
+        }
+    return {
+        "text": getattr(line, "text", None),
+        "start_time": getattr(line, "start_time", None),
+        "end_time": getattr(line, "end_time", None),
+        "id": getattr(line, "id", None),
+    }
 
 # ── IO ───────────────────────────────────────────────────
 def ensure_duration_seconds(track_id: str, duration_seconds=None) -> int | None:
@@ -164,7 +191,7 @@ def ensure_duration_seconds(track_id: str, duration_seconds=None) -> int | None:
         return None
 
 def get_lyrics(video_id: str) -> dict:
-    ck = f"lyrics:{video_id}"
+    ck = f"lyrics:v2:{video_id}"
     cached = get_cached_legacy(ck)
     if cached is not None:
         return cached
@@ -185,15 +212,29 @@ def get_lyrics(video_id: str) -> dict:
             set_cached_legacy(ck, out, 5 * 60)
             return out
 
-        data = yt.get_lyrics(browse_id) or {}
-        out = build_lyrics_result(True, lyrics=data.get("lyrics"), source=data.get("source"))
+        data = yt.get_lyrics(browse_id, timestamps=True) or {}
+        raw_lyrics = data.get("lyrics")
+        has_timestamps = bool(data.get("hasTimestamps"))
+
+        if has_timestamps and isinstance(raw_lyrics, list):
+            lyrics_payload = [serialize_lyric_line(line) for line in raw_lyrics]
+        else:
+            lyrics_payload = raw_lyrics
+            has_timestamps = False
+
+        out = build_lyrics_result(
+            True,
+            lyrics=lyrics_payload,
+            source=data.get("source"),
+            has_timestamps=has_timestamps,
+        )
         set_cached_legacy(ck, out, LYRICS_TTL)
         return out
 
     except Exception as e:
         print(f"[track_service][get_lyrics][ERR] {video_id}: {e}")
         return build_error_result("error", str(e))
-
+    
 def get_related(video_id: str) -> dict:
     ck = f"related:{video_id}"
     cached = get_cached_legacy(ck)
