@@ -36,8 +36,7 @@ def build_track_data(track: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "track_id": track.get("id") or track.get("track_id"),
         "title": track.get("title"),
-        "artist": track.get("artist"),
-        "artist_id": track.get("artist_id"),
+        "artists": track.get("artists") or [],
         "album": track.get("album"),
         "album_id": track.get("album_id"),
         "duration_seconds": track.get("duration_seconds"),
@@ -49,12 +48,11 @@ def build_playlist_track_item(position: int, track_id: str, track_data: Dict[str
         "position": position,
         "track_id": track_id,
         "title": track_data.get("title"),
-        "artist": track_data.get("artist"),
+        "artists": track_data.get("artists") or [],
         "album": track_data.get("album"),
+        "album_id": track_data.get("album_id"),
         "duration_seconds": track_data.get("duration_seconds"),
         "thumbnail_url": track_data.get("thumbnail_url"),
-        "artist_id": track_data.get("artist_id"),
-        "album_id": track_data.get("album_id"),
     }
 
 def extract_unique_categories(rows: List[Dict[str, Any]]) -> List[str]:
@@ -215,7 +213,7 @@ def get_playlist_tracks(db: DBClient, playlist_id: str, limit: Optional[int] = 1
         return []
 
     tracks_result = db.table("tracks") \
-        .select("track_id, title, artist, album, album_id, duration_seconds, thumbnail_url, artist_id") \
+        .select("track_id, title, artists, album, album_id, duration_seconds, thumbnail_url") \
         .in_("track_id", track_ids) \
         .execute()
 
