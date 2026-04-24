@@ -116,8 +116,11 @@ def map_track(artist: str, title: str) -> Optional[Dict[str, Any]]:
         "track_id": video_id,
         "type": "track",
         "title": hit.get("title") or title,
-        "artist": ", ".join(a.get("name", "") for a in artists if a.get("name")) or artist,
-        "artist_id": artists[0].get("id") if artists else None,
+        "artists": [
+            {"id": a.get("id"), "name": a.get("name")}
+            for a in artists
+            if a.get("name")
+        ],
         "album": album.get("name"),
         "album_id": album.get("id"),
         "duration_seconds": hit.get("duration_seconds"),

@@ -104,13 +104,11 @@ def add_track(
     track_resp = service_db.table("tracks").upsert({
         "track_id": track_id,
         "title": body.get("title"),
-        "artist": body.get("artist"),
-        "artist_id": body.get("artist_id"),
+        "artists": body.get("artists") or [],
         "album": body.get("album"),
         "album_id": body.get("album_id"),
         "duration_seconds": duration_seconds,
         "thumbnail_url": body.get("thumbnail_url"),
-        "extra": body.get("extra"),
     }, on_conflict="track_id").execute()
 
     internal_id = track_resp.data[0]["id"]
