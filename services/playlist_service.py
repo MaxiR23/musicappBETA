@@ -66,6 +66,7 @@ def get_playlist_by_id(db: DBClient, user_id: str, playlist_id: str) -> dict | N
         "tracks": [
             {"position": row["position"], "added_at": row["added_at"], **row["tracks"]}
             for row in (ptracks_resp.data or [])
+            if row.get("tracks") 
         ],
     }
     set_cached(CacheType.USER_PLAYLISTS, payload, suffix=cache_suffix)
