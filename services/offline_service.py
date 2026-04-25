@@ -3,7 +3,9 @@ Lógica de negocio para sincronización offline.
 Funciones puras para validación, orquestación para fetch de audio.
 """
 import os
+import shutil
 import tempfile
+import threading
 
 import yt_dlp
 
@@ -33,13 +35,17 @@ def has_cookies(user_id: str) -> bool:
 def build_error(reason: str, detail: str = "") -> dict:
     return {"error": reason, "detail": detail}
 
-def _build_client(cookie_path: str, output_path: str, itag: int) -> yt_dlp.YoutubeDL:
+def _build_client(cookie_path: str, output_path: str, itag: int, abort_event: threading.Event) -> yt_dlp.YoutubeDL:
     """Cliente de extracción configurado para descarga con cookies."""
     class _SilentLogger:
         def debug(self, msg):   pass
         def info(self, msg):    pass
         def warning(self, msg): pass
         def error(self, msg):   pass
+
+    def _progress_hook(d):
+        if abort_event.is_set():
+            raise yt_dlp.utils.DownloadError("aborted_by_client")
 
     return yt_dlp.YoutubeDL({
         "format": str(itag),
@@ -57,6 +63,7 @@ def _build_client(cookie_path: str, output_path: str, itag: int) -> yt_dlp.Youtu
         "extractor_retries": 1,
         "force_ipv4": True,
         "js_runtimes": {"deno": {}},
+        "progress_hooks": [_progress_hook],
         "extractor_args": {
             "youtube": {
                 "player_client": ["web_music"],
@@ -67,7 +74,7 @@ def _build_client(cookie_path: str, output_path: str, itag: int) -> yt_dlp.Youtu
     })
 
 # ── IO ───────────────────────────────────────────────────
-def fetch_audio(track_id: str, user_id: str, itag: int) -> dict:
+def fetch_audio(track_id: str, user_id: str, itag: int, abort_event: threading.Event | None = None) -> dict:
     if not is_allowed(user_id):
         return build_error("not_found", "user not in allowlist")
 
@@ -82,22 +89,37 @@ def fetch_audio(track_id: str, user_id: str, itag: int) -> dict:
     ext = extension_for_itag(itag)
     url = f"https://music.youtube.com/watch?v={track_id}"
 
+    abort_event = abort_event or threading.Event()
+
+    tmp_dir = None
     try:
         tmp_dir = tempfile.mkdtemp(prefix="offline_")
         output_path = os.path.join(tmp_dir, f"{track_id}.{ext}")
 
-        client = _build_client(cookie_path, output_path, itag)
+        client = _build_client(cookie_path, output_path, itag, abort_event)
         client.download([url])
 
+        if abort_event.is_set():
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            return build_error("aborted", "client disconnected")
+
         if not os.path.isfile(output_path):
+            shutil.rmtree(tmp_dir, ignore_errors=True)
             print(f"[offline_service][WARN] {track_id}: archivo no generado")
             return build_error("fetch_failed", f"output file not created for {track_id}")
 
         return {"path": output_path, "track_id": track_id}
 
     except yt_dlp.utils.DownloadError as e:
+        if tmp_dir:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+        if abort_event.is_set() or "aborted_by_client" in str(e):
+            print(f"[offline_service] {track_id}: aborted by client")
+            return build_error("aborted", "client disconnected")
         print(f"[offline_service][ERR] {track_id}: {e}")
         return build_error("fetch_failed", str(e)[:200])
     except Exception as e:
+        if tmp_dir:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
         print(f"[offline_service][ERR] {track_id}: {e}")
         return build_error("service_unavailable", str(e)[:200])
