@@ -186,6 +186,10 @@ def _extract_song_item(mrlir: dict) -> dict:
         if _page_type_from(r) == "MUSIC_PAGE_TYPE_ARTIST":
             artists.append({"name": r.get("text",""), "artist_id": _dig(r,["navigationEndpoint","browseEndpoint","browseId"])})
 
+    if not artists and len(info_runs) >= 3:
+        menu_links = _extract_menu_navs(mrlir)
+        artists.append({"name": info_runs[2].get("text", ""), "artist_id": menu_links.get("artist_id")})
+
     album = None
     for r in info_runs:
         if _page_type_from(r) == "MUSIC_PAGE_TYPE_ALBUM":
