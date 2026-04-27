@@ -64,11 +64,11 @@ def should_cache_album(info: dict, tracks: list) -> bool:
     """Decide si el album es valido para cachear."""
     return bool(info.get("title") and tracks)
 
-def get_album_tracks(audio_playlist_id: str) -> list:
+def get_album_tracks(audio_playlist_id: str, album_artists: list[dict] | None = None) -> list:
     """Trae tracks de un album por su audio_playlist_id."""
     if not audio_playlist_id:
         return []
-    return parse_tracks_from_audio_playlist(audio_playlist_id)
+    return parse_tracks_from_audio_playlist(audio_playlist_id, album_artists=album_artists)
 
 def fetch_related_recommendations(album_id: str) -> list[dict]:
     """Trae related_recommendations via ytmusicapi get_album."""
@@ -98,8 +98,10 @@ def get_album(album_id: str, use_cache: bool = True) -> dict:
         artist_name = extract_artist_name(info)
         audio_playlist_id = info.get("audio_playlist_id")
 
+        included_artists = info.get("included_artists") or []
+
         results = gather({
-            "tracks": lambda: get_album_tracks(audio_playlist_id),
+            "tracks": lambda: get_album_tracks(audio_playlist_id, album_artists=included_artists),
             "more_from": lambda: get_more_from_artist(artist_id, exclude_album_id=album_id) if artist_id else [],
             "related": lambda: fetch_related_recommendations(album_id),
         })

@@ -13,41 +13,35 @@ def _to_int(v: Any) -> int | None:
     except Exception:
         return None
 
+def _compact(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Saca campos None del row."""
+    return {k: v for k, v in row.items() if v is not None}
+
 def _row_from_album(kind: str, a: Dict[str, Any]) -> Dict[str, Any]:
-    album_id = a.get("id")
-    return {
+    return _compact({
         "kind":        kind,
         "type":        "album",
-        "id":          album_id,
+        "id":          a.get("id"),
         "title":       a.get("title"),
-        "artist":      a.get("artist"),
-        "artist_id":   a.get("artist_id"),
-        "album":       None,
-        "album_id":    None,
+        "artists":     a.get("artists") or [],
         "thumb":       a.get("thumbnail"),
-        "url":         f"/browse/{album_id}" if album_id else None,
-        "year":        _to_int(a.get("year")),
+        "year":        _to_int(a.get("year")) and str(_to_int(a.get("year"))),
         "release_date": a.get("release_date"),
-        "duration_seconds": None,
-    }
+    })
 
 def _row_from_track(kind: str, t: Dict[str, Any]) -> Dict[str, Any]:
-    track_id = t.get("id")
-    return {
+    return _compact({
         "kind":        kind,
         "type":        "track",
-        "id":          track_id,
+        "id":          t.get("id"),
         "title":       t.get("title"),
-        "artist":      t.get("artist"),
-        "artist_id":   t.get("artist_id"),
+        "artists":     t.get("artists") or [],
         "thumb":       t.get("thumbnail_url"),
-        "url":         f"/watch/{track_id}" if track_id else None,
         "album":       t.get("album"),
         "album_id":    t.get("album_id"),
         "duration_seconds": _to_int(t.get("duration_seconds")),
-        "year":        None,
         "release_date": t.get("release_date"),
-    }
+    })
 
 def build_rows(kind: str, media_type: str, items: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Construye rows desde items según media_type."""
@@ -95,25 +89,8 @@ def list_feed(db: DBClient, kind: str, media_type: str, limit: int = 25) -> List
         else:
             q = q.order("id", desc=False)
         res = q.limit(limit).execute()
-        return getattr(res, "data", None) or []
+        rows = getattr(res, "data", None) or []
+        return [_compact(r) for r in rows]
     except Exception as e:
         print(f"[feed_repo][list_feed][ERROR] {kind}/{media_type}: {e}")
-        return []
-
-def list_new_releases_for_artist(db: DBClient, artist_id: str, limit: int = 8) -> List[Dict[str, Any]]:
-    """Lista new releases de un artista específico."""
-    try:
-        res = (
-            db.table(TABLE)
-            .select("*")
-            .eq("kind", "new_releases")
-            .eq("type", "album")
-            .eq("artist_id", artist_id)
-            .order("release_date", desc=True)
-            .limit(limit)
-            .execute()
-        )
-        return getattr(res, "data", None) or []
-    except Exception as e:
-        print(f"[feed_repo][new_releases_for_artist][ERROR] {artist_id}: {e}")
         return []

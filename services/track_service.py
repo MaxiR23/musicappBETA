@@ -50,6 +50,7 @@ def best_thumb_url(track: dict) -> str | None:
                 return th.strip()
     return None
 
+""" TODO: MOVE TO UTILS NOT NEEDED FOR NOW """
 def extract_artist_info(track: dict) -> tuple[str | None, str | None, list]:
     """Extrae artist_name, artist_id, artist_ids de un track."""
     artists_list = track.get("artists") or []
@@ -110,22 +111,18 @@ def normalize_track_item(track: dict) -> dict:
 
     video_id = track.get("videoId") or track.get("id")
     title = track.get("title")
-    artist_name, artist_id, artist_ids = extract_artist_info(track)
     album_id, album_name = extract_album_info(track)
 
     return {
-        "id": video_id,
-        "title": title,
-        "artist_name": artist_name,
-        "artist_id": artist_id,
-        "artist_ids": artist_ids,
-        "artists": track.get("artists") or [],
-        "album_id": album_id,
-        "album_name": album_name,
-        "thumbnail": best_thumb_url(track),
-        "duration": track.get("duration") or track.get("length"),
-        "duration_seconds": extract_duration_seconds(track),
-    }
+    "id": video_id,
+    "title": title,
+    "artists": track.get("artists") or [],
+    "album_id": album_id,
+    "album_name": album_name,
+    "thumbnail": best_thumb_url(track),
+    "duration": track.get("duration") or track.get("length"),
+    "duration_seconds": extract_duration_seconds(track),
+}
 
 def filter_related_sections(sections: list) -> list:
     """Filtra secciones excluidas de related."""
@@ -189,6 +186,39 @@ def ensure_duration_seconds(track_id: str, duration_seconds=None) -> int | None:
         return None
     except Exception:
         return None
+
+def ensure_artists(artists: list | None, album_id: str | None = None) -> list:
+    """
+    Garantiza que artists tenga ids cuando sea posible.
+    Si detecta colab unparsed (1 entry, id=null, name concatenado),
+    busca el album e intenta resolver via included_artists.
+    Si no es el caso roto: devuelve tal cual.
+    """
+    if not isinstance(artists, list) or not artists:
+        return artists or []
+
+    # Si no es el caso roto, salir rapido
+    if not (
+        len(artists) == 1
+        and isinstance(artists[0], dict)
+        and artists[0].get("id") is None
+        and artists[0].get("name")
+    ):
+        return artists
+
+    # lazy import para evitar circular
+    from utils.album_parser import _try_fix_collab_artists
+    from services.album_service import get_album
+
+    included = []
+    if album_id:
+        try:
+            album_payload = get_album(album_id) or {}
+            included = (album_payload.get("info") or {}).get("included_artists") or []
+        except Exception as e:
+            print(f"[track_service][ensure_artists][WARN] {album_id}: {e}")
+
+    return _try_fix_collab_artists(artists, included)        
 
 def get_lyrics(video_id: str) -> dict:
     ck = f"lyrics:v2:{video_id}"

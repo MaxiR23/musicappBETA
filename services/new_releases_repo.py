@@ -35,6 +35,25 @@ def list_new_releases(db: DBClient, limit: int = 30) -> list:
         print(f"[new_releases_repo][list_new_releases][ERROR] {e}")
         return []
 
+def list_new_releases_by_artist(db: DBClient, artist_id: str, limit: int = 8) -> list:
+    """New releases de un artista especifico, ultimos 30 dias."""
+    cutoff = (date.today() - timedelta(days=30)).isoformat()
+    try:
+        res = (
+            db.table(TABLE)
+            .select("album_id, release_date, artist_name, album_name, thumbnail_url, artist_id")
+            .eq("status", "released")
+            .eq("artist_id", artist_id)
+            .gte("release_date", cutoff)
+            .order("release_date", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return getattr(res, "data", None) or []
+    except Exception as e:
+        print(f"[new_releases_repo][by_artist][ERROR] {artist_id}: {e}")
+        return []
+
 def list_new_releases_cached(db: DBClient, limit: int = 30) -> list:
     """Version cacheada."""
     cache_key = f"limit={limit}"

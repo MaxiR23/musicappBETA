@@ -1,12 +1,13 @@
 """
-Agrega estadísticas mensuales desde user_weekly_stats a user_monthly_stats.
+Agrega estadisticas mensuales desde user_weekly_stats a user_monthly_stats.
 Consolida las semanas del mes anterior.
-Corre el día 1 de cada mes a las 03:00 (GitHub Actions).
+Corre el dia 1 de cada mes a las 03:00 (GitHub Actions).
 """
 from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Dict, List, Any
 from collections import defaultdict
+import argparse
 import sys
 import os
 
@@ -17,15 +18,33 @@ from services.cache_config import set_manual_version, CacheType
 from services.cache_service import invalidate_all
 
 def get_first_day_of_last_month() -> str:
-    """Retorna el primer día del mes pasado en formato YYYY-MM-DD"""
+    """Retorna el primer dia del mes pasado en formato YYYY-MM-DD"""
     today = datetime.now()
     first_of_this_month = today.replace(day=1)
     last_month = first_of_this_month - timedelta(days=1)
     first_of_last_month = last_month.replace(day=1)
     return first_of_last_month.strftime('%Y-%m-%d')
 
+def normalize_month(value: str) -> str:
+    """
+    Normaliza el input del flag --month.
+    Acepta:
+      - 'YYYY-MM-DD' (cualquier dia del mes, lo lleva al dia 1)
+      - 'YYYY-MM'   (lo convierte a 'YYYY-MM-01')
+    """
+    try:
+        if len(value) == 7:  # 'YYYY-MM'
+            dt = datetime.strptime(value + '-01', '%Y-%m-%d')
+        else:
+            dt = datetime.strptime(value, '%Y-%m-%d')
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"Formato invalido para --month: '{value}'. Usa 'YYYY-MM' o 'YYYY-MM-DD'."
+        )
+    return dt.replace(day=1).strftime('%Y-%m-%d')
+
 def get_month_end(month: str) -> str:
-    """Retorna el primer día del mes siguiente"""
+    """Retorna el primer dia del mes siguiente"""
     month_date = datetime.strptime(month, '%Y-%m-%d')
     next_month = (month_date.replace(day=28) + timedelta(days=4)).replace(day=1)
     return next_month.strftime('%Y-%m-%d')
@@ -59,7 +78,7 @@ def get_weeks_in_month(month: str) -> List[str]:
 def aggregate_for_user(user_id: str, weeks: List[str]) -> Dict[str, List[Dict[str, Any]]]:
     """
     Lee user_weekly_stats de las semanas del mes y consolida.
-    Solo lee ~12-15 filas por usuario (4-5 semanas × 3 tipos).
+    Solo lee ~12-15 filas por usuario (4-5 semanas x 3 tipos).
     
     Retorna: { 'artist': [...], 'album': [...], 'track': [...] }
     """
@@ -105,10 +124,9 @@ def aggregate_for_user(user_id: str, weeks: List[str]) -> Dict[str, List[Dict[st
             consolidated[entity_type][entity_id]['display_name'] = item.get('display_name')
             consolidated[entity_type][entity_id]['thumbnail_url'] = item.get('thumbnail_url')
             
-            # Metadata extra según tipo
+            # Metadata extra segun tipo
             if entity_type == 'track':
-                consolidated[entity_type][entity_id]['artist_id'] = item.get('artist_id')
-                consolidated[entity_type][entity_id]['artist_name'] = item.get('artist_name')
+                consolidated[entity_type][entity_id]['artists'] = item.get('artists')
                 consolidated[entity_type][entity_id]['album_id'] = item.get('album_id')
                 consolidated[entity_type][entity_id]['album_name'] = item.get('album_name')
                 consolidated[entity_type][entity_id]['duration_seconds'] = item.get('duration_seconds')
@@ -148,17 +166,26 @@ def save_monthly_stats(user_id: str, month: str, entity_type: str, stats: List[D
         on_conflict='user_id,month,entity_type'
     ).execute()
     
-    print(f"    ✓ {entity_type}: {len(stats)} guardados")
+    print(f"    OK {entity_type}: {len(stats)} guardados")
 
 
 def main():
-    print("Iniciando agregación mensual...")
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--month',
+        type=normalize_month,
+        default=None,
+        help="Mes a procesar. Acepta 'YYYY-MM' o 'YYYY-MM-DD'. Por defecto: mes pasado."
+    )
+    args = parser.parse_args()
+
+    print("Iniciando agregacion mensual...")
     
-    month = get_first_day_of_last_month()
+    month = args.month or get_first_day_of_last_month()
     month_end = get_month_end(month)
     weeks = get_weeks_in_month(month)
     
-    print(f"Período: {month} → {month_end}")
+    print(f"Periodo: {month} -> {month_end}")
     print(f"Semanas: {weeks}")
     
     if not weeks:
@@ -180,7 +207,7 @@ def main():
         for entity_type, items in stats.items():
             save_monthly_stats(user_id, month, entity_type, items)
     
-    print("Agregación mensual completada")
+    print("Agregacion mensual completada")
 
     invalidate_all(CacheType.MONTHLY_STATS)
     set_manual_version(CacheType.MONTHLY_STATS)

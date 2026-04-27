@@ -1,10 +1,17 @@
 # utils/artist_parser.py
-def parse_top_songs_v2(artist_data, yt_client):
+def parse_top_songs_v2(
+    artist_data,
+    yt_client,
+    artist_id: str | None = None,
+    artist_name: str | None = None,
+    related: list | None = None,
+):
     """
     obtiene las top 10 songs usando get_playlist.
     fallback a results inline + duraciones desde albums (paralelo, cacheado).
     """
     from concurrent.futures import ThreadPoolExecutor
+    from utils.album_parser import _try_fix_collab_artists
 
     songs_section = artist_data.get("songs", {})
     songs_browse_id = songs_section.get("browseId")
@@ -43,11 +50,23 @@ def parse_top_songs_v2(artist_data, yt_client):
             for partial in executor.map(fetch_durations, album_ids):
                 duration_map.update(partial)
 
+    # Construir pool de artistas conocidos UNA VEZ
+    known_pool = _build_known_artists_pool(
+        artist_id=artist_id,
+        artist_name=artist_name,
+        related=related,
+        parsed_tracks=None,
+    )
+
     top_songs_filtered = []
     for track in top_songs_raw:
         artists_list = track.get("artists", [])
         artists = [{"id": a.get("id"), "name": a.get("name")} for a in artists_list]
-        artist_name = ", ".join(a["name"] for a in artists if a.get("name"))
+
+        # Fix colabs unparsed (solo corre si artists[0].id es null)
+        artists = _try_fix_collab_artists(artists, known_pool)
+
+        artist_display_name = ", ".join(a["name"] for a in artists if a.get("name"))
         primary_artist_id = artists[0]["id"] if artists else None
 
         album = track.get("album") or {}
@@ -72,7 +91,7 @@ def parse_top_songs_v2(artist_data, yt_client):
             "album_id": album_id,
             "album_name": album_name,
             "artist_id": primary_artist_id,
-            "artist_name": artist_name,
+            "artist_name": artist_display_name,
             "artists": artists,
             "duration": duration,
             "duration_seconds": duration_seconds,

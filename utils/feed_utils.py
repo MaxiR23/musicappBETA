@@ -2,8 +2,28 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Optional, Callable
 import re, unicodedata
-from shared.clients import _ytmusic_client
+import json
+import random
 import time
+from shared.clients import _ytmusic_client
+
+
+def _with_retry(fn, *args, max_attempts: int = 5, base_delay: float = 1.0, **kwargs):
+    """
+    Reintenta ante JSONDecodeError (YT devuelve HTML en vez de JSON, intermitente).
+    Backoff exponencial con jitter: ~1s, ~2s.
+    """
+    last_exc = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return fn(*args, **kwargs)
+        except json.JSONDecodeError as e:
+            last_exc = e
+            if attempt < max_attempts:
+                delay = base_delay * (2 ** (attempt - 1)) * random.uniform(0.7, 1.3)
+                time.sleep(delay)
+    raise last_exc
+
 
 def norm(s: str) -> str:
     s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
@@ -20,7 +40,7 @@ def map_album(artist: str, title: str) -> Optional[Dict[str, Any]]:
     want_title  = norm(title)
     want_artset = artist_tokens(artist)
 
-    # helpers locales para NO tocar nada más del archivo
+    # helpers locales para NO tocar nada mas del archivo
     def _strip_qualifiers(t: str) -> str:
         # saca sufijos comunes: (deluxe), deluxe edition, expanded, remastered, soundtrack, epilogue, etc.
         t = re.sub(r'\((deluxe|expanded|remaster(?:ed)?|edition|epilogue|soundtrack|original motion picture|omps)\)', ' ', t, flags=re.I)
@@ -29,7 +49,7 @@ def map_album(artist: str, title: str) -> Optional[Dict[str, Any]]:
 
     ROMAN = {'ii': '2','iii':'3','iv':'4','v':'5','vi':'6','vii':'7','viii':'8','ix':'9','x':'10'}
     def _normalize_numerals(t: str) -> str:
-        # “II” -> “2”, “V”->“5”, etc. (en minúsculas ya por norm)
+        # "II" -> "2", "V" -> "5", etc. (en minusculas ya por norm)
         parts = t.split()
         out = []
         for p in parts:
@@ -45,7 +65,7 @@ def map_album(artist: str, title: str) -> Optional[Dict[str, Any]]:
         if a1 == b1:  # exacto sin qualifiers
             return True
         a2, b2 = _normalize_numerals(a1), _normalize_numerals(b1)
-        # contains/startswith para casos “deluxe/expanded/…”
+        # contains/startswith para casos "deluxe/expanded/..."
         return a2 in b2 or b2 in a2 or a2.startswith(b2) or b2.startswith(a2)
 
     pick = None
@@ -61,7 +81,7 @@ def map_album(artist: str, title: str) -> Optional[Dict[str, Any]]:
                 pick = h; break
         if pick: break
 
-        # 2) fallback tolerante por título + cruce de artista
+        # 2) fallback tolerante por titulo + cruce de artista
         for h in hits:
             t = norm(h.get("title", ""))
             arts = h.get("artists") or []
@@ -82,35 +102,41 @@ def map_album(artist: str, title: str) -> Optional[Dict[str, Any]]:
         return None
 
     info = _ytmusic_client().get_album(bid) or {}
-    artist_objs  = [a for a in (info.get("artists") or []) if isinstance(a, dict)]
-    artist_names = [a.get("name","") for a in artist_objs if a.get("name")]
-    artist_ids   = [a.get("id") for a in artist_objs if a.get("id")]
+    artist_objs = [a for a in (info.get("artists") or []) if isinstance(a, dict)]
     thumbs = info.get("thumbnails") or (info.get("thumbnail", {}).get("thumbnails") or [])
 
     return {
         "id": bid,
         "type": "album",
         "title": info.get("title") or title,
-        "artist": ", ".join(artist_names) or artist,   
-        "artist_id": artist_ids[0] if artist_ids else None,  #TODO: add two ids if its necessary.
+        "artists": [
+            {"id": a.get("id"), "name": a.get("name")}
+            for a in artist_objs
+            if a.get("name")
+        ],
         "year": info.get("year") or "",
         "thumbnail": last_thumb(thumbs),
     }
 
 def map_track(artist: str, title: str) -> Optional[Dict[str, Any]]:
-    results = _ytmusic_client().search(f"{artist} {title}", filter="songs", limit=1)
+    results = _with_retry(
+        _ytmusic_client().search,
+        f"{artist} {title}",
+        filter="songs",
+        limit=1,
+    )
     if not results:
         return None
-    
+
     hit = results[0]
     video_id = hit.get("videoId")
     if not video_id:
         return None
-    
+
     artists = hit.get("artists") or []
     album = hit.get("album") or {}
     thumbnails = hit.get("thumbnails") or []
-    
+
     return {
         "id": video_id,
         "track_id": video_id,
@@ -146,12 +172,12 @@ def map_albums_until(
         if mapped and (mid := mapped.get("id")) and mid not in seen_ids:
             out.append(mapped)
             seen_ids.add(mid)
-            
+
             # cortar cuando llegue a la meta
             if len(out) >= want:
                 if on_limit_reached:
                     on_limit_reached(len(out))
-                break  # ← Ahora SÍ cortamos
+                break  # Ahora SI cortamos
 
         if micro_pause and (i % 3 == 2):
             time.sleep(micro_pause)

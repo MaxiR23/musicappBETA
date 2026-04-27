@@ -97,25 +97,52 @@ def add_track(
     track_id: str,
     body: dict,
 ) -> dict:
-    duration_seconds = ensure_duration_seconds(
-        track_id=track_id,
-        duration_seconds=body.get("duration_seconds"),
+    # 1. Buscar si el track ya existe en public.tracks
+    existing_resp = (
+        service_db.table("tracks")
+        .select("id")
+        .eq("track_id", track_id)
+        .maybe_single()
+        .execute()
     )
 
-    track_resp = service_db.table("tracks").upsert({
-        "track_id": track_id,
-        "title": body.get("title"),
-        "artists": body.get("artists") or [],
-        "album": body.get("album"),
-        "album_id": body.get("album_id"),
-        "duration_seconds": duration_seconds,
-        "thumbnail_url": body.get("thumbnail_url"),
-    }, on_conflict="track_id").execute()
+    if existing_resp.data:
+        # Ya existe: agarramos el id y listo.
+        track_row = existing_resp.data
+    else:
+        # No existe: insertamos. La data ya viene validada upstream.
+        duration_seconds = ensure_duration_seconds(
+            track_id=track_id,
+            duration_seconds=body.get("duration_seconds"),
+        )
+        insert_payload = {
+            "track_id": track_id,
+            "title": body.get("title"),
+            "artists": body.get("artists") or [],
+            "album": body.get("album"),
+            "album_id": body.get("album_id"),
+            "duration_seconds": duration_seconds,
+            "thumbnail_url": body.get("thumbnail_url"),
+        }
+        try:
+            track_resp = service_db.table("tracks").insert(insert_payload).execute()
+            track_row = track_resp.data[0]
+        except Exception:
+            # Race condition: otro request inserto el mismo track_id entre
+            # nuestro select y nuestro insert. Re-select y seguimos.
+            track_resp = (
+                service_db.table("tracks")
+                .select("id")
+                .eq("track_id", track_id)
+                .single()
+                .execute()
+            )
+            track_row = track_resp.data
 
-    internal_id = track_resp.data[0]["id"]
+    internal_id = track_row["id"]
 
-    # Chequear duplicado
-    existing = (
+    # 2. Chequear duplicado en la playlist
+    existing_link = (
         db.table("playlist_tracks")
         .select("id")
         .eq("playlist_id", playlist_id)
@@ -123,9 +150,10 @@ def add_track(
         .limit(1)
         .execute()
     )
-    if existing.data:
+    if existing_link.data:
         raise ValueError("track_already_in_playlist")
 
+    # 3. Calcular siguiente posicion
     max_pos_resp = (
         db.table("playlist_tracks")
         .select("position")
@@ -136,6 +164,7 @@ def add_track(
     )
     last_pos = (max_pos_resp.data or [{}])[0].get("position") or 0
 
+    # 4. Insertar la referencia
     link_resp = db.table("playlist_tracks").insert({
         "playlist_id": playlist_id,
         "track_id": internal_id,
@@ -144,7 +173,7 @@ def add_track(
     }).execute()
 
     _invalidate_playlist_cache(user_id, playlist_id)
-    return {"track": track_resp.data[0], "link": link_resp.data[0]}
+    return {"track": track_row, "link": link_resp.data[0]}
 
 def remove_track(db: DBClient, user_id: str, playlist_id: str, track_id: str) -> None:
     db.table("playlist_tracks").delete().eq("playlist_id", playlist_id).eq("track_id", track_id).execute()

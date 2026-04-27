@@ -10,7 +10,7 @@ from services.cache_config import CacheType, set_manual_version
 from services.db_protocol import DBClient
 from services.executor import gather
 from services.events_service import get_events_cached_only, schedule_events_refresh
-from services.feed_repo import list_new_releases_for_artist
+from services.new_releases_repo import list_new_releases_by_artist
 from services.upcoming_releases_repo import get_upcoming_by_artist_id_cached, mark_as_released
 from shared.clients import _ytmusic_client
 from utils.artist_parser import (
@@ -238,7 +238,13 @@ def get_artist(db: DBClient, artist_id: str, use_cache: bool = True) -> dict:
         albums = parse_albums(albums_sec)[:10] if albums_sec else []
         singles = parse_singles_eps(singles_sec)[:10] if singles_sec else []
         related = parse_related_artists(rel_sec) if rel_sec else []
-        top_songs = parse_top_songs_v2(artist_data, _ytmusic_client())
+        top_songs = parse_top_songs_v2(
+            artist_data,
+            _ytmusic_client(),
+            artist_id=artist_id,
+            artist_name=header.get("name"),
+            related=related,
+        )
         has_more = build_has_more(artist_data)
 
         # Check upcoming release en tiempo real
@@ -252,7 +258,7 @@ def get_artist(db: DBClient, artist_id: str, use_cache: bool = True) -> dict:
 
         new_releases = []
         try:
-            new_releases = list_new_releases_for_artist(db, artist_id, limit=8)
+            new_releases = list_new_releases_by_artist(db, artist_id, limit=8)
         except Exception:
             pass
 

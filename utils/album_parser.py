@@ -320,6 +320,64 @@ def _duration_to_seconds(d: str | None) -> int | None:
         return h * 3600 + m * 60 + s
     return None
 
+def _try_fix_collab_artists(artists: list[dict], album_artists: list[dict]) -> list[dict]:
+    """
+    Si el track viene con 1 artista, id=null y nombre concatenado,
+    splitea el nombre en N artistas y matchea cada uno con included_artists
+    del album. Los que matchean reciben su id, los que no quedan con id=null.
+    """
+    if (
+        len(artists) != 1
+        or artists[0].get("id") is not None
+        or not artists[0].get("name")
+    ):
+        return artists
+
+    name_concat = artists[0]["name"]
+    parts = [p.strip() for p in name_concat.replace("&", ",").split(",") if p.strip()]
+    if not parts:
+        return artists
+
+    album_map = {
+        a["name"].strip().lower(): a["id"]
+        for a in (album_artists or [])
+        if a.get("name") and a.get("id")
+    }
+
+    return [
+        {"id": album_map.get(name.lower()), "name": name}
+        for name in parts
+    ]
+
+def _try_fix_collab_artists(artists: list[dict], album_artists: list[dict]) -> list[dict]:
+    """
+    Si el track viene con 1 artista, id=null y nombre concatenado,
+    splitea el nombre en N artistas y matchea cada uno con included_artists
+    del album. Los que matchean reciben su id, los que no quedan con id=null.
+    """
+    if (
+        len(artists) != 1
+        or artists[0].get("id") is not None
+        or not artists[0].get("name")
+    ):
+        return artists
+
+    name_concat = artists[0]["name"]
+    parts = [p.strip() for p in name_concat.replace("&", ",").split(",") if p.strip()]
+    if not parts:
+        return artists
+
+    album_map = {
+        a["name"].strip().lower(): a["id"]
+        for a in (album_artists or [])
+        if a.get("name") and a.get("id")
+    }
+
+    return [
+        {"id": album_map.get(name.lower()), "name": name}
+        for name in parts
+    ]
+
 def parse_album_tracks(album_response: dict):
     """
     Devuelve las filas del álbum SIN cambiar el shape que ya usabas.
@@ -430,13 +488,19 @@ def parse_album_tracks(album_response: dict):
 
     return tracks
 
-def parse_tracks_from_audio_playlist(audio_playlist_id: str) -> list[dict]:
+def parse_tracks_from_audio_playlist(
+    audio_playlist_id: str,
+    album_artists: list[dict] | None = None,
+) -> list[dict]:
     """
     Devuelve lista de tracks con el MISMO shape que parse_album_tracks(),
     usando ytmusicapi.get_playlist (ATV). Nunca OMV.
+
+    album_artists: included_artists del album, usados para matchear ids
+    en colaboraciones que YT devuelve sin parsear.
     """
     ytm_local = _ytmusic_client()  # evita estado raro del global
-    
+
     try:
         pl = ytm_local.get_playlist(audio_playlist_id, limit=None) or {}
         src = pl.get("tracks") or []
@@ -460,6 +524,9 @@ def parse_tracks_from_audio_playlist(audio_playlist_id: str) -> list[dict]:
                 bid = a.get("id")
                 if nm or bid:
                     artists.append({"id": bid, "name": nm})
+
+        # FIX: rellenar id de colabs unparsed usando album_artists
+        artists = _try_fix_collab_artists(artists, album_artists or [])
 
         # duración: ytmusicapi usa 'duration' (a veces 'duration_seconds' también)
         duration = t.get("duration") or t.get("length")

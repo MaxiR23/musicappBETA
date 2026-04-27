@@ -4,7 +4,7 @@ from fastapi import APIRouter, Path, Body, Request, Depends
 from core.dependencies import get_db, get_current_user_id
 from services.db_protocol import DBClient
 from services.activity_service import log_play, upsert_recent, get_recents
-from services.track_service import ensure_duration_seconds
+from services.track_service import ensure_duration_seconds, ensure_artists
 
 router = APIRouter()
 
@@ -33,10 +33,14 @@ def log_play_track(
     metadata = {}
     if b.get("album_id"): metadata["album_id"] = b["album_id"]
     if b.get("album_name"): metadata["album_name"] = b["album_name"]
-    if b.get("artist_id"): metadata["artist_id"] = b["artist_id"]
     if b.get("track_name"): metadata["track_name"] = b["track_name"]
-    if b.get("artist_name"): metadata["artist_name"] = b["artist_name"]
     if b.get("thumbnail_url"): metadata["thumbnail_url"] = b["thumbnail_url"]
+
+    # artists array (formato nuevo) - aplica fix si viene colab unparsed
+    artists = ensure_artists(b.get("artists"), b.get("album_id"))
+    if artists:
+        metadata["artists"] = artists
+
     metadata["duration_seconds"] = ensure_duration_seconds(track_id, b.get("duration_seconds"))
 
     result = log_play(db, user_id=user_id, track_id=track_id, metadata=metadata)
