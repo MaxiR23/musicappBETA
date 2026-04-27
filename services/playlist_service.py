@@ -90,8 +90,7 @@ def add_track(
     track_id: str,
     body: dict,
 ) -> dict:
-    print(f"[add_track][BODY] track_id={track_id} body={body}")
-
+    # 1. Buscar si el track ya existe en public.tracks
     existing_resp = (
         service_db.table("tracks")
         .select("id")
@@ -102,7 +101,6 @@ def add_track(
 
     if existing_resp and existing_resp.data:
         track_row = existing_resp.data
-        print(f"[add_track][EXISTS] track_id={track_id} internal_id={track_row['id']}")
     else:
         duration_seconds = ensure_duration_seconds(
             track_id=track_id,
@@ -117,17 +115,27 @@ def add_track(
             "duration_seconds": duration_seconds,
             "thumbnail_url": body.get("thumbnail_url"),
         }
-        print(f"[add_track][INSERT_TRY] payload={insert_payload}")
         try:
             track_resp = service_db.table("tracks").insert(insert_payload).execute()
             track_row = track_resp.data[0]
-            print(f"[add_track][INSERT_OK] internal_id={track_row['id']}")
-        except Exception as e:
-            print(f"[add_track][INSERT_FAIL] err={repr(e)}")
-            raise
+        except Exception:
+            # Race condition: otro request inserto el mismo track_id entre
+            # el select y el insert. Re-leemos con maybe_single (no single)
+            # para no tirar PGRST116 si por alguna razon sigue sin estar.
+            reread = (
+                service_db.table("tracks")
+                .select("id")
+                .eq("track_id", track_id)
+                .maybe_single()
+                .execute()
+            )
+            if not (reread and reread.data):
+                raise
+            track_row = reread.data
 
     internal_id = track_row["id"]
 
+    # 2. Chequear duplicado en la playlist
     existing_link = (
         db.table("playlist_tracks")
         .select("id")
@@ -139,6 +147,7 @@ def add_track(
     if existing_link.data:
         raise ValueError("track_already_in_playlist")
 
+    # 3. Calcular siguiente posicion
     max_pos_resp = (
         db.table("playlist_tracks")
         .select("position")
@@ -149,6 +158,7 @@ def add_track(
     )
     last_pos = (max_pos_resp.data or [{}])[0].get("position") or 0
 
+    # 4. Insertar la referencia
     link_resp = db.table("playlist_tracks").insert({
         "playlist_id": playlist_id,
         "track_id": internal_id,
