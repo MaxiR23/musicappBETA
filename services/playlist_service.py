@@ -106,7 +106,7 @@ def add_track(
         .execute()
     )
 
-    if existing_resp.data:
+    if existing_resp and existing_resp.data:
         # Ya existe: agarramos el id y listo.
         track_row = existing_resp.data
     else:
