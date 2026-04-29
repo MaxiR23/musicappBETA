@@ -54,7 +54,10 @@ def log_play_album(
     user_id: str = Depends(get_current_user_id),
 ):
     """Usuario reproduce desde un album → UPSERT en recent_activity."""
-    meta = _extract_display_meta(body or {})
+    b = body or {}
+    meta = _extract_display_meta(b)
+    if b.get("artist_name"):
+        meta["artist_name"] = b["artist_name"]
     upsert_recent(db, user_id=user_id, entity_type="album", entity_id=album_id, metadata=meta)
     return {"ok": True}
 
@@ -98,6 +101,7 @@ def get_recent(
             "played_at": r.get("played_at"),
             "name": (r.get("metadata") or {}).get("display_name"),
             "thumbnail_url": (r.get("metadata") or {}).get("thumbnail_url"),
+            **({"artist_name": (r.get("metadata") or {}).get("artist_name")} if r.get("entity_type") == "album" else {}),
         }
         for r in items
     ]}
