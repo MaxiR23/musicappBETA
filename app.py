@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, ORJSONResponse
-from routes import cache, health, tracks, playlists, feed, debug, genres, upcoming_releases, new_releases, search, activity, album, artists, audio, stats, likes, featured, station, offline, library
+from routes import cache, health, tracks, playlists, feed, debug, genres, upcoming_releases, new_releases, search, activity, album, artists, audio, stats, likes, featured, station, offline, library, profile, bug_reports
 from middlewares.supa_auth import supa_auth
 from middlewares.cors_headers import add_cors_middleware
 
@@ -13,7 +13,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-# Lifespan: pre-warm en startup (sin deprecations)
+# lifespan: pre-warm en startup (sin deprecations)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
          print(f"[lifespan][shutdown][WARN] {e}")
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
-# Crear la app (se pasa lifespan)
+# crear la app (se pasa lifespan)
 app = FastAPI(
     lifespan=lifespan,
     default_response_class=ORJSONResponse  # <- usa orjson para TODAS las respuestas JSON
@@ -59,15 +59,15 @@ add_cors_middleware(app)
 
 app.add_middleware(SlowAPIMiddleware)
 
-# Middleware de auth siempre activo (para debug)
+# middleware de auth siempre activo (para debug)
 ENV = os.getenv("ENVIRONMENT", "development")
 print(f"Iniciando FastAPI con ENV={ENV}")
 
-# También tu middleware supa_auth
+# también tu middleware supa_auth
 app.middleware("http")(supa_auth)
 print("Middleware supa_auth registrado")
 
-# Global exception handler
+# global exception handler
 logger = logging.getLogger("uvicorn.error")
 
 @app.exception_handler(Exception)
@@ -78,7 +78,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"error": "internal_server_error", "detail": str(exc)},
     )
 
-# Rutas principales
+# rutas principales
 app.include_router(health.router, prefix="/api")
 app.include_router(tracks.router, prefix="/api/music")
 app.include_router(search.router, prefix="/api/music")
@@ -99,15 +99,19 @@ app.include_router(genres.playlists_router, prefix="/api")
 app.include_router(upcoming_releases.router, prefix="/api/upcoming-releases")
 app.include_router(new_releases.router, prefix="/api/feed/new-releases")
 app.include_router(featured.router, prefix="/api/feed/featured") 
+# profiles
+app.include_router(profile.router, prefix="/api/profile")
+# bug reports
+app.include_router(bug_reports.router, prefix="/api/bug-reports")
 
-# Stats
+# stats
 app.include_router(stats.router, prefix="/api/stats")
 
-# Offline sync (solo si hay usuarios habilitados)
+# offline sync (solo si hay usuarios habilitados)
 if offline.OFFLINE_USERS:
     app.include_router(offline.router, prefix="/api")
 
-# Rutas de debug/test (solo en desarrollo)
+# rutas de debug/test (solo en desarrollo)
 if ENV != "production":
     app.include_router(debug.router, prefix="/debug")
     app.include_router(debug.router, prefix="/test")
