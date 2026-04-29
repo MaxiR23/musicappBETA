@@ -1,4 +1,23 @@
 # utils/artist_parser.py
+def _build_known_artists_pool(
+    artist_id: str | None,
+    artist_name: str | None,
+    related: list | None,
+    parsed_tracks: list | None,
+) -> list[dict]:
+    """
+    Construye un pool de {id, name} para resolver IDs faltantes en colaboraciones.
+    Combina el artista principal + artistas relacionados.
+    parsed_tracks reservado para uso futuro.
+    """
+    pool: list[dict] = []
+    if artist_id and artist_name:
+        pool.append({"id": artist_id, "name": artist_name})
+    for r in (related or []):
+        if r.get("id") and r.get("name"):
+            pool.append({"id": r["id"], "name": r["name"]})
+    return pool
+
 def parse_top_songs_v2(
     artist_data,
     yt_client,
