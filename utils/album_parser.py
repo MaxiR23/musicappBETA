@@ -543,6 +543,7 @@ def parse_tracks_from_audio_playlist(
             "duration": duration,
             "duration_seconds": duration_seconds,
             "index": index_print,
+            "credits_browse_id": t.get("creditsBrowseId"),
         })
 
     return out

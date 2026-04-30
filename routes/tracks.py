@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Path
 from fastapi.responses import JSONResponse
 
-from services.track_service import get_lyrics, get_related, get_related_raw, get_up_next
+from services.track_service import get_credits, get_lyrics, get_related, get_related_raw, get_up_next
 
 router = APIRouter()
 
@@ -49,4 +49,15 @@ def get_track_upnext(track_id: str = Path(...)):
         return res
     except Exception as e:
         print(f"[tracks][upnext][ERROR] {e}")
+        return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
+    
+@router.get("/tracks/{track_id}/credits")
+def get_track_credits(track_id: str = Path(...)):
+    try:
+        res = get_credits(track_id)
+        if not res.get("ok"):
+            return JSONResponse(status_code=404, content=res)
+        return res
+    except Exception as e:
+        print(f"[tracks][credits][ERROR] {e}")
         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})

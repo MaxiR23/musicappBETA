@@ -1,6 +1,6 @@
 """
 Lógica de negocio para tracks.
-Lyrics, related, up_next.
+Lyrics, related, up_next, credits.
 """
 from services.cache_service import get_cached_legacy, set_cached_legacy
 from shared.clients import _ytmusic_client
@@ -9,6 +9,7 @@ from utils.related_parser import parse_related_sections
 LYRICS_TTL = 12 * 60 * 60
 RELATED_TTL = 12 * 60 * 60
 UPNEXT_TTL = 6 * 60 * 60
+CREDITS_TTL = 12 * 60 * 60
 
 EXCLUDED_RELATED_SECTIONS = {
     "Recommended playlists",
@@ -365,4 +366,36 @@ def get_up_next(video_id: str) -> dict:
 
     except Exception as e:
         print(f"[track_service][get_up_next][ERR] {video_id}: {e}")
+        return build_error_result("error", str(e))
+
+def get_credits(track_id_or_browse_id: str) -> dict:
+    if not track_id_or_browse_id or not isinstance(track_id_or_browse_id, str):
+        return build_error_result("invalid_id")
+
+    raw = track_id_or_browse_id.strip()
+    if not raw:
+        return build_error_result("invalid_id")
+
+    credits_browse_id = raw if raw.startswith("MPTC") else f"MPTC{raw}"
+
+    ck = f"credits:{credits_browse_id}"
+    cached = get_cached_legacy(ck)
+    if cached is not None:
+        return cached
+
+    try:
+        yt = _ytmusic_client()
+        credits_data = yt.get_song_credits(credits_browse_id)
+
+        if not credits_data:
+            out = build_error_result("no_credits")
+            set_cached_legacy(ck, out, 5 * 60)
+            return out
+
+        out = {"ok": True, "credits": credits_data}
+        set_cached_legacy(ck, out, CREDITS_TTL)
+        return out
+
+    except Exception as e:
+        print(f"[track_service][get_credits][ERR] {credits_browse_id}: {e}")
         return build_error_result("error", str(e))
