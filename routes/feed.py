@@ -25,13 +25,11 @@ _RECO_LIMIT_PER_TYPE = int(os.getenv("RECO_LIMIT_PER_TYPE", "20"))
 def _generate_previous_weekly_bucket() -> str:
     """
     Bucket de la semana ISO anterior, mismo formato que generate_weekly_bucket().
-    Se usa como fallback durante la ventana entre el cambio de ISO week
-    (lunes 00:00 UTC) y la corrida del cron (lunes 07:00 UTC).
+    Usa ISO year + ISO week (no calendar year) para evitar mismatch en bordes de anio.
     """
     last_week = datetime.now() - timedelta(days=7)
-    year = last_week.year
-    week = last_week.isocalendar()[1]
-    return f"weekly_{year}w{week:02d}"
+    iso = last_week.isocalendar()
+    return f"weekly_{iso[0]}w{iso[1]:02d}"
 
 
 def _list_recommendations_with_fallback(
@@ -41,8 +39,8 @@ def _list_recommendations_with_fallback(
 ) -> Tuple[List[Dict[str, Any]], str]:
     """
     Devuelve (rows, bucket_efectivo).
-    Si el cliente pasó un bucket explícito, lo respetamos sin fallback.
-    Si no, intentamos el bucket actual y si está vacío caemos al anterior.
+    Si el cliente paso un bucket explicito, lo respetamos sin fallback.
+    Si no, intentamos el bucket actual y si esta vacio caemos al anterior.
     """
     bucket = requested_bucket or generate_weekly_bucket()
     rows = list_user_recommendations(
@@ -60,7 +58,7 @@ def _list_recommendations_with_fallback(
         db=db, user_id=user_id, bucket=prev_bucket, item_type=None, limit=500
     ) or []
     if prev_rows:
-        print(f"[feed][recommendations] fallback a bucket anterior: {prev_bucket} (actual {bucket} vacío)")
+        print(f"[feed][recommendations] fallback a bucket anterior: {prev_bucket} (actual {bucket} vacio)")
         return prev_rows, prev_bucket
 
     return rows, bucket
@@ -99,7 +97,7 @@ def _build_recommendations_result(rows: List[Dict[str, Any]], bucket: str) -> Di
     }
 
 # ── CACHE ────────────────────────────────────────────────
-@router.get("/cache/versions", summary="Versiones actuales del caché")
+@router.get("/cache/versions", summary="Versiones actuales del cache")
 async def get_cache_versions():
     return {"ok": True, "versions": get_all_versions()}
 
