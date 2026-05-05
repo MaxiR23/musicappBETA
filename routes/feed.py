@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
@@ -21,6 +22,50 @@ router = APIRouter(tags=["feed"])
 _RECO_LIMIT_PER_TYPE = int(os.getenv("RECO_LIMIT_PER_TYPE", "20"))
 
 # ── HELPERS ──────────────────────────────────────────────
+def _generate_previous_weekly_bucket() -> str:
+    """
+    Bucket de la semana ISO anterior, mismo formato que generate_weekly_bucket().
+    Se usa como fallback durante la ventana entre el cambio de ISO week
+    (lunes 00:00 UTC) y la corrida del cron (lunes 07:00 UTC).
+    """
+    last_week = datetime.now() - timedelta(days=7)
+    year = last_week.year
+    week = last_week.isocalendar()[1]
+    return f"weekly_{year}w{week:02d}"
+
+
+def _list_recommendations_with_fallback(
+    db: DBClient,
+    user_id: str,
+    requested_bucket: Optional[str],
+) -> Tuple[List[Dict[str, Any]], str]:
+    """
+    Devuelve (rows, bucket_efectivo).
+    Si el cliente pasó un bucket explícito, lo respetamos sin fallback.
+    Si no, intentamos el bucket actual y si está vacío caemos al anterior.
+    """
+    bucket = requested_bucket or generate_weekly_bucket()
+    rows = list_user_recommendations(
+        db=db, user_id=user_id, bucket=bucket, item_type=None, limit=500
+    ) or []
+
+    if rows or requested_bucket is not None:
+        return rows, bucket
+
+    prev_bucket = _generate_previous_weekly_bucket()
+    if prev_bucket == bucket:
+        return rows, bucket
+
+    prev_rows = list_user_recommendations(
+        db=db, user_id=user_id, bucket=prev_bucket, item_type=None, limit=500
+    ) or []
+    if prev_rows:
+        print(f"[feed][recommendations] fallback a bucket anterior: {prev_bucket} (actual {bucket} vacío)")
+        return prev_rows, prev_bucket
+
+    return rows, bucket
+
+
 def _build_recommendations_result(rows: List[Dict[str, Any]], bucket: str) -> Dict[str, Any]:
     """Mapea rows de DB a resultado de recomendaciones."""
     artists: List[Dict[str, Any]] = []
@@ -116,31 +161,29 @@ async def get_user_recommendations_me(
     user_id: str = Depends(get_current_user_id),
     db: DBClient = Depends(get_db),
 ):
-    bucket = bucket or generate_weekly_bucket()
     cached_data = get_cached(CacheType.USER_RECOMMENDATIONS, suffix=user_id)
     if cached_data is not None:
         return cached_data
     try:
-        rows = list_user_recommendations(db=db, user_id=user_id, bucket=bucket, item_type=None, limit=500) or []
+        rows, effective_bucket = _list_recommendations_with_fallback(db, user_id, bucket)
     except Exception as e:
         print(f"[feed][recommendations/me][ERROR] {e}")
         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
-    result = _build_recommendations_result(rows, bucket)
+    result = _build_recommendations_result(rows, effective_bucket)
     set_cached(CacheType.USER_RECOMMENDATIONS, result, suffix=user_id)
     return result
 
 @router.get("/recommendations", summary="User recommendations (by user_id)")
 async def get_user_recommendations_db(user_id: str, bucket: Optional[str] = None, db: DBClient = Depends(get_db)):
-    bucket = bucket or generate_weekly_bucket()
     cached_data = get_cached(CacheType.USER_RECOMMENDATIONS, suffix=user_id)
     if cached_data is not None:
         return cached_data
     try:
-        rows = list_user_recommendations(db=db, user_id=user_id, bucket=bucket, item_type=None, limit=500) or []
+        rows, effective_bucket = _list_recommendations_with_fallback(db, user_id, bucket)
     except Exception as e:
         print(f"[feed][recommendations][ERROR] {e}")
         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
-    result = _build_recommendations_result(rows, bucket)
+    result = _build_recommendations_result(rows, effective_bucket)
     set_cached(CacheType.USER_RECOMMENDATIONS, result, suffix=user_id)
     return result
 
