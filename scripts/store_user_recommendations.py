@@ -18,11 +18,9 @@ from utils.recommendation_utils import (
 )
 
 def generate_weekly_bucket() -> str:
-    """Genera bucket automático: weekly_2025w44"""
-    now = datetime.now()
-    year = now.year
-    week = now.isocalendar()[1]
-    return f"weekly_{year}w{week:02d}"
+    """Genera bucket automatico: weekly_2026w44 usando ISO year + ISO week."""
+    iso = datetime.now().isocalendar()
+    return f"weekly_{iso[0]}w{iso[1]:02d}"
 
 def cleanup_old_buckets(user_id: str, keep_bucket: str):
     """Borra todos los buckets del usuario EXCEPTO el actual"""
