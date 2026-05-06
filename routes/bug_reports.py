@@ -36,7 +36,7 @@ def get_my_reports(
 
 @router.get("", response_model=list[BugReport])
 def get_all_reports(
-    status: str | None = Query(None, regex="^(open|closed)$"),
+    status: str | None = Query(None, pattern="^(open|closed)$"),
     limit: int = Query(100, ge=1, le=200),
     profile: Profile = Depends(require_role("developer")),
     db: DBClient = Depends(get_user_db),
