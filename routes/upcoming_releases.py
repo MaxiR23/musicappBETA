@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import ORJSONResponse, JSONResponse
+from fastapi.responses import JSONResponse
 
 from core.dependencies import get_db
 from services.db_protocol import DBClient
@@ -14,7 +14,7 @@ def _filter_complete(items: list) -> list:
     """Excluye releases sin thumbnail o sin artist_id."""
     return [r for r in items if r.get("thumbnail") and r.get("artist_id")]
 
-@router.get("", response_class=ORJSONResponse)
+@router.get("")
 async def get_upcoming_releases(
     include_tba: bool = Query(True, description="Incluir releases TBA"),
     limit: int = Query(50, ge=1, le=100, description="Límite de resultados"),
@@ -28,7 +28,7 @@ async def get_upcoming_releases(
         print(f"[upcoming_releases][ERROR] {e}")
         return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
 
-@router.get("/next", response_class=ORJSONResponse)
+@router.get("/next")
 async def get_upcoming_next(
     db: DBClient = Depends(get_db),
 ) -> Dict[str, Any]:

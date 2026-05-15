@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import ORJSONResponse, JSONResponse
+from fastapi.responses import JSONResponse
 
 from core.dependencies import get_db, get_current_user_id
 from services.db_protocol import DBClient
@@ -10,7 +10,7 @@ from services.featured_service import get_featured_new_release_cached
 
 router = APIRouter()
 
-@router.get("", response_class=ORJSONResponse)
+@router.get("")
 async def get_featured_release(
     user_id: str = Depends(get_current_user_id),
     db: DBClient = Depends(get_db),

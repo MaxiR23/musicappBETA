@@ -3,7 +3,7 @@ import os
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, ORJSONResponse
+from fastapi.responses import JSONResponse
 from routes import cache, health, tracks, playlists, feed, debug, genres, upcoming_releases, new_releases, search, activity, album, artists, audio, stats, likes, featured, station, offline, library, profile, bug_reports
 from middlewares.supa_auth import supa_auth
 from middlewares.cors_headers import add_cors_middleware
@@ -46,10 +46,7 @@ async def lifespan(app: FastAPI):
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 # crear la app (se pasa lifespan)
-app = FastAPI(
-    lifespan=lifespan,
-    default_response_class=ORJSONResponse  # <- usa orjson para TODAS las respuestas JSON
-)
+app = FastAPI(lifespan=lifespan)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
