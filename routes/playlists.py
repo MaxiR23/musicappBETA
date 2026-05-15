@@ -10,6 +10,7 @@ from services.playlist_service import (
     update_playlist,
     delete_playlist,
     add_track,
+    add_tracks_bulk,
     remove_track,
     move_track,
 )
@@ -103,6 +104,27 @@ async def add_track_route(
         return JSONResponse(status_code=400, content={"error": str(e)})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "db_error", "detail": str(e)})
+    
+@router.post("/{playlist_id}/tracks/bulk")
+async def add_tracks_bulk_route(
+    playlist_id: str,
+    body: dict = Body(...),
+    db: DBClient = Depends(get_user_db),
+    service_db: DBClient = Depends(get_service_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    tracks = body.get("tracks")
+    if not isinstance(tracks, list):
+        return JSONResponse(status_code=400, content={"error": "tracks_array_required"})
+    try:
+        result = add_tracks_bulk(db, service_db, user_id, playlist_id, tracks)
+        return {"ok": True, **result}
+    except ValueError as e:
+        if "too_many_tracks" in str(e):
+            return JSONResponse(status_code=400, content={"error": "too_many_tracks"})
+        return JSONResponse(status_code=400, content={"error": str(e)})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": "db_error", "detail": str(e)})    
 
 @router.delete("/{playlist_id}/tracks/{track_id}")
 async def remove_track_route(

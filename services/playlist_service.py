@@ -169,6 +169,133 @@ def add_track(
     _invalidate_playlist_cache(user_id, playlist_id)
     return {"track": track_row, "link": link_resp.data[0]}
 
+def add_tracks_bulk(
+    db: DBClient,
+    service_db: DBClient,
+    user_id: str,
+    playlist_id: str,
+    tracks: list[dict],
+) -> dict:
+    if not tracks:
+        return {"added": 0, "skipped": 0, "skipped_track_ids": []}
+
+    if len(tracks) > 200:
+        raise ValueError("too_many_tracks")
+
+    # Deduplicar por track_id dentro del batch (mismo id repetido en el array)
+    seen: set[str] = set()
+    unique_tracks: list[dict] = []
+    for t in tracks:
+        tid = t.get("track_id")
+        if tid and tid not in seen:
+            seen.add(tid)
+            unique_tracks.append(t)
+
+    track_ids = [t["track_id"] for t in unique_tracks]
+
+    # 1. Buscar cuales ya existen en public.tracks
+    existing_resp = (
+        service_db.table("tracks")
+        .select("id, track_id")
+        .in_("track_id", track_ids)
+        .execute()
+    )
+    existing_map: dict[str, str] = {
+        row["track_id"]: row["id"] for row in (existing_resp.data or [])
+    }
+
+    # 2. Insertar bulk los que faltan en public.tracks
+    missing = [t for t in unique_tracks if t["track_id"] not in existing_map]
+    if missing:
+        insert_payload = [
+            {
+                "track_id": t["track_id"],
+                "title": t.get("title"),
+                "artists": t.get("artists") or [],
+                "album": t.get("album"),
+                "album_id": t.get("album_id"),
+                "duration_seconds": t.get("duration_seconds"),
+                "thumbnail_url": t.get("thumbnail_url"),
+            }
+            for t in missing
+        ]
+        try:
+            insert_resp = service_db.table("tracks").insert(insert_payload).execute()
+            for row in (insert_resp.data or []):
+                existing_map[row["track_id"]] = row["id"]
+        except Exception:
+            # Race: otro request insertó algunos entre el select y el insert.
+            # Re-leemos para recuperar los IDs sin tirar el batch entero.
+            reread = (
+                service_db.table("tracks")
+                .select("id, track_id")
+                .in_("track_id", [t["track_id"] for t in missing])
+                .execute()
+            )
+            for row in (reread.data or []):
+                existing_map[row["track_id"]] = row["id"]
+
+    # internal_ids respetando el orden del batch
+    internal_ids = [
+        existing_map[t["track_id"]]
+        for t in unique_tracks
+        if t["track_id"] in existing_map
+    ]
+
+    # 3. Chequear cuales ya estan linkeados a esta playlist
+    linked_resp = (
+        db.table("playlist_tracks")
+        .select("track_id")
+        .eq("playlist_id", playlist_id)
+        .in_("track_id", internal_ids)
+        .execute()
+    )
+    already_linked = {row["track_id"] for row in (linked_resp.data or [])}
+
+    internal_to_external = {v: k for k, v in existing_map.items()}
+    skipped_track_ids = [
+        internal_to_external[iid] for iid in internal_ids if iid in already_linked
+    ]
+    new_internal_ids = [iid for iid in internal_ids if iid not in already_linked]
+
+    if not new_internal_ids:
+        return {
+            "added": 0,
+            "skipped": len(skipped_track_ids),
+            "skipped_track_ids": skipped_track_ids,
+        }
+
+    # 4. Calcular siguiente posicion
+    max_pos_resp = (
+        db.table("playlist_tracks")
+        .select("position")
+        .eq("playlist_id", playlist_id)
+        .order("position", desc=True)
+        .limit(1)
+        .execute()
+    )
+    last_pos = (max_pos_resp.data or [{}])[0].get("position") or 0
+
+    # 5. Insertar links bulk con posiciones consecutivas
+    link_payload = [
+        {
+            "playlist_id": playlist_id,
+            "track_id": iid,
+            "position": last_pos + i + 1,
+            "added_by": user_id,
+        }
+        for i, iid in enumerate(new_internal_ids)
+    ]
+    db.table("playlist_tracks").insert(link_payload).execute()
+
+    _invalidate_playlist_cache(user_id, playlist_id)
+
+    return {
+        "added": len(new_internal_ids),
+        "skipped": len(skipped_track_ids),
+        "skipped_track_ids": skipped_track_ids,
+    }
+
 def remove_track(db: DBClient, user_id: str, playlist_id: str, track_id: str) -> None:
     db.table("playlist_tracks").delete().eq("playlist_id", playlist_id).eq("track_id", track_id).execute()
     _invalidate_playlist_cache(user_id, playlist_id)
