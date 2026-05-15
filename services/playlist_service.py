@@ -313,3 +313,10 @@ def move_track(db: DBClient, user_id: str, playlist_id: str, old_index: int, new
 
     _invalidate_playlist_cache(user_id, playlist_id)
     return data
+
+def get_owned_playlists_with_track(db: DBClient, user_id: str, track_id: str) -> list[str]:
+    result = db.rpc("get_owned_playlists_with_track", {
+        "p_user_id": user_id,
+        "p_track_id": track_id,
+    }).execute()
+    return [row["playlist_id"] for row in (result.data or [])]

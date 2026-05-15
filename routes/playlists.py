@@ -13,6 +13,7 @@ from services.playlist_service import (
     add_tracks_bulk,
     remove_track,
     move_track,
+    get_owned_playlists_with_track
 )
 
 router = APIRouter(tags=["playlists"])
@@ -158,3 +159,15 @@ def move_track_route(
         return JSONResponse(status_code=400, content={"ok": False, "error": str(e)})
     except Exception as e:
         return JSONResponse(status_code=500, content={"ok": False, "error": "move_failed", "detail": str(e)})
+
+@router.get("/owned-with-track/{track_id}")
+async def get_owned_playlists_with_track_route(
+    track_id: str,
+    db: DBClient = Depends(get_user_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    try:
+        playlist_ids = get_owned_playlists_with_track(db, user_id, track_id)
+        return {"playlist_ids": playlist_ids}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": "db_error", "detail": str(e)})
