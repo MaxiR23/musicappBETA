@@ -5,6 +5,7 @@ annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.13.0
 attrs==26.1.0
+beautifulsoup4==4.14.3
 cachetools==6.2.6
 certifi==2026.4.22
 cffi==2.0.0
@@ -64,6 +65,7 @@ roster==0.1.11
 six==1.17.0
 slowapi==0.1.9
 starlette==1.0.0
+soupsieve==2.8.3
 storage3==2.30.0
 StrEnum==0.4.15
 strictyaml==1.7.3

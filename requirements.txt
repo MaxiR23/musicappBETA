@@ -11,6 +11,7 @@ pytubefix
 innertube @ git+https://github.com/MaxiR23/innertube.git@main
 python-dateutil
 dateparser
+beautifulsoup4
 pytz
 orjson
 slowapi
