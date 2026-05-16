@@ -39,6 +39,7 @@ from services.upcoming_releases_repo import (
     update_release_metadata,
     log_sync_error,
 )
+from services.cache_config import set_manual_version, CacheType
 from shared.clients import _ytmusic_client
 
 # ============================================================================
@@ -789,6 +790,26 @@ def main():
         print(f"  Sin enriquecimiento:    {stats['enrichment_skipped']}")
     print(f"  Errores:                {stats['errors']}")
     print("=" * 60)
+
+    # 5. Invalidacion de caches afectados
+    upcoming_changed = (
+        stats["inserted_pending"]
+        + stats["inserted_postponed"]
+        + stats["updated"]
+        + stats["inserted_released"]
+    ) > 0
+    new_releases_changed = stats["inserted_released"] > 0
+
+    print()
+    if upcoming_changed or new_releases_changed:
+        print("Invalidando cache versions afectadas...")
+        if upcoming_changed:
+            set_manual_version(CacheType.UPCOMING_RELEASES)
+            set_manual_version(CacheType.UPCOMING_ARTIST)
+        if new_releases_changed:
+            set_manual_version(CacheType.NEW_RELEASES)
+    else:
+        print("Sin cambios. Cache intacto.")
 
 
 if __name__ == "__main__":
