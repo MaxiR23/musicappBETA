@@ -188,7 +188,16 @@ def _extract_song_item(mrlir: dict) -> dict:
 
     if not artists and len(info_runs) >= 3:
         menu_links = _extract_menu_navs(mrlir)
-        artists.append({"name": info_runs[2].get("text", ""), "artist_id": menu_links.get("artist_id")})
+        raw_name = info_runs[2].get("text", "").strip()
+        if raw_name:
+            primary_id = menu_links.get("artist_id")
+            parts = [p.strip() for p in re.split(r"[,&]", raw_name)]
+            parts = [p for p in parts if p]
+            for i, name in enumerate(parts):
+                artists.append({
+                    "name": name,
+                    "artist_id": primary_id if i == 0 else None,
+                })
 
     album = None
     for r in info_runs:
@@ -473,6 +482,21 @@ def parse_search_top_result(resp: dict) -> dict | None:
             bid = _dig(run, ["navigationEndpoint", "browseEndpoint", "browseId"])
             if bid and run.get("text"):
                 artists.append({"name": run["text"], "artist_id": bid})
+
+        # Fallback: subtitle sin navs.
+        # Splitea el texto por , y & — el primer artista lleva el artist_id del menu,
+        # el resto queda con artist_id=None (mismo patron que un feat sin link)
+        if not artists and len(subtitle_runs) >= 3:
+            raw_name = subtitle_runs[2].get("text", "").strip()
+            if raw_name:
+                primary_id = _extract_menu_navs(card).get("artist_id")
+                parts = [p.strip() for p in re.split(r"[,&]", raw_name)]
+                parts = [p for p in parts if p]
+                for i, name in enumerate(parts):
+                    artists.append({
+                        "name": name,
+                        "artist_id": primary_id if i == 0 else None,
+                    })
 
         duration = None
         for run in subtitle_runs:
