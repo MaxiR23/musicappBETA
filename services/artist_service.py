@@ -170,6 +170,13 @@ def build_all_albums_result(artist_id: str, albums: list) -> dict:
 def build_all_singles_result(artist_id: str, singles: list) -> dict:
     return {"artist_id": artist_id, "total": len(singles), "singles": singles}
 
+def dedupe_new_releases_by_date(releases: list) -> list:
+    """Mantiene solo el primer release real por fecha (ultimo en la lista)."""
+    by_date: dict = {}
+    for r in releases:
+        by_date[r.get("release_date")] = r
+    return list(by_date.values())
+
 def should_cache_artist(header: dict) -> bool:
     return bool(header.get("name"))
 
@@ -259,6 +266,7 @@ def get_artist(db: DBClient, artist_id: str, use_cache: bool = True) -> dict:
         new_releases = []
         try:
             new_releases = list_new_releases_by_artist(db, artist_id, limit=8)
+            new_releases = dedupe_new_releases_by_date(new_releases)
         except Exception:
             pass
 
