@@ -19,6 +19,7 @@ from utils.artist_parser import (
     parse_singles_eps,
     parse_related_artists,
     pick_related_artists_section,
+    parse_presenting_item
 )
 
 def parse_header(raw: dict) -> dict:
@@ -122,7 +123,7 @@ def build_artist_payload(
     has_more: dict,
     events: list | None = None,
     new_releases: list | None = None,
-    presenting_id: str | None = None,
+    presenting: dict | None = None,
 ) -> dict:
     """Construye el payload final del artista."""
     payload = {
@@ -142,8 +143,8 @@ def build_artist_payload(
         payload.pop("singles_eps", None)
     if not top_songs:
         payload.pop("top_songs", None)
-    if presenting_id:
-        payload["presenting"] = {"playlistId": presenting_id}
+    if presenting:
+        payload["presenting"] = presenting
     return payload
 
 def build_album_item(album: dict) -> dict:
@@ -245,6 +246,11 @@ def get_artist(db: DBClient, artist_id: str, use_cache: bool = True) -> dict:
         albums = parse_albums(albums_sec)[:10] if albums_sec else []
         singles = parse_singles_eps(singles_sec)[:10] if singles_sec else []
         related = parse_related_artists(rel_sec) if rel_sec else []
+        presenting = parse_presenting_item(contents, header.get("name"))
+        if presenting:
+            songs_browse_id = (artist_data.get("songs") or {}).get("browseId")
+            if songs_browse_id:
+                presenting["_songsBrowseId"] = songs_browse_id
         top_songs = parse_top_songs_v2(
             artist_data,
             _ytmusic_client(),
@@ -272,7 +278,8 @@ def get_artist(db: DBClient, artist_id: str, use_cache: bool = True) -> dict:
 
         payload = build_artist_payload(
             header, top_songs, albums, singles, related, has_more,
-            events=events, new_releases=new_releases
+            events=events, new_releases=new_releases,
+            presenting=presenting,
         )
         set_cached(CacheType.ARTIST, payload, suffix=artist_id)
         return payload

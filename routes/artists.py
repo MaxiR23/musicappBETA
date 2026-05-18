@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from core.dependencies import get_db
 from services.db_protocol import DBClient
 from services.artist_service import get_artist, get_all_albums, get_all_singles
+from services.presenting_service import get_presenting
 from services.events_service import get_events_cached_only
 from services.upcoming_releases_repo import get_upcoming_by_artist_id_cached
 from services.audio_service import schedule_warm, get_warm_burst
@@ -67,6 +68,17 @@ def get_artist_all_singles(id: str = Path(...)):
         payload = get_all_singles(id)
         if isinstance(payload, dict) and payload.get("error"):
             return JSONResponse(status_code=502, content=payload)
+        return payload
+    except Exception as e:
+        return JSONResponse(status_code=502, content={"error": "service_unavailable", "detail": str(e)})
+    
+@router.get("/artist/{id}/presenting")
+def get_artist_presenting(id: str = Path(...), db: DBClient = Depends(get_db)):
+    try:
+        payload = get_presenting(db, id)
+        if isinstance(payload, dict) and payload.get("error"):
+            status = 404 if payload.get("error") == "no_presenting" else 502
+            return JSONResponse(status_code=status, content=payload)
         return payload
     except Exception as e:
         return JSONResponse(status_code=502, content={"error": "service_unavailable", "detail": str(e)})

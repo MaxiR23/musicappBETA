@@ -337,3 +337,56 @@ def parse_related_artists(section: dict):
             })
 
     return related
+
+# TEST {
+
+def is_featured_on_section(sec: dict) -> bool:
+    """True si el header indica 'Featured on' / 'Aparece en'."""
+    h = section_header_text(sec)
+    return h in ("featured on", "aparece en")
+
+def pick_featured_on_section(contents: list[dict]) -> dict | None:
+    """Busca la seccion 'Featured on' por titulo."""
+    for sec in contents:
+        if is_featured_on_section(sec):
+            return sec
+    return None
+
+def parse_presenting_item(contents: list[dict], artist_name: str | None) -> dict | None:
+    """
+    Busca 'Presenting {artist_name}' dentro de la seccion Featured on.
+    Devuelve {playlistId} o None.
+    """
+    if not artist_name:
+        return None
+    sec = pick_featured_on_section(contents)
+    if not sec:
+        return None
+    target = f"presenting {artist_name}".strip().lower()
+    items = sec.get("musicCarouselShelfRenderer", {}).get("contents", [])
+    for item in items:
+        r = item.get("musicTwoRowItemRenderer", {})
+        title_runs = r.get("title", {}).get("runs", [])
+        title = (title_runs[0].get("text") if title_runs else "") or ""
+        if title.strip().lower() != target:
+            continue
+        browse_id = (
+            r.get("title", {}).get("runs", [{}])[0]
+            .get("navigationEndpoint", {})
+            .get("browseEndpoint", {})
+            .get("browseId")
+        )
+        playlist_id = browse_id[2:] if browse_id and browse_id.startswith("VL") else browse_id
+        if playlist_id:
+            return {"playlistId": playlist_id}
+    return None
+
+def find_presenting_playlist_id(contents: list[dict], artist_name: str | None) -> str | None:
+    """
+    Variante interna para el servicio de Presenting.
+    Devuelve solo el playlistId (string) o None.
+    """
+    item = parse_presenting_item(contents, artist_name)
+    return item.get("playlistId") if item else None
+
+# }
