@@ -1,4 +1,6 @@
 # utils/artist_parser.py
+import unicodedata
+
 def _build_known_artists_pool(
     artist_id: str | None,
     artist_name: str | None,
@@ -352,6 +354,13 @@ def pick_featured_on_section(contents: list[dict]) -> dict | None:
             return sec
     return None
 
+def _strip_accents(s: str | None) -> str:
+    """Normaliza string para matching: lowercase + sin tildes/acentos."""
+    if not s:
+        return ""
+    s = unicodedata.normalize("NFKD", s.strip().lower())
+    return "".join(c for c in s if not unicodedata.combining(c))
+
 def parse_presenting_item(contents: list[dict], artist_name: str | None) -> dict | None:
     """
     Busca 'Presenting {artist_name}' dentro de la seccion Featured on.
@@ -362,13 +371,13 @@ def parse_presenting_item(contents: list[dict], artist_name: str | None) -> dict
     sec = pick_featured_on_section(contents)
     if not sec:
         return None
-    target = f"presenting {artist_name}".strip().lower()
+    target = _strip_accents(f"presenting {artist_name}") 
     items = sec.get("musicCarouselShelfRenderer", {}).get("contents", [])
     for item in items:
         r = item.get("musicTwoRowItemRenderer", {})
         title_runs = r.get("title", {}).get("runs", [])
         title = (title_runs[0].get("text") if title_runs else "") or ""
-        if title.strip().lower() != target:
+        if _strip_accents(title) != target: 
             continue
         browse_id = (
             r.get("title", {}).get("runs", [{}])[0]
