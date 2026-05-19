@@ -153,9 +153,14 @@ def get_presenting(db: DBClient, artist_id: str, use_cache: bool = True) -> dict
         if not matched:
             return {"artist_id": artist_id, "error": "no_atv_tracks"}
 
+        header = artist_payload.get("header") or {}
+        thumbnails = header.get("thumbnails") or []
+        artist_thumb = thumbnails[-1].get("url") if thumbnails else None
+
         result = {
             "artist_id": artist_id,
-            "artist_name": artist_payload.get("header", {}).get("name"),
+            "artist_name": header.get("name"),
+            "artist_thumb": artist_thumb,
             "playlist_id": presenting_playlist_id,
             "tracks": matched,
             "total": len(matched),
@@ -166,6 +171,7 @@ def get_presenting(db: DBClient, artist_id: str, use_cache: bool = True) -> dict
                 "sources": dict(src_count),
             },
         }
+        
         set_cached(CacheType.PRESENTING, result, suffix=artist_id)
         return result
 
