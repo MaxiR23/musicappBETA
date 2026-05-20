@@ -384,6 +384,7 @@ def populate_genre_entry(
     entry: Dict[str, Any],
     limit_per_playlist: int = 100,
     wait_between_playlists: int = 10,
+    only_playlist: Optional[str] = None,
 ) -> None:
     """Procesa un genero completo con todas sus playlists."""
 
@@ -392,6 +393,16 @@ def populate_genre_entry(
     sort_order = entry.get("sort_order", 0)
     category = entry.get("category")
     playlists = entry.get("playlists", [])
+
+    # Filtro opcional: procesar solo una playlist por titulo f(case-insensitive).
+    if only_playlist:
+        playlists = [
+            pd for pd in playlists
+            if pd.get("title", "").lower() == only_playlist.lower()
+        ]
+        if not playlists:
+            print(f"No se encontro la playlist '{only_playlist}' en el genero '{genre_name}'")
+            return
 
     category_str = f" [{category}]" if category else ""
     print(f"\n{'=' * 70}")
@@ -517,6 +528,18 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="Borrar el cache persistente antes de empezar",
     )
 
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="Lista las playlists del genero indicado (con --genre) y termina, sin procesar",
+    )
+    parser.add_argument(
+        "--playlist",
+        type=str,
+        default=None,
+        help='Procesar solo una playlist por titulo dentro del genero (ej: --genre "Pop" --playlist "Pop Hits")',
+    )
+
     args = parser.parse_args(argv)
 
     # -- Inicializar cache persistente --
@@ -557,6 +580,17 @@ def main(argv: Optional[List[str]] = None) -> int:
         if not entries_to_process:
             print(f"No se encontro el genero '{args.genre}'")
             return 1
+    
+     # Modo listado: muestra las playlists de las entradas filtradas y termina.
+    if args.list:
+        for entry in entries_to_process:
+            genre_name = entry.get("genre", "???")
+            playlists = entry.get("playlists", [])
+            print(f"\n{genre_name} ({len(playlists)} playlists):")
+            for i, pd in enumerate(playlists, 1):
+                print(f"  {i}. {pd.get('title', '???')}")
+        print()
+        return 0
 
     print(f"  Total de entradas a procesar: {len(entries_to_process)}")
 
@@ -567,6 +601,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 entry=entry,
                 limit_per_playlist=args.limit,
                 wait_between_playlists=args.wait,
+                only_playlist=args.playlist,
             )
         except KeyboardInterrupt:
             print("\n\n  Interrupcion por usuario. Guardando cache y mostrando reporte...")
