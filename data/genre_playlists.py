@@ -139,8 +139,10 @@ GENRE_PLAYLISTS = [
         "category": None,
         "playlists": [
             {"title": "Hip-Hop Classics", "id": "RDCLAK5uy_kP2172rQNb3KFXz880xp6M98R_ME5CIKA"},
+            {"title": "Beast Mode Hip-Hop", "id": "RDCLAK5uy_k1VVBVsS6pu1pVkYZK2B0EWic3i4j_TY4"},
             {"title": "Chilled Hip-Hop", "id": "RDCLAK5uy_myzznSrnHv4d3VAWYEFRkjuSvgiAXZshk"},
             {"title": "Laid-Back Hip Hop", "id": "RDCLAK5uy_kWm5me-X3IbEMBOWHd2fI7d4aQoauMcbI"},
+            {"title": "Trap Anthems", "id": "RDCLAK5uy_kc4LIsE0KNO69Yql4rnUIW0xJCBp5d3MM"},
             {"title": "On Everything: Today's Hip-Hop Hits", "id": "RDCLAK5uy_lBGRuQnsG37Akr1CY4SxL0VWFbPrbO4gs"},
         ]
     },
@@ -160,6 +162,8 @@ GENRE_PLAYLISTS = [
             {"title": "Indie Overload", "id": "RDCLAK5uy_kIEEMKpM6yjpBI82J-4Ua3AAAwULUx7AE"},
             {"title": "Indie Argentino", "id": "RDCLAK5uy_mjutndPqCMuQL6ub0uaWA3RAKu1t2CsRg"},
             {"title": "Line Up: Indie + Alternative", "id": "RDCLAK5uy_n4oG0HK-gS2c_tstquxLhCBjs-CF2g8Qg"},
+            {"title": "Today's Indie Hits", "id": "RDCLAK5uy_m0Nsi5Jnn_g6qbvc7fywPRhEv1qN0PcMM"},
+            {"title": "Your New Alternative", "id": "RDCLAK5uy_n1quIxbUdCfJDCklZQxyss75yUKLp1oMQ"},
         ]
     },
 
@@ -194,6 +198,7 @@ GENRE_PLAYLISTS = [
             {"title": "Pop Certified", "id": "RDCLAK5uy_lBNUteBRencHzKelu5iDHwLF6mYqjL-JU"},
             {"title": "Non-Stop Lite Pop", "id": "RDCLAK5uy_liEN-UUeSCXa0iIeuHMeswEkxQXncSoXE"},
             {"title": "Latin Pop Ballads", "id": "RDCLAK5uy_mvOnkGmDx5l-UGG5jkAqsLISqb4JqGvRk"},
+            {"title": "Today's Pop", "id": "RDCLAK5uy_mvPJO7smbmUuPjfFs5gEW0e0sIAJ1ngDo"},
             {"title": "Unwind", "id": "RDCLAK5uy_np_soSTj6w3-N7Dh_xmdDpQINJ8LsVpa8"},
         ]
     },
@@ -212,6 +217,7 @@ GENRE_PLAYLISTS = [
             {"title": "Feel-Good R&B Vibes", "id": "RDCLAK5uy_kF-D-D23zHZ5JcC1mO5EhQEPqZ9-SK4NU"},
             {"title": "New R&B", "id": "RDCLAK5uy_nGZRi-an-ruqiZlNJSGhCDHucdp2FBNfI"},
             {"title": "Afro R&B Wave", "id": "RDCLAK5uy_n3qkemHBD9k_a0B_pX2VWB0RPvebkR7uU"},
+            {"title": "Highline: Today's R&B Hits", "id": "RDCLAK5uy_mu-BhJj3yO1OXEMzahs_aJVtNWJwAwFEE"},
         ]
     },
 
@@ -263,9 +269,11 @@ GENRE_PLAYLISTS = [
         "category": None,
         "playlists": [
             {"title": "Hot Reggaeton", "id": "RDCLAK5uy_kV0Nh-OIcnh8LppyiFE4lhhWZEvaPQEOY"},
+            {"title": "Perreo", "id": "RDCLAK5uy_ll_3x-AJOymCxeODF09ZjyXg7b6m7OBqs"},
             {"title": "Reggaeton Essential Hits", "id": "RDCLAK5uy_mFaoBNPmTUVcY51UGFuAYedXv4kXuqg5M"},
             {"title": "Urbano 2026", "id": "RDCLAK5uy_mB1zoU6QkDs2Ls369_DU8_JbHCp3Wdd90"},
             {"title": "Old-School Reggaeton", "id": "RDCLAK5uy_lk7bC42AIcIBpSBiioTBrFdJeDNLSGCyE"},
+            {"title": "Urbano Flow", "id": "RDCLAK5uy_kQuGjDmgWk0gy3VJrfn4VuvT2eexSagzs"},
         ]
     },
 ]
