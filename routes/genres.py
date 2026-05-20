@@ -70,6 +70,7 @@ async def get_tracks(
                 "id": playlist["id"],
                 "title": playlist["title"],
                 "track_count": playlist["track_count"],
+                "updated_at": playlist["updated_at"],
             },
             "tracks": get_playlist_tracks(db, playlist_id, limit=limit),
         }
