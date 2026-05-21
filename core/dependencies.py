@@ -12,7 +12,11 @@ def get_db() -> DBClient:
     return sb
 
 def get_user_db(request: Request) -> DBClient:
-    """Cliente DB con RLS del usuario. Para operaciones sobre datos propios."""
+    """Cliente DB con RLS del usuario. Para operaciones sobre datos propios.
+
+    El ciclo de vida del client lo maneja el cache LRU de db_as_user;
+    no se cierra por request (cerrarlo rompe el cache).
+    """
     jwt = request.headers.get("Authorization", "").replace("Bearer ", "")
     return db_as_user(jwt)
 
