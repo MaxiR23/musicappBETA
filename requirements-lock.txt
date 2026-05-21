@@ -6,6 +6,7 @@ annotated-types==0.7.0
 anyio==4.13.0
 attrs==26.1.0
 beautifulsoup4==4.14.3
+brotli==1.2.0
 cachetools==6.2.6
 certifi==2026.4.22
 cffi==2.0.0
@@ -35,6 +36,7 @@ mdurl==0.1.2
 mediate==0.1.8
 mmh3==5.2.1
 multidict==6.7.1
+mutagen==1.47.0
 nodejs-wheel-binaries==24.15.0
 orjson==3.11.9
 packaging==26.2
@@ -42,6 +44,7 @@ pluggy==1.6.0
 postgrest==2.30.0
 propcache==0.4.1
 pycparser==3.0
+pycryptodomex==3.23.0
 pydantic==2.13.4
 pydantic_core==2.46.4
 Pygments==2.20.0
@@ -85,5 +88,6 @@ websockets==15.0.1
 wrapt==2.1.2
 yarl==1.23.0
 yt-dlp==2026.3.17
+yt-dlp-ejs==0.8.0
 ytmusicapi==1.12.0
 zstandard==0.25.0

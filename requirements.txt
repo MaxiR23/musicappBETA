@@ -5,7 +5,7 @@ supabase
 httpx
 requests
 python-dotenv
-yt-dlp
+yt-dlp[default]
 ytmusicapi
 pytubefix
 innertube @ git+https://github.com/MaxiR23/innertube.git@main

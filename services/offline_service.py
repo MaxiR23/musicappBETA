@@ -36,12 +36,14 @@ def build_error(reason: str, detail: str = "") -> dict:
     return {"error": reason, "detail": detail}
 
 def _build_client(cookie_path: str, output_path: str, itag: int, abort_event: threading.Event) -> yt_dlp.YoutubeDL:
-    """Cliente de extracción configurado para descarga con cookies."""
-    class _SilentLogger:
+    """Cliente de extraccion configurado para descarga con cookies."""
+    import sys
+
+    class _ServiceLogger:
         def debug(self, msg):   pass
         def info(self, msg):    pass
-        def warning(self, msg): pass
-        def error(self, msg):   pass
+        def warning(self, msg): print(f"[offline_service][yt-dlp WARN] {msg}", file=sys.stderr, flush=True)
+        def error(self, msg):   print(f"[offline_service][yt-dlp ERR] {msg}", file=sys.stderr, flush=True)
 
     def _progress_hook(d):
         if abort_event.is_set():
@@ -51,8 +53,8 @@ def _build_client(cookie_path: str, output_path: str, itag: int, abort_event: th
         "format": str(itag),
         "outtmpl": output_path,
         "quiet": True,
-        "no_warnings": True,
-        "logger": _SilentLogger(),
+        "no_warnings": False,
+        "logger": _ServiceLogger(),
         "noplaylist": True,
         "noprogress": True,
         "cookiefile": cookie_path,
@@ -67,7 +69,7 @@ def _build_client(cookie_path: str, output_path: str, itag: int, abort_event: th
         "extractor_args": {
             "youtube": {
                 "player_client": ["web_music"],
-                "player_skip": ["webpage", "configs"],
+                "player_skip": ["configs"],
                 "skip": ["hls", "dash", "translated_subs"],
             }
         },
