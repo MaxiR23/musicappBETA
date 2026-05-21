@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Path, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from core.dependencies import get_current_user_id
+from core.rate_limit import limiter
 from services.offline_service import (
     OFFLINE_USERS,
     is_allowed,
@@ -22,6 +23,7 @@ from services.offline_service import (
 router = APIRouter()
 
 @router.get("/offline/fetch/{track_id}")
+@limiter.limit("5/minute")
 async def offline_fetch(
     request: Request,
     track_id: str = Path(..., description="ID del track"),
