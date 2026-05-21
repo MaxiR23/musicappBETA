@@ -23,7 +23,7 @@ from services.offline_service import (
 router = APIRouter()
 
 @router.get("/offline/fetch/{track_id}")
-@limiter.limit("5/minute")
+@limiter.limit("60/minute")
 async def offline_fetch(
     request: Request,
     track_id: str = Path(..., description="ID del track"),
