@@ -26,6 +26,7 @@ from services.genre_repo import (
     upsert_genre_playlist,
     insert_genre_playlist_tracks,
 )
+from services.cache_config import CacheType, bump_entity_version
 from utils.feed_utils import map_track, _with_retry
 
 
@@ -432,6 +433,7 @@ def populate_genre_entry(
         return
 
     total_playlists = len(playlists)
+    genre_had_changes = False
 
     for idx, playlist_data in enumerate(playlists, 1):
         playlist_title = playlist_data.get("title", "???")
@@ -473,6 +475,8 @@ def populate_genre_entry(
         try:
             inserted = insert_genre_playlist_tracks(db=sb, playlist_id=db_playlist_id, tracks=tracks)
             pl_result.inserted_in_db = inserted
+            if inserted > 0:
+                genre_had_changes = True
             print(f"  {inserted} tracks insertados en DB")
         except Exception as exc:
             pl_result.status = "ERROR_DB_TRACKS"
@@ -486,6 +490,12 @@ def populate_genre_entry(
         if idx < total_playlists:
             print(f"  Esperando {wait_between_playlists}s antes de la proxima playlist...")
             time.sleep(wait_between_playlists)
+
+    # Si hubo cambios reales en alguna playlist del genero, bumpear su version
+    # per-entity para que los clientes invaliden su cache solo de este genero.
+    if genre_had_changes and genre_slug:
+        bump_entity_version(CacheType.GENRE_PLAYLISTS, genre_slug)
+        print(f"\n  Cache bumpeado para genero '{genre_slug}' (hubo cambios)")
 
 
 # ---------------------------------------------------------------------------

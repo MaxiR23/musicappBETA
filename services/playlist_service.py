@@ -2,8 +2,8 @@
 Playlist service: lógica de negocio para playlists de usuario.
 """
 from services.db_protocol import DBClient
-from services.cache_service import get_cached, set_cached, invalidate
-from services.cache_config import CacheType
+from services.cache_service import get_cached, set_cached
+from services.cache_config import CacheType, bump_entity_version
 from services.track_service import ensure_duration_seconds
 from services.library_view_cache import invalidate_library_view
 
@@ -11,7 +11,7 @@ from services.library_view_cache import invalidate_library_view
 def _invalidate_playlist_cache(owner_id: str, playlist_id: str | None = None) -> None:
     invalidate_library_view(owner_id)
     if playlist_id:
-        invalidate(CacheType.USER_PLAYLISTS, suffix=f"{playlist_id}:{owner_id}")
+        bump_entity_version(CacheType.USER_PLAYLISTS, playlist_id)
 
 # ── PLAYLISTS ─────────────────────────────────────────────────────────────────
 def create_playlist(db: DBClient, user_id: str, title: str, description: str | None, is_public: bool) -> dict:
@@ -38,7 +38,11 @@ def get_playlists(db: DBClient, user_id: str) -> list:
 
 def get_playlist_by_id(db: DBClient, user_id: str, playlist_id: str) -> dict | None:
     cache_suffix = f"{playlist_id}:{user_id}"
-    cached = get_cached(CacheType.USER_PLAYLISTS, suffix=cache_suffix)
+    cached = get_cached(
+        CacheType.USER_PLAYLISTS,
+        suffix=cache_suffix,
+        entity_id=playlist_id,
+    )
     if cached is not None:
         return cached
 
@@ -62,7 +66,12 @@ def get_playlist_by_id(db: DBClient, user_id: str, playlist_id: str) -> dict | N
             if row.get("tracks")
         ],
     }
-    set_cached(CacheType.USER_PLAYLISTS, payload, suffix=cache_suffix)
+    set_cached(
+        CacheType.USER_PLAYLISTS,
+        payload,
+        suffix=cache_suffix,
+        entity_id=playlist_id,
+    )
     return payload
 
 def delete_playlist(db: DBClient, user_id: str, playlist_id: str) -> list:
