@@ -1,7 +1,7 @@
 # services/audio_service.py
 
 ## Objetivo
-Resolver una URL directa de audio para un videoId (YouTube) y streamearla con soporte de Range.
+Resolver una URL directa de audio para un TRACK_ID y streamearla con soporte de Range.
 Incluye warming (prefetch) opcional.
 
 ## Config relevante
