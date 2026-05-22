@@ -144,6 +144,18 @@ DEFAULT_TTL: Dict[CacheType, int] = {
 }
 
 # ============================================================================
+# CACHE TYPES PER-ENTITY
+# ============================================================================
+# Tipos de cache que pueden versionarse por entidad individual (por playlist,
+# por genero, etc) en lugar de tener una unica version global.
+# Si un cache type no esta aca, solo tiene version global.
+
+PER_ENTITY_CACHE_TYPES: set[CacheType] = {
+    CacheType.USER_PLAYLISTS,
+    CacheType.GENRE_PLAYLISTS,
+}
+
+# ============================================================================
 # PERSISTENCIA DE VERSIONES MANUALES (Redis)
 # ============================================================================
 from .redis_client import get_redis
@@ -151,63 +163,90 @@ from .redis_client import get_redis
 # Namespace para las keys de versiones manuales en Redis
 _MANUAL_VERSION_PREFIX = "cache:manual:"
 
+def _manual_version_key(cache_type_value: str, entity_id: Optional[str] = None) -> str:
+    """Construye la key de Redis para una version manual.
 
-def _manual_version_key(cache_type_value: str) -> str:
-    """Construye la key de Redis para un cache_type dado."""
+    Sin entity_id: 'cache:manual:user-playlists'
+    Con entity_id: 'cache:manual:user-playlists:abc-123'
+    """
+    if entity_id:
+        return f"{_MANUAL_VERSION_PREFIX}{cache_type_value}:{entity_id}"
     return f"{_MANUAL_VERSION_PREFIX}{cache_type_value}"
 
 
-def _get_manual_version(cache_type_value: str) -> Optional[str]:
+def _get_manual_version(cache_type_value: str, entity_id: Optional[str] = None) -> Optional[str]:
     """Lee la version manual de Redis. None si no existe."""
     try:
-        return get_redis().get(_manual_version_key(cache_type_value))
+        return get_redis().get(_manual_version_key(cache_type_value, entity_id))
     except Exception as e:
-        print(f"Error leyendo version manual de Redis ({cache_type_value}): {e}")
+        print(f"Error leyendo version manual de Redis ({cache_type_value}, entity={entity_id}): {e}")
         return None
 
 
-def _set_manual_version(cache_type_value: str, version: str):
+def _set_manual_version(cache_type_value: str, version: str, entity_id: Optional[str] = None):
     """Guarda la version manual en Redis."""
     try:
-        get_redis().set(_manual_version_key(cache_type_value), version)
+        get_redis().set(_manual_version_key(cache_type_value, entity_id), version)
     except Exception as e:
-        print(f"Error guardando version manual en Redis ({cache_type_value}): {e}")
+        print(f"Error guardando version manual en Redis ({cache_type_value}, entity={entity_id}): {e}")
 
 
-def _delete_manual_version(cache_type_value: str):
+def _delete_manual_version(cache_type_value: str, entity_id: Optional[str] = None):
     """Borra la version manual de Redis."""
     try:
-        get_redis().delete(_manual_version_key(cache_type_value))
+        get_redis().delete(_manual_version_key(cache_type_value, entity_id))
     except Exception as e:
-        print(f"Error borrando version manual de Redis ({cache_type_value}): {e}")
+        print(f"Error borrando version manual de Redis ({cache_type_value}, entity={entity_id}): {e}")
+
 # ============================================================================
 # INVALIDACIÓN MANUAL
 # ============================================================================
 
-def set_manual_version(cache_type: CacheType, version: Optional[str] = None):
+def set_manual_version(
+    cache_type: CacheType,
+    version: Optional[str] = None,
+    *,
+    entity_id: Optional[str] = None,
+):
     """
     Fuerza una version manual para invalidar el cache inmediatamente.
     Persiste en Redis para que funcione entre procesos (script + FastAPI).
-    
+
     Args:
         cache_type: Tipo de cache a invalidar
         version: Version custom, o None para generar timestamp
-    
+        entity_id: Si se pasa y el cache_type esta en PER_ENTITY_CACHE_TYPES,
+                   invalida solo esa entidad. Si no, invalida globalmente.
+
     Example:
         set_manual_version(CacheType.NEW_RELEASES)
-        set_manual_version(CacheType.ARTIST_ALBUMS)
+        set_manual_version(CacheType.USER_PLAYLISTS, entity_id="abc-123")
     """
+    if entity_id and cache_type not in PER_ENTITY_CACHE_TYPES:
+        raise ValueError(
+            f"{cache_type.value} no soporta versionado per-entity. "
+            f"Agregalo a PER_ENTITY_CACHE_TYPES si lo necesitas."
+        )
+
     if version is None:
-        version = f"override-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-    
-    _set_manual_version(cache_type.value, version)
-    print(f"Cache invalidado: {cache_type.value} -> {version}")
+        # microsegundos para evitar colisiones en mutations rapidas seguidas
+        version = f"override-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}"
 
+    _set_manual_version(cache_type.value, version, entity_id=entity_id)
 
-def clear_manual_version(cache_type: CacheType):
-    """Limpia la version manual y vuelve al schedule automatico"""
-    _delete_manual_version(cache_type.value)
-    print(f"Cache restaurado: {cache_type.value}")
+    scope = f" entity={entity_id}" if entity_id else ""
+    print(f"Cache invalidado: {cache_type.value}{scope} -> {version}")
+
+def clear_manual_version(cache_type: CacheType, *, entity_id: Optional[str] = None):
+    """Limpia la version manual y vuelve al schedule automatico.
+
+    Sin entity_id: limpia la version manual global.
+    Con entity_id: limpia solo la version manual de esa entidad
+                   (las demas entidades y la global no se tocan).
+    """
+    _delete_manual_version(cache_type.value, entity_id=entity_id)
+    scope = f" entity={entity_id}" if entity_id else ""
+    print(f"Cache restaurado: {cache_type.value}{scope}")
 
 def invalidate_related_caches(trigger: str = "new_release"):
     """
@@ -232,37 +271,61 @@ def invalidate_related_caches(trigger: str = "new_release"):
             set_manual_version(cache_type)
         print("EMERGENCIA: Todos los caches invalidados")
 
+def bump_entity_version(cache_type: CacheType, entity_id: str):
+    """
+    Invalida el cache de una entidad especifica (solo afecta a esa entidad).
+    Atajo idiomatico para mutations que tocan una sola playlist/genero/etc.
+
+    Example:
+        bump_entity_version(CacheType.USER_PLAYLISTS, playlist_id)
+        bump_entity_version(CacheType.USER_PLAYLISTS, f"list:{owner_id}")
+        bump_entity_version(CacheType.GENRE_PLAYLISTS, "rock")
+    """
+    if cache_type not in PER_ENTITY_CACHE_TYPES:
+        raise ValueError(
+            f"{cache_type.value} no soporta versionado per-entity. "
+            f"Agregalo a PER_ENTITY_CACHE_TYPES si lo necesitas."
+        )
+    set_manual_version(cache_type, entity_id=entity_id)
+
 # ============================================================================
 # FUNCIONES DE VERSIONADO
 # ============================================================================
 
-def get_version(cache_type: CacheType) -> str:
+def get_version(cache_type: CacheType, entity_id: Optional[str] = None) -> str:
     """
-    Genera la versión actual según el schedule del cache_type.
-    
+    Genera la version actual segun el schedule del cache_type.
+
     PRIORIDAD:
-    1. Versión manual (del archivo JSON / Redis)
-    2. Versión automática (según schedule)
-    
+    1. Version manual per-entity (si cache_type soporta per-entity y hay entity_id)
+    2. Version manual global (de Redis)
+    3. Version automatica (segun schedule)
+
     Returns:
-        String con la versión actual (ej: "v-20251025", "override-20241106-234625")
+        String con la version actual (ej: "v-20251025", "override-20241106-234625")
     """
-    # PRIORIDAD 1: Version manual (lee de Redis)
+    # PRIORIDAD 1: per-entity manual
+    if entity_id and cache_type in PER_ENTITY_CACHE_TYPES:
+        manual_entity = _get_manual_version(cache_type.value, entity_id)
+        if manual_entity:
+            return manual_entity
+
+    # PRIORIDAD 2: global manual (lee de Redis)
     manual = _get_manual_version(cache_type.value)
     if manual:
         return manual
-    
-    # PRIORIDAD 2: Versión automática
+
+    # PRIORIDAD 3: schedule automatico
     schedule = CACHE_SCHEDULE.get(cache_type, CacheSchedule.MANUAL)
     now = datetime.now()
-    
+
     if schedule == CacheSchedule.DAILY:
         return f"v-{now.strftime('%Y%m%d')}"
-    
+
     elif schedule == CacheSchedule.TWICE_WEEKLY:
         year, week, dow = now.isocalendar()
         day_names = {0: "DOM", 1: "LUN", 2: "MAR", 3: "MIE", 4: "JUE", 5: "VIE", 6: "SAB"}
-        
+
         if dow == 7:
             dow_key = 0
         elif dow in [1, 3, 5]:
@@ -276,28 +339,28 @@ def get_version(cache_type: CacheType) -> str:
                 dow_key = 5
             else:
                 dow_key = dow
-        
+
         return f"v-{year}-w{week:02d}-{day_names[dow_key]}"
-    
+
     elif schedule == CacheSchedule.MONDAY:
         year, week, _ = now.isocalendar()
         return f"v-{year}-w{week:02d}-MON"
-    
+
     elif schedule == CacheSchedule.TUESDAY:
         year, week, _ = now.isocalendar()
         return f"v-{year}-w{week:02d}-TUE"
-    
+
     elif schedule == CacheSchedule.FRIDAY:
         year, week, _ = now.isocalendar()
         return f"v-{year}-w{week:02d}-FRI"
-    
+
     elif schedule == CacheSchedule.SUNDAY:
         year, week, _ = now.isocalendar()
         return f"v-{year}-w{week:02d}-SUN"
-    
+
     else:  # MANUAL
         return "v-static"
-
+    
 
 def get_all_versions() -> Dict[str, str]:
     """

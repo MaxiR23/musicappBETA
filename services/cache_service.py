@@ -82,89 +82,81 @@ def _keys_pattern(pattern: str) -> list[str]:
 # CACHE FUNCTIONS - NO tocar cuando migres a Redis
 # ============================================================================
 
-def _make_key(cache_type: CacheType, suffix: str = "") -> str:
+def _make_key(
+    cache_type: CacheType,
+    suffix: str = "",
+    *,
+    entity_id: Optional[str] = None,
+) -> str:
     """
-    Genera la key del caché con versión automática.
-    
-    Ejemplos:
-        _make_key(CacheType.NEW_RELEASES)
-        → "new-releases:v-20251025"
-        
-        _make_key(CacheType.SIMILAR_TO, "artist123")
-        → "similar-to:v-2025-w43-SUN:artist123"
+    Genera la key del cache con version automatica.
+
+    Resolucion de version:
+      1. Si se pasa entity_id explicito y el cache_type es per-entity, se usa
+         para resolver la version per-entity.
+      2. Si no se pasa entity_id pero hay suffix y el cache_type es per-entity,
+         el suffix actua como entity_id (fallback).
+      3. Si no, version global/schedule.
+
+    El cache key siempre se arma con el suffix (independiente de entity_id),
+    asi se mantiene el aislamiento por user/contexto cuando es necesario.
     """
-    version = get_version(cache_type)
+    from .cache_config import PER_ENTITY_CACHE_TYPES
+
+    if entity_id is None and suffix and cache_type in PER_ENTITY_CACHE_TYPES:
+        entity_id = suffix
+
+    if entity_id is not None and cache_type not in PER_ENTITY_CACHE_TYPES:
+        entity_id = None  # cache_type no soporta per-entity, ignorar
+
+    version = get_version(cache_type, entity_id=entity_id)
     base = f"{cache_type.value}:{version}"
     return f"{base}:{suffix}" if suffix else base
 
-def get_cached(cache_type: CacheType, suffix: str = "") -> Optional[Any]:
-    """
-    Lee del caché. Maneja expiración automática (TTL).
-    
-    Args:
-        cache_type: Tipo de caché (ej: CacheType.NEW_RELEASES)
-        suffix: Sufijo opcional para la key (ej: user_id)
-        
-    Returns:
-        Datos cacheados o None si no existe/expiró
-        
-    Example:
-        data = get_cached(CacheType.NEW_RELEASES)
-        user_data = get_cached(CacheType.USER_RECOMMENDATIONS, suffix=user_id)
-    """
-    key = _make_key(cache_type, suffix)
+
+def get_cached(
+    cache_type: CacheType,
+    suffix: str = "",
+    *,
+    entity_id: Optional[str] = None,
+) -> Optional[Any]:
+    """Lee del cache. Ver _make_key para semantica de entity_id."""
+    key = _make_key(cache_type, suffix, entity_id=entity_id)
     raw = _get(key)
-    
+
     if raw is None:
         return None
-    
+
     try:
-        # Formato: {"data": ..., "ts": ..., "ttl": ...}
         entry = json.loads(raw)
-        
-        # Chequea expiración
         now = time.time()
         if now - entry["ts"] < entry.get("ttl", get_ttl(cache_type)):
             return entry["data"]
-        
-        # Expiró, lo borra
         _delete(key)
         return None
-        
     except (json.JSONDecodeError, KeyError):
-        # Caché corrupto, lo borra
         _delete(key)
         return None
+
 
 def set_cached(
     cache_type: CacheType,
     data: Any,
     suffix: str = "",
-    ttl: Optional[int] = None
+    ttl: Optional[int] = None,
+    *,
+    entity_id: Optional[str] = None,
 ):
-    """
-    Guarda en caché con versión automática.
-    
-    Args:
-        cache_type: Tipo de caché
-        data: Datos a cachear (debe ser JSON-serializable)
-        suffix: Sufijo opcional para la key
-        ttl: TTL en segundos (usa default del tipo si no se especifica)
-        
-    Example:
-        set_cached(CacheType.NEW_RELEASES, albums_data)
-        set_cached(CacheType.USER_RECOMMENDATIONS, user_data, suffix=user_id, ttl=3600)
-    """
-    key = _make_key(cache_type, suffix)
-    
+    """Guarda en cache. Ver _make_key para semantica de entity_id."""
+    key = _make_key(cache_type, suffix, entity_id=entity_id)
+
     entry = {
         "data": data,
         "ts": time.time(),
         "ttl": ttl or get_ttl(cache_type)
     }
-    
-    _set(key, json.dumps(entry), ttl=entry["ttl"])
 
+    _set(key, json.dumps(entry), ttl=entry["ttl"])
 
 # ============================================================================
 # DECORATOR - Para aplicar caché de forma declarativa
@@ -228,17 +220,15 @@ def cached(
 # ============================================================================
 # INVALIDACIÓN - Para borrar caché manualmente
 # ============================================================================
-def invalidate(cache_type: CacheType, suffix: str = ""):
-    """
-    Invalida un caché específico.
-    
-    Example:
-        invalidate(CacheType.NEW_RELEASES)
-        invalidate(CacheType.USER_RECOMMENDATIONS, suffix=user_id)
-    """
-    key = _make_key(cache_type, suffix)
+def invalidate(
+    cache_type: CacheType,
+    suffix: str = "",
+    *,
+    entity_id: Optional[str] = None,
+):
+    """Invalida una key especifica del cache."""
+    key = _make_key(cache_type, suffix, entity_id=entity_id)
     _delete(key)
-    #DBG print(f"[CACHE INVALIDATED] {key}")
 
 def invalidate_all(cache_type: CacheType):
     """
