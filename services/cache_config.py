@@ -8,8 +8,6 @@ Define tipos de caché, schedules de invalidación y generación de versiones.
 from enum import Enum
 from datetime import datetime
 from typing import Dict, Optional
-import json
-from pathlib import Path
 import calendar
 
 class CacheType(str, Enum):
@@ -146,52 +144,54 @@ DEFAULT_TTL: Dict[CacheType, int] = {
 }
 
 # ============================================================================
-# PERSISTENCIA DE VERSIONES MANUALES
+# PERSISTENCIA DE VERSIONES MANUALES (Redis)
 # ============================================================================
+from .redis_client import get_redis
 
-# Path del archivo (en producción será Redis)
-_VERSIONS_FILE = Path(__file__).parent.parent / "cache_versions.json"
+# Namespace para las keys de versiones manuales en Redis
+_MANUAL_VERSION_PREFIX = "cache:manual:"
 
-def _load_manual_versions() -> Dict[str, str]:
-    """
-    Lee versiones manuales del disco.
-    
-    MIGRACION A REDIS:
-        Cambiar por: return json.loads(redis.get("cache:manual_versions") or "{}")
-    """
-    if not _VERSIONS_FILE.exists():
-        return {}
+
+def _manual_version_key(cache_type_value: str) -> str:
+    """Construye la key de Redis para un cache_type dado."""
+    return f"{_MANUAL_VERSION_PREFIX}{cache_type_value}"
+
+
+def _get_manual_version(cache_type_value: str) -> Optional[str]:
+    """Lee la version manual de Redis. None si no existe."""
     try:
-        with open(_VERSIONS_FILE, 'r') as f:
-            return json.load(f)
-    except Exception:
-        return {}
-
-def _save_manual_versions(versions: Dict[str, str]):
-    """
-    Guarda versiones manuales en disco.
-    
-    MIGRACION A REDIS:
-        Cambiar por: redis.set("cache:manual_versions", json.dumps(versions))
-    """
-    try:
-        with open(_VERSIONS_FILE, 'w') as f:
-            json.dump(versions, f, indent=2)
+        return get_redis().get(_manual_version_key(cache_type_value))
     except Exception as e:
-        print(f"Error guardando versiones: {e}")
+        print(f"Error leyendo version manual de Redis ({cache_type_value}): {e}")
+        return None
 
+
+def _set_manual_version(cache_type_value: str, version: str):
+    """Guarda la version manual en Redis."""
+    try:
+        get_redis().set(_manual_version_key(cache_type_value), version)
+    except Exception as e:
+        print(f"Error guardando version manual en Redis ({cache_type_value}): {e}")
+
+
+def _delete_manual_version(cache_type_value: str):
+    """Borra la version manual de Redis."""
+    try:
+        get_redis().delete(_manual_version_key(cache_type_value))
+    except Exception as e:
+        print(f"Error borrando version manual de Redis ({cache_type_value}): {e}")
 # ============================================================================
 # INVALIDACIÓN MANUAL
 # ============================================================================
 
 def set_manual_version(cache_type: CacheType, version: Optional[str] = None):
     """
-    Fuerza una versión manual para invalidar el caché inmediatamente.
-    Persiste en disco para que funcione entre procesos (script + FastAPI).
+    Fuerza una version manual para invalidar el cache inmediatamente.
+    Persiste en Redis para que funcione entre procesos (script + FastAPI).
     
     Args:
-        cache_type: Tipo de caché a invalidar
-        version: Versión custom, o None para generar timestamp
+        cache_type: Tipo de cache a invalidar
+        version: Version custom, o None para generar timestamp
     
     Example:
         set_manual_version(CacheType.NEW_RELEASES)
@@ -200,20 +200,14 @@ def set_manual_version(cache_type: CacheType, version: Optional[str] = None):
     if version is None:
         version = f"override-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
     
-    # Cargar, modificar, guardar
-    versions = _load_manual_versions()
-    versions[cache_type.value] = version
-    _save_manual_versions(versions)
-    
+    _set_manual_version(cache_type.value, version)
     print(f"Cache invalidado: {cache_type.value} -> {version}")
 
+
 def clear_manual_version(cache_type: CacheType):
-    """Limpia la versión manual y vuelve al schedule automático"""
-    versions = _load_manual_versions()
-    if cache_type.value in versions:
-        del versions[cache_type.value]
-        _save_manual_versions(versions)
-        print(f"Cache restaurado: {cache_type.value}")
+    """Limpia la version manual y vuelve al schedule automatico"""
+    _delete_manual_version(cache_type.value)
+    print(f"Cache restaurado: {cache_type.value}")
 
 def invalidate_related_caches(trigger: str = "new_release"):
     """
@@ -253,9 +247,8 @@ def get_version(cache_type: CacheType) -> str:
     Returns:
         String con la versión actual (ej: "v-20251025", "override-20241106-234625")
     """
-    # PRIORIDAD 1: Versión manual (lee del disco cada vez)
-    manual_versions = _load_manual_versions()
-    manual = manual_versions.get(cache_type.value)
+    # PRIORIDAD 1: Version manual (lee de Redis)
+    manual = _get_manual_version(cache_type.value)
     if manual:
         return manual
     

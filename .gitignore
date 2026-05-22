@@ -32,3 +32,6 @@ htmlcov/
 .pytest_cache/
 
 cookies/
+
+# Estado runtime - vive en Redis, no en git
+cache_versions.json
