@@ -6,11 +6,13 @@ from services.db_protocol import DBClient
 from services.library_view_cache import invalidate_library_view
 
 LibraryKind = Literal["album", "playlist"]
+LibrarySource = Literal["beatly", "external"]
 
 class LibraryItem(TypedDict):
     id: str
     user_id: str
     kind: LibraryKind
+    source: LibrarySource
     external_id: str
     title: str
     thumbnail_url: str
@@ -23,6 +25,7 @@ class LibraryItem(TypedDict):
 
 class LibraryItemInput(TypedDict, total=False):
     kind: LibraryKind
+    source: LibrarySource
     external_id: str
     title: str
     thumbnail_url: str
@@ -54,6 +57,7 @@ def _normalize_input(user_id: str, payload: LibraryItemInput) -> Dict[str, Any]:
     return {
         "user_id": user_id,
         "kind": payload["kind"],
+        "source": payload["source"],
         "external_id": payload["external_id"],
         "title": payload.get("title", ""),
         "thumbnail_url": payload.get("thumbnail_url", ""),
@@ -73,6 +77,9 @@ def _validate_input(payload: LibraryItemInput) -> Optional[str]:
     kind = payload.get("kind")
     if kind not in ("album", "playlist"):
         return "kind must be 'album' or 'playlist'"
+    source = payload.get("source")
+    if source not in ("beatly", "external"):
+        return "source must be 'beatly' or 'external'"
     return None
 
 # ── QUERIES ────────────────────────────────────────────────────

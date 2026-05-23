@@ -26,6 +26,7 @@ SortMode = Literal["recents"]
 
 class LibraryViewItem(TypedDict, total=False):
     kind: LibraryViewKind
+    source: str
     id: str
     title: str
     thumbnail_url: str
@@ -61,6 +62,7 @@ def _normalize_library_item(item: dict) -> LibraryViewItem:
     kind = "saved_album" if item.get("kind") == "album" else "saved_playlist"
     return {
         "kind": kind,
+        "source": item.get("source") or "external",
         "id": item.get("external_id") or "",
         "title": item.get("title") or "",
         "thumbnail_url": item.get("thumbnail_url") or "",

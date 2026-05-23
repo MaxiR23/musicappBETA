@@ -47,7 +47,7 @@ def get_playlist_by_id(db: DBClient, user_id: str, playlist_id: str) -> dict | N
         return cached
 
     playlist_resp = db.table("playlists").select("*").eq("id", playlist_id).maybe_single().execute()
-    if not playlist_resp.data:
+    if not playlist_resp or not playlist_resp.data:
         return None
 
     ptracks_resp = (
