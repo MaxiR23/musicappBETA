@@ -35,13 +35,13 @@ class LibraryViewItem(TypedDict, total=False):
     thumbnail_urls: list[str]
 
 # ── NORMALIZADORES ─────────────────────────────────────────────────────────────
-def _normalize_own_playlist(pl: dict) -> LibraryViewItem:
+def _normalize_own_playlist(pl: dict, owner_name: str) -> LibraryViewItem:
     return {
         "kind": "own_playlist",
         "id": pl["id"],
         "title": pl.get("title") or "",
         "thumbnail_url": "",
-        "subtitle": "",
+        "subtitle": f"Playlist • {owner_name}",
         "sorted_at": pl.get("created_at") or "",
         "thumbnail_urls": [],
     }
@@ -60,16 +60,48 @@ def _normalize_liked(liked: dict) -> LibraryViewItem:
 
 def _normalize_library_item(item: dict) -> LibraryViewItem:
     kind = "saved_album" if item.get("kind") == "album" else "saved_playlist"
+    source = item.get("source") or "external"
+
+    if kind == "saved_album":
+        artist = item.get("artist") or ""
+        subtitle = f"Album • {artist}" if artist else "Album"
+    else:
+        # Saved playlists internas (genre/replay/presenting) son todas de Beatly.
+        # A futuro, si se aceptan playlists shared por otros users, este branch
+        # va a tener que mirar el owner real del playlist origen.
+        subtitle = "Playlist • Beatly"
+
     return {
         "kind": kind,
-        "source": item.get("source") or "external",
+        "source": source,
         "id": item.get("external_id") or "",
         "title": item.get("title") or "",
         "thumbnail_url": item.get("thumbnail_url") or "",
-        "subtitle": item.get("artist") or "",
+        "subtitle": subtitle,
         "sorted_at": item.get("added_at") or "",
     }
 
+# ── PROFILE / OWNER NAME ───────────────────────────────────────────────────────
+def _fetch_profile(db: DBClient, user_id: str) -> dict:
+    """Trae username y display_name del user actual, una sola llamada."""
+    try:
+        resp = (
+            db.table("profiles")
+            .select("username, display_name")
+            .eq("id", user_id)
+            .maybe_single()
+            .execute()
+        )
+        return getattr(resp, "data", None) or {}
+    except Exception as e:
+        print(f"[library_view] profile fetch failed: {e}")
+        return {}
+
+def _owner_name(profile: dict) -> str:
+    """Fallback: username -> display_name -> 'Usuario'."""
+    return profile.get("username") or profile.get("display_name") or "User"
+
+# ── THUMBNAILS (MOSAICOS) ──────────────────────────────────────────────────────
 def _fetch_own_playlist_thumbnails(
     db: DBClient,
     playlist_ids: List[str],
@@ -100,6 +132,54 @@ def _fetch_own_playlist_thumbnails(
             continue
         result.setdefault(pid, []).append(url)
     return result
+
+def _fetch_genre_playlist_thumbnails(
+    db: DBClient,
+    playlist_ids: List[str],
+) -> dict[str, List[str]]:
+    """
+    Trae hasta 4 thumbnails por cada genre playlist saved en library.
+    Usa get_playlist_thumbnails (RPC generica, equivalente para genre).
+    Retorna: { playlist_id: [url, url, ...] }
+    """
+    if not playlist_ids:
+        return {}
+
+    try:
+        resp = db.rpc(
+            "get_playlist_thumbnails",
+            {"playlist_ids": playlist_ids, "limit_per_playlist": 4},
+        ).execute()
+        rows = resp.data or []
+    except Exception as e:
+        print(f"[library_view] get_playlist_thumbnails failed: {e}")
+        return {}
+
+    result: dict[str, List[str]] = {}
+    for row in rows:
+        pid = row.get("playlist_id")
+        url = row.get("thumbnail_url")
+        if not pid or not url:
+            continue
+        result.setdefault(pid, []).append(url)
+    return result
+
+def _fetch_replay_thumbnails(db: DBClient, user_id: str) -> List[str]:
+    """
+    Trae hasta 4 thumbnails de las songs del replay del user.
+    Usa get_replay_songs con p_limit=4.
+    """
+    try:
+        resp = db.rpc(
+            "get_replay_songs",
+            {"p_user_id": user_id, "p_limit": 4},
+        ).execute()
+        rows = resp.data or []
+    except Exception as e:
+        print(f"[library_view] get_replay_songs failed: {e}")
+        return []
+
+    return [row.get("thumbnail_url") for row in rows if row.get("thumbnail_url")]
 
 # ── ORDEN ──────────────────────────────────────────────────────────────────────
 def _apply_sort(items: List[LibraryViewItem], sort: SortMode) -> List[LibraryViewItem]:
@@ -135,10 +215,12 @@ def get_library_view(
     own = get_playlists(db, user_id) or []
     liked = get_liked_playlist(db, user_id) or {}
     saved = list_library_items(db, user_id) or []
+    profile = _fetch_profile(db, user_id)
+    owner_name = _owner_name(profile)
 
     items: List[LibraryViewItem] = []
     items.append(_normalize_liked(liked))
-    items.extend(_normalize_own_playlist(pl) for pl in own)
+    items.extend(_normalize_own_playlist(pl, owner_name) for pl in own)
     items.extend(_normalize_library_item(it) for it in saved)
 
     # Enriquecer playlists propias con mosaico (hasta 4 thumbs).
@@ -152,6 +234,35 @@ def get_library_view(
             if urls:
                 it["thumbnail_urls"] = urls
                 it["thumbnail_url"] = urls[0]
+
+    # Enriquecer genre playlists saved con mosaico (hasta 4 thumbs).
+    genre_ids = [
+        it["id"] for it in items
+        if it.get("kind") == "saved_playlist" and it.get("source") == "genre"
+    ]
+    if genre_ids:
+        genre_thumbs = _fetch_genre_playlist_thumbnails(db, genre_ids)
+        if genre_thumbs:
+            for it in items:
+                if it.get("kind") != "saved_playlist" or it.get("source") != "genre":
+                    continue
+                urls = genre_thumbs.get(it["id"]) or []
+                if urls:
+                    it["thumbnail_urls"] = urls
+                    it["thumbnail_url"] = urls[0]
+
+    # Enriquecer replay con mosaico (solo si esta saved en library).
+    has_replay = any(
+        it.get("kind") == "saved_playlist" and it.get("source") == "replay"
+        for it in items
+    )
+    if has_replay:
+        replay_thumbs = _fetch_replay_thumbnails(db, user_id)
+        if replay_thumbs:
+            for it in items:
+                if it.get("kind") == "saved_playlist" and it.get("source") == "replay":
+                    it["thumbnail_urls"] = replay_thumbs
+                    it["thumbnail_url"] = replay_thumbs[0]
 
     items = _apply_sort(items, sort)
 

@@ -6,7 +6,7 @@ from services.db_protocol import DBClient
 from services.library_view_cache import invalidate_library_view
 
 LibraryKind = Literal["album", "playlist"]
-LibrarySource = Literal["beatly", "external"]
+LibrarySource = Literal["genre", "replay", "presenting", "external"]
 
 class LibraryItem(TypedDict):
     id: str
@@ -68,6 +68,8 @@ def _normalize_input(user_id: str, payload: LibraryItemInput) -> Dict[str, Any]:
         "updated_at": now_iso,
     }
 
+VALID_SOURCES = ("genre", "replay", "presenting", "external")
+
 def _validate_input(payload: LibraryItemInput) -> Optional[str]:
     """Valida el payload. Devuelve mensaje de error o None si es válido."""
     if not payload.get("external_id"):
@@ -78,8 +80,8 @@ def _validate_input(payload: LibraryItemInput) -> Optional[str]:
     if kind not in ("album", "playlist"):
         return "kind must be 'album' or 'playlist'"
     source = payload.get("source")
-    if source not in ("beatly", "external"):
-        return "source must be 'beatly' or 'external'"
+    if source not in VALID_SOURCES:
+        return f"source must be one of {VALID_SOURCES}"
     return None
 
 # ── QUERIES ────────────────────────────────────────────────────
