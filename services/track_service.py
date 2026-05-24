@@ -397,7 +397,11 @@ def get_credits(track_id_or_browse_id: str) -> dict:
         return out
 
     except Exception as e:
+        err_str = str(e)
+    if "'sections'" in err_str or "Unable to find" in err_str:
+        out = build_error_result("no_credits")
+    else:
         print(f"[track_service][get_credits][ERR] {credits_browse_id}: {e}")
-        out = build_error_result("error", str(e))
-        set_cached_legacy(ck, out, 5 * 60)
-        return out
+        out = build_error_result("error", err_str)
+    set_cached_legacy(ck, out, 5 * 60)
+    return out
