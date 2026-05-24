@@ -23,18 +23,42 @@ from utils.artist_parser import (
 )
 
 def parse_header(raw: dict) -> dict:
-    """Extrae header del artista desde browse response."""
-    header = raw.get("header", {}).get("musicImmersiveHeaderRenderer", {})
-    title_runs = header.get("title", {}).get("runs") or []
+    """Extrae header del artista desde browse response.
+    Soporta musicImmersiveHeaderRenderer (artistas top) y
+    musicVisualHeaderRenderer (artistas chicos, channels, etc.)."""
+    raw_header = raw.get("header") or {}
+
+    renderer = (
+        raw_header.get("musicImmersiveHeaderRenderer")
+        or raw_header.get("musicVisualHeaderRenderer")
+        or raw_header.get("musicDetailHeaderRenderer")
+        or {}
+    )
+
+    title_runs = (renderer.get("title") or {}).get("runs") or []
     name = title_runs[0].get("text") if title_runs else None
-    desc_runs = (header.get("description") or {}).get("runs") or []
+
+    desc_runs = (renderer.get("description") or {}).get("runs") or []
     desc = "".join(run.get("text", "") for run in desc_runs)
+
+    # Path principal (usado por immersive y a veces visual)
     thumbs = (
-        header.get("thumbnail", {})
+        (renderer.get("thumbnail") or {})
         .get("musicThumbnailRenderer", {})
         .get("thumbnail", {})
-        .get("thumbnails", [])
+        .get("thumbnails")
+        or []
     )
+    # Fallback: musicVisualHeaderRenderer suele usar foregroundThumbnail
+    if not thumbs:
+        thumbs = (
+            (renderer.get("foregroundThumbnail") or {})
+            .get("musicThumbnailRenderer", {})
+            .get("thumbnail", {})
+            .get("thumbnails")
+            or []
+        )
+
     return {"name": name, "description": desc, "thumbnails": thumbs}
 
 def parse_contents(raw: dict) -> list:
