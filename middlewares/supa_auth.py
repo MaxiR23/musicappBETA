@@ -22,6 +22,9 @@ def _is_public(request: Request) -> bool:
     
     path = request.url.path
     
+    if path.startswith("/api/public/"):
+        return True
+    
     if ENVIRONMENT == "development":
         return True
     

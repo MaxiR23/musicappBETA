@@ -265,6 +265,23 @@ def get_playlist_by_id(db: DBClient, playlist_id: str) -> Optional[Dict[str, Any
         .execute()
     return result.data[0] if result.data else None
 
+def get_playlist_thumbnails(db: DBClient, playlist_id: str) -> list[str]:
+    """Hasta 4 thumbnails de la playlist de genero para el mosaico del share."""
+    try:
+        resp = db.rpc(
+            "get_playlist_thumbnails",
+            {"playlist_ids": [playlist_id], "limit_per_playlist": 4},
+        ).execute()
+        urls: list[str] = []
+        for row in resp.data or []:
+            url = row.get("thumbnail_url")
+            if url and url not in urls:
+                urls.append(url)
+        return urls[:4]
+    except Exception as e:
+        print(f"[genre_repo][thumbnails][WARN] {playlist_id}: {e}")
+    return []
+
 def get_playlist_tracks(db: DBClient, playlist_id: str, limit: Optional[int] = 100) -> List[Dict[str, Any]]:
     """Obtiene los tracks de una playlist ordenados por posición."""
     query = db.table("genre_playlist_tracks") \
