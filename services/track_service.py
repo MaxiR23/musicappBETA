@@ -221,6 +221,30 @@ def ensure_artists(artists: list | None, album_id: str | None = None) -> list:
 
     return _try_fix_collab_artists(artists, included)        
 
+def get_public_track(track_id: str) -> dict | None:
+    """Resuelve un track por id para el share. None si no existe."""
+    if not track_id:
+        return None
+    try:
+        yt = _ytmusic_client()
+        wp = yt.get_watch_playlist(videoId=track_id) or {}
+        tracks = wp.get("tracks") or []
+        if not tracks:
+            return None
+
+        normalized = normalize_track_item(tracks[0])
+        if not normalized.get("id") or not normalized.get("title"):
+            return None
+
+        normalized["artists"] = ensure_artists(
+            normalized.get("artists"),
+            album_id=normalized.get("album_id"),
+        )
+        return normalized
+    except Exception as e:
+        print(f"[track_service][get_public_track][ERR] {track_id}: {e}")
+        return None
+
 def get_lyrics(video_id: str) -> dict:
     ck = f"lyrics:v2:{video_id}"
     cached = get_cached_legacy(ck)

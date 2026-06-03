@@ -4,9 +4,10 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from routes import cache, health, tracks, playlists, feed, debug, genres, upcoming_releases, new_releases, search, activity, album, artists, audio, stats, likes, featured, station, offline, library, profile, bug_reports
+from routes import cache, health, tracks, playlists, feed, debug, genres, upcoming_releases, new_releases, search, activity, album, artists, audio, stats, likes, featured, station, offline, library, profile, bug_reports, public_share
 from middlewares.supa_auth import supa_auth
 from middlewares.cors_headers import add_cors_middleware
+from middlewares.internal_key import internal_key_guard
 
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -64,6 +65,10 @@ print(f"Iniciando FastAPI con ENV={ENV}")
 app.middleware("http")(supa_auth)
 print("Middleware supa_auth registrado")
 
+# guard de la API key interna, solo para /api/public/*
+app.middleware("http")(internal_key_guard)
+print("Middleware internal_key_guard registrado")
+
 # global exception handler
 logger = logging.getLogger("uvicorn.error")
 
@@ -83,6 +88,9 @@ app.include_router(activity.router, prefix="/api/music")
 app.include_router(artists.router, prefix="/api/music")
 app.include_router(audio.router, prefix="/api/music")
 app.include_router(album.router, prefix="/api/music")
+
+app.include_router(public_share.router, prefix="/api/public")
+
 app.include_router(station.router, prefix="/api/station")
 
 app.include_router(playlists.router, prefix="/api/playlists")

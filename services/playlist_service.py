@@ -5,6 +5,7 @@ from services.db_protocol import DBClient
 from services.cache_service import get_cached, set_cached
 from services.cache_config import CacheType, bump_entity_version
 from services.track_service import ensure_duration_seconds
+from services.profile_service import get_profile_by_id
 from services.library_view_cache import invalidate_library_view
 
 # ── CACHE ─────────────────────────────────────────────────────────────────────
@@ -73,6 +74,51 @@ def get_playlist_by_id(db: DBClient, user_id: str, playlist_id: str) -> dict | N
         entity_id=playlist_id,
     )
     return payload
+
+def get_public_playlist(db: DBClient, playlist_id: str) -> dict | None:
+    """Vista publica de una playlist. None si no existe o no es is_public."""
+    resp = (
+        db.table("playlists")
+        .select("id,title,description,is_public,owner_id,playlist_tracks(position,tracks(thumbnail_url))")
+        .eq("id", playlist_id)
+        .maybe_single()
+        .execute()
+    )
+    if not resp or not resp.data:
+        return None
+
+    row = resp.data
+    if not row.get("is_public"):
+        return None
+
+    ptracks = row.get("playlist_tracks") or []
+    ptracks.sort(key=lambda t: t.get("position") or 0)
+
+    thumbnails: list[str] = []
+    for pt in ptracks:
+        url = (pt.get("tracks") or {}).get("thumbnail_url")
+        if url and url not in thumbnails:
+            thumbnails.append(url)
+        if len(thumbnails) == 4:
+            break
+    thumbnail_url = thumbnails[0] if thumbnails else ""
+
+    owner = get_profile_by_id(db, row["owner_id"])
+    owner_name = (owner.username or owner.display_name) if owner else None
+
+    return {
+        "id": row["id"],
+        "title": row.get("title"),
+        "description": row.get("description"),
+        "thumbnail_url": thumbnail_url,
+        "thumbnails": thumbnails,
+        "track_count": len(ptracks),
+        "owner": {
+            "id": str(owner.id) if owner else row["owner_id"],
+            "name": owner_name or "",
+            "avatar_url": owner.avatar_url if owner else None,
+        },
+    }
 
 def delete_playlist(db: DBClient, user_id: str, playlist_id: str) -> list:
     resp = db.table("playlists").delete().eq("id", playlist_id).eq("owner_id", user_id).execute()
