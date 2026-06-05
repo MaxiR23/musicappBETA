@@ -214,6 +214,7 @@ def _extract_song_item(mrlir: dict) -> dict:
         "album": album,
         "duration": duration,
         "track_id": _video_id(mrlir),
+        "music_video_type": _mvtype(mrlir),
         "thumbnails": thumbs,
         "title_runs": title_runs,
         "info_runs": info_runs,
