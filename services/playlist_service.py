@@ -7,12 +7,26 @@ from services.cache_config import CacheType, bump_entity_version
 from services.track_service import ensure_duration_seconds
 from services.profile_service import get_profile_by_id
 from services.library_view_cache import invalidate_library_view
+from uuid import UUID
 
 # ── CACHE ─────────────────────────────────────────────────────────────────────
 def _invalidate_playlist_cache(owner_id: str, playlist_id: str | None = None) -> None:
     invalidate_library_view(owner_id)
     if playlist_id:
         bump_entity_version(CacheType.USER_PLAYLISTS, playlist_id)
+
+def _public_track(t: dict) -> dict:
+    """Whitelist de campos de un track para la vista publica."""
+    return {
+        "track_id": t.get("track_id"),
+        "title": t.get("title"),
+        "artists": t.get("artists") or [],
+        "album": t.get("album"),
+        "album_id": t.get("album_id"),
+        "duration_seconds": t.get("duration_seconds"),
+        "thumbnail_url": t.get("thumbnail_url"),
+        "position": t.get("position"),
+    }
 
 # ── PLAYLISTS ─────────────────────────────────────────────────────────────────
 def create_playlist(db: DBClient, user_id: str, title: str, description: str | None, is_public: bool) -> dict:
@@ -76,45 +90,51 @@ def get_playlist_by_id(db: DBClient, user_id: str, playlist_id: str) -> dict | N
     return payload
 
 def get_public_playlist(db: DBClient, playlist_id: str) -> dict | None:
-    """Vista publica de una playlist. None si no existe o no es is_public."""
-    resp = (
-        db.table("playlists")
-        .select("id,title,description,is_public,owner_id,playlist_tracks(position,tracks(thumbnail_url))")
-        .eq("id", playlist_id)
-        .maybe_single()
-        .execute()
-    )
-    if not resp or not resp.data:
+    """Vista publica de una playlist (tarjeta + tracks).
+
+    Reusa get_playlist_by_id (misma logica de armado + cache versionado por
+    playlist, que se bumpea solo en cada cambio del dueno). Cache compartida
+    entre todos los viewers: se pasa playlist_id como cache-user, asi la key
+    no depende de quien mira.
+
+    None si la playlist no existe o no es is_public.
+    Devuelve un shape publico explicito (whitelist): nunca expone owner_id
+    crudo ni columnas internas.
+    """
+    # Id mal formado -> tratar como inexistente (no filtrar el error de la DB).
+    try:
+        UUID(str(playlist_id))
+    except (ValueError, TypeError):
         return None
 
-    row = resp.data
-    if not row.get("is_public"):
+    full = get_playlist_by_id(db, playlist_id, playlist_id)
+    if not full or not full.get("is_public"):
         return None
 
-    ptracks = row.get("playlist_tracks") or []
-    ptracks.sort(key=lambda t: t.get("position") or 0)
+    tracks = [_public_track(t) for t in (full.get("tracks") or [])]
 
     thumbnails: list[str] = []
-    for pt in ptracks:
-        url = (pt.get("tracks") or {}).get("thumbnail_url")
+    for t in tracks:
+        url = t.get("thumbnail_url")
         if url and url not in thumbnails:
             thumbnails.append(url)
         if len(thumbnails) == 4:
             break
-    thumbnail_url = thumbnails[0] if thumbnails else ""
 
-    owner = get_profile_by_id(db, row["owner_id"])
+    owner = get_profile_by_id(db, full["owner_id"])
     owner_name = (owner.username or owner.display_name) if owner else None
 
     return {
-        "id": row["id"],
-        "title": row.get("title"),
-        "description": row.get("description"),
-        "thumbnail_url": thumbnail_url,
+        "id": full["id"],
+        "title": full.get("title"),
+        "description": full.get("description"),
+        "updated_at": full.get("updated_at"),
+        "thumbnail_url": thumbnails[0] if thumbnails else "",
         "thumbnails": thumbnails,
-        "track_count": len(ptracks),
+        "track_count": len(tracks),
+        "tracks": tracks,
         "owner": {
-            "id": str(owner.id) if owner else row["owner_id"],
+            "id": str(owner.id) if owner else "",
             "name": owner_name or "",
             "avatar_url": owner.avatar_url if owner else None,
         },

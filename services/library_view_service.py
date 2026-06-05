@@ -58,17 +58,19 @@ def _normalize_liked(liked: dict) -> LibraryViewItem:
         "sorted_at": "",
     }
 
-def _normalize_library_item(item: dict) -> LibraryViewItem:
+def _normalize_library_item(item: dict, owner_names: dict[str, str]) -> LibraryViewItem:
     kind = "saved_album" if item.get("kind") == "album" else "saved_playlist"
     source = item.get("source") or "external"
+    external_id = item.get("external_id") or ""
 
     if kind == "saved_album":
         artist = item.get("artist") or ""
         subtitle = f"Album • {artist}" if artist else "Album"
+    elif source == "external":
+        owner = owner_names.get(external_id)
+        subtitle = f"Playlist • {owner}" if owner else "Playlist"
     else:
-        # Saved playlists internas (genre/replay/presenting) son todas de Beatly.
-        # A futuro, si se aceptan playlists shared por otros users, este branch
-        # va a tener que mirar el owner real del playlist origen.
+        # Playlists internas de Beatly (genre/replay/presenting).
         subtitle = "Playlist • Beatly"
 
     return {
@@ -181,6 +183,58 @@ def _fetch_replay_thumbnails(db: DBClient, user_id: str) -> List[str]:
 
     return [row.get("thumbnail_url") for row in rows if row.get("thumbnail_url")]
 
+def _fetch_external_owner_names(
+    db: DBClient,
+    playlist_ids: List[str],
+) -> dict[str, str]:
+    """
+    Resuelve { playlist_id: owner_name } para playlists externas, en lotes.
+    Dos pasos: playlists -> owner_id, luego profiles -> nombre.
+    Fallback username -> display_name. Robusto: si algo falla, devuelve lo que pudo.
+    """
+    if not playlist_ids:
+        return {}
+
+    CHUNK = 100
+    # Paso 1: playlist_id -> owner_id
+    pid_to_owner: dict[str, str] = {}
+    for start in range(0, len(playlist_ids), CHUNK):
+        batch = playlist_ids[start:start + CHUNK]
+        try:
+            resp = db.table("playlists").select("id, owner_id").in_("id", batch).execute()
+            for row in (resp.data or []):
+                if row.get("id") and row.get("owner_id"):
+                    pid_to_owner[row["id"]] = row["owner_id"]
+        except Exception as e:
+            print(f"[library_view] owner ids batch failed: {e}")
+            continue
+
+    if not pid_to_owner:
+        return {}
+
+    # Paso 2: owner_id -> nombre (profiles)
+    owner_ids = list(set(pid_to_owner.values()))
+    owner_to_name: dict[str, str] = {}
+    for start in range(0, len(owner_ids), CHUNK):
+        batch = owner_ids[start:start + CHUNK]
+        try:
+            resp = db.table("profiles").select("id, username, display_name").in_("id", batch).execute()
+            for row in (resp.data or []):
+                name = row.get("username") or row.get("display_name")
+                if row.get("id") and name:
+                    owner_to_name[row["id"]] = name
+        except Exception as e:
+            print(f"[library_view] profile names batch failed: {e}")
+            continue
+
+    # Combinar: playlist_id -> nombre
+    result: dict[str, str] = {}
+    for pid, owner_id in pid_to_owner.items():
+        name = owner_to_name.get(owner_id)
+        if name:
+            result[pid] = name
+    return result
+
 # ── ORDEN ──────────────────────────────────────────────────────────────────────
 def _apply_sort(items: List[LibraryViewItem], sort: SortMode) -> List[LibraryViewItem]:
     """
@@ -221,7 +275,14 @@ def get_library_view(
     items: List[LibraryViewItem] = []
     items.append(_normalize_liked(liked))
     items.extend(_normalize_own_playlist(pl, owner_name) for pl in own)
-    items.extend(_normalize_library_item(it) for it in saved)
+    external_ids = [
+        it.get("external_id") for it in saved
+        if it.get("kind") == "playlist"
+        and it.get("source") == "external"
+        and it.get("external_id")
+    ]
+    owner_names = _fetch_external_owner_names(db, external_ids)
+    items.extend(_normalize_library_item(it, owner_names) for it in saved)
 
     # Enriquecer playlists propias con mosaico (hasta 4 thumbs).
     own_ids = [pl["id"] for pl in own if pl.get("id")]
@@ -263,6 +324,22 @@ def get_library_view(
                 if it.get("kind") == "saved_playlist" and it.get("source") == "replay":
                     it["thumbnail_urls"] = replay_thumbs
                     it["thumbnail_url"] = replay_thumbs[0]
+
+    # Enriquecer playlists externas (ajenas) con mosaico (hasta 4 thumbs).
+    external_pl_ids = [
+        it["id"] for it in items
+        if it.get("kind") == "saved_playlist" and it.get("source") == "external"
+    ]
+    if external_pl_ids:
+        external_thumbs = _fetch_own_playlist_thumbnails(db, external_pl_ids)
+        if external_thumbs:
+            for it in items:
+                if it.get("kind") != "saved_playlist" or it.get("source") != "external":
+                    continue
+                urls = external_thumbs.get(it["id"]) or []
+                if urls:
+                    it["thumbnail_urls"] = urls
+                    it["thumbnail_url"] = urls[0]
 
     items = _apply_sort(items, sort)
 

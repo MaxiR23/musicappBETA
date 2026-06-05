@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Depends, Path
+from fastapi import APIRouter, Body, Depends, Path, Request, Response
 from fastapi.responses import JSONResponse
 
 from core.dependencies import get_user_db, get_service_db, get_current_user_id
@@ -7,6 +7,7 @@ from services.likes_service import get_liked_playlist
 from services.playlist_service import (
     create_playlist,
     get_playlist_by_id,
+    get_public_playlist,
     update_playlist,
     delete_playlist,
     add_track,
@@ -45,6 +46,7 @@ async def get_liked_playlist_route(
 
 @router.get("/{playlist_id}")
 async def get_playlist_by_id_route(
+    request: Request,
     playlist_id: str,
     db: DBClient = Depends(get_user_db),
     user_id: str = Depends(get_current_user_id),
@@ -53,7 +55,38 @@ async def get_playlist_by_id_route(
         result = get_playlist_by_id(db, user_id, playlist_id)
         if result is None:
             return JSONResponse(status_code=404, content={"error": "playlist_not_found"})
-        return result
+
+        # ETag = updated_at de la playlist (validador exacto, con microsegundos).
+        etag = f'"{result.get("updated_at") or ""}"'
+
+        # Si el cliente ya tiene esta version, no remandamos el payload.
+        if request.headers.get("if-none-match") == etag:
+            return Response(status_code=304, headers={"ETag": etag})
+
+        return JSONResponse(content=result, headers={"ETag": etag})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": "db_error", "detail": str(e)})
+
+@router.get("/{playlist_id}/public-view")
+async def get_public_playlist_route(
+    request: Request,
+    playlist_id: str,
+    db: DBClient = Depends(get_user_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    try:
+        result = get_public_playlist(db, playlist_id)
+        if result is None:
+            return JSONResponse(status_code=404, content={"error": "playlist_not_found"})
+
+        # ETag = updated_at de la playlist (mismo molde que la propia).
+        etag = f'"{result.get("updated_at") or ""}"'
+
+        # Si el cliente ya tiene esta version, no remandamos el payload.
+        if request.headers.get("if-none-match") == etag:
+            return Response(status_code=304, headers={"ETag": etag})
+
+        return JSONResponse(content=result, headers={"ETag": etag})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "db_error", "detail": str(e)})
 
