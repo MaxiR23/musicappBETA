@@ -35,3 +35,10 @@ cookies/
 
 # Estado runtime - vive en Redis, no en git
 cache_versions.json
+
+# Agent config & docs
+CLAUDE.md
+AGENTS.md
+docs/tasks/
+docs/completed/
+docs/reviews/

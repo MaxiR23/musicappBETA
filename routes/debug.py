@@ -1609,11 +1609,7 @@ def debug_album_ytmusicapi(
             alb = ytm.get_album(id)
             apl_id = alb.get("audio_playlist_id")
             if not apl_id:
-                raise HTTPException(status_code=404, detail={
-                    "error": "no_audio_playlist",
-                    "message": "El álbum no expone audio_playlist_id (OLAK5…).",
-                    "album_browseId": id
-                })
+                return JSONResponse(status_code=200, content={"ok": False, "reason": "no_audio_playlist", "album_browseId": id})  # 200: data not found for existing resource
             album_title = alb.get("title")
         else:
             raise HTTPException(status_code=400, detail={

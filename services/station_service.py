@@ -97,34 +97,42 @@ def filter_atv_tracks(tracks: list[dict]) -> list[dict]:
 # -- IO --
 def get_seed_artists(db: DBClient, user_id: str) -> list[str]:
     cutoff = seed_cutoff_week()
-    try:
-        resp = db.table("user_weekly_stats") \
-            .select("stats") \
-            .eq("user_id", user_id) \
-            .eq("entity_type", "artist") \
-            .gte("week_start", cutoff.isoformat()) \
-            .execute()
-        rows = (resp.data or []) if resp else []
-        totals = aggregate_artist_plays(rows)
-        return pick_seed_ids(totals)
-    except Exception as e:
-        print(f"[station_service][get_seed_artists][ERROR] {user_id}: {e}")
-        return []
+    resp = db.table("user_weekly_stats") \
+        .select("stats") \
+        .eq("user_id", user_id) \
+        .eq("entity_type", "artist") \
+        .gte("week_start", cutoff.isoformat()) \
+        .execute()
+    rows = (resp.data or []) if resp else []
+    totals = aggregate_artist_plays(rows)
+    return pick_seed_ids(totals)
 
-def get_user_stations(db: DBClient, user_id: str) -> list[dict] | None:
+def get_user_stations(db: DBClient, user_id: str) -> dict:
     """
     Lista de stations para home: una card por artista seed (top 3 o 6).
-    Cacheado. Devuelve None si no hay seeds suficientes.
+    Cacheado.
+    Returns {"ok": True, "stations": [...]} or {"ok": False, "reason": "..."}
+    Reasons: "no_stations_available" (no listening history), "error" (all ytmusicapi calls failed).
     """
     cached = get_cached(CacheType.USER_STATIONS, suffix=user_id)
     if cached is not None:
-        return cached
+        return {"ok": True, "stations": cached}
 
-    seed_ids = get_seed_artists(db, user_id)
+    try:
+        seed_ids = get_seed_artists(db, user_id)
+    except Exception as e:
+        print(f"[station_service][get_user_stations][ERROR] {user_id}: {e}")
+        return {"ok": False, "reason": "error"}
+
     if not seed_ids:
-        return None
+        return {"ok": False, "reason": "no_stations_available"}
 
-    yt = _ytmusic_client()
+    try:
+        yt = _ytmusic_client()
+    except Exception as e:
+        print(f"[station_service][get_user_stations][ERROR] ytmusic client: {e}")
+        return {"ok": False, "reason": "error"}
+
     cards: list[dict] = []
     for artist_id in seed_ids:
         try:
@@ -135,25 +143,28 @@ def get_user_stations(db: DBClient, user_id: str) -> list[dict] | None:
             continue
 
     if not cards:
-        return None
+        # Seeds existed, but every ytmusicapi call failed.
+        return {"ok": False, "reason": "error"}
 
     set_cached(CacheType.USER_STATIONS, cards, suffix=user_id)
-    return cards
+    return {"ok": True, "stations": cards}
 
-def get_station_tracks(artist_id: str) -> list[dict] | None:
+def get_station_tracks(artist_id: str) -> dict:
     """
     Devuelve los tracks de la station de un artista. Una sola llamada, sin sessions.
+    Returns {"ok": True, "tracks": [...]} or {"ok": False, "reason": "..."}
+    Reasons: "station_not_found" (artist has no radioId), "error" (ytmusicapi failure).
     """
     try:
         yt = _ytmusic_client()
         artist_data = yt.get_artist(artist_id)
         radio_id = artist_data.get("radioId")
         if not radio_id:
-            return None
+            return {"ok": False, "reason": "station_not_found"}
 
         watch = yt.get_watch_playlist(playlistId=radio_id, radio=True, limit=STATION_LIMIT)
         tracks = watch.get("tracks", [])
-        return [build_station_track(t) for t in filter_atv_tracks(tracks)]
+        return {"ok": True, "tracks": [build_station_track(t) for t in filter_atv_tracks(tracks)]}
     except Exception as e:
         print(f"[station_service][get_station_tracks][ERROR] {artist_id}: {e}")
-        return None
+        return {"ok": False, "reason": "error"}

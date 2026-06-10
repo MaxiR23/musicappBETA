@@ -16,19 +16,21 @@ async def get_user_stations_route(
     user_id: str = Depends(get_current_user_id),
 ):
     try:
-        stations = get_user_stations(db, user_id)
-        if stations is None:
-            return JSONResponse(status_code=404, content={"error": "no_stations_available"})
-        return {"stations": stations}
+        res = get_user_stations(db, user_id)
+        if not res.get("ok"):
+            status = 502 if res.get("reason") == "error" else 200
+            return JSONResponse(status_code=status, content=res)  # 200: data not found for existing resource
+        return {"stations": res["stations"]}
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": "stations_error", "detail": str(e)})
+        return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
 
 @router.get("/artist/{artist_id}")
 async def get_artist_station_route(artist_id: str):
     try:
-        tracks = get_station_tracks(artist_id)
-        if tracks is None:
-            return JSONResponse(status_code=404, content={"error": "station_not_found"})
-        return {"tracks": tracks}
+        res = get_station_tracks(artist_id)
+        if not res.get("ok"):
+            status = 502 if res.get("reason") == "error" else 200
+            return JSONResponse(status_code=status, content=res)  # 200: data not found for existing resource
+        return {"tracks": res["tracks"]}
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": "station_error", "detail": str(e)})
+        return JSONResponse(status_code=502, content={"ok": False, "error": "service_unavailable"})
